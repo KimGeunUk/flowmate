@@ -1,8 +1,9 @@
-# gw-ai — AI 사전점검 그룹웨어 설계서
+# FlowMate — AI 사전점검 그룹웨어 설계서
 
 - 작성일: 2026-08-05
 - 상태: 설계 확정 (구현 전)
 - 한 줄 정의: **AI가 결재 반려를 미리 막아주는 사내 그룹웨어**
+- 저장소 `flowmate` · 패키지 루트 `com.flowmate` · 부제 "전자결재 · 근태관리"
 
 ---
 
@@ -150,9 +151,9 @@ Spring Boot 3은 Jakarta EE 네임스페이스를 쓰므로 JSP/JSTL 설정이 B
 ### 4.2 패키지 구조
 
 ```
-com.example.gwai
+com.flowmate
 ├─ common/
-│   ├─ exception/       GwaiException, ApprovalNotFoundException 등
+│   ├─ exception/       FlowMateException, ApprovalNotFoundException 등
 │   ├─ web/             ApiResponse<T>, 전역 예외 처리(@ControllerAdvice)
 │   └─ util/
 ├─ config/
@@ -913,12 +914,24 @@ Phase 2에서 막힐 때 Phase 3으로 전환하는 것이 단순한 기분 전�
 
 ## 12. 남은 결정 사항
 
-| 항목 | 기본값 | 결정 시점 |
+| 항목 | 값 | 상태 |
 |---|---|---|
-| 반려 유형 카테고리 6종 | §5.2 정의대로 | Phase 2 Day 7 전 |
-| 문서 유형 5종 | EXPENSE/PURCHASE/LEAVE/CONTRACT/GENERAL | Phase 2 Day 4.5 전 |
-| 프로젝트/저장소 명 | `gw-ai` | Phase 0 |
-| 화면 디자인 수준 | 부트스트랩 없이 최소 CSS | Phase 1 |
+| 프로젝트명 | **FlowMate** (저장소 `flowmate`, 패키지 `com.flowmate`) | **확정** (2026-08-05) |
+| 반려 유형 카테고리 6종 | §5.2 정의대로 | Phase 2 Day 7 전 결정 |
+| 문서 유형 5종 | EXPENSE/PURCHASE/LEAVE/CONTRACT/GENERAL | Phase 2 Day 4.5 전 결정 |
+| 화면 디자인 수준 | 부트스트랩 없이 최소 CSS | Phase 1 결정 |
+
+### 12.1 명명 규칙 (확정)
+
+| 위치 | 표기 |
+|---|---|
+| Git 저장소 | `flowmate` |
+| Maven `artifactId` | `flowmate` |
+| Maven `groupId` | `com.flowmate` |
+| 패키지 루트 | `com.flowmate` (`com.example.*`는 사용하지 않는다 — 튜토리얼 흔적으로 읽힌다) |
+| WAR 파일 | `flowmate.war` |
+| README 제목 | `# FlowMate` + 부제 `### AI 사전점검 그룹웨어 — 전자결재 · 근태관리` |
+| 이력서 표기 | **FlowMate** — AI 결재 사전점검 그룹웨어 |
 
 ---
 
