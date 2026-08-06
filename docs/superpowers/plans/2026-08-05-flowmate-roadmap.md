@@ -32,7 +32,16 @@
 | 5 | `phase-5-ai-features.md` | Phase 5 | 4.0 | 문서 요약, 상신 전 사전점검(평가셋 5건 통과), 연차 맥락 표시가 동작한다 | `phase-5-ai-features` |
 | 6 | `phase-6-finish.md` | Phase 6 | 1.5 | `docker compose up` 한 번으로 전체가 뜨고, CSS가 채워지고, README가 완성된다. **저장소를 public 으로 전환한다** | `v1.0.0` |
 
-> **계획서 6의 필수 항목 (지금 확정해 둔다):** public 전환 **전에** 전체 커밋 이력에서 비밀값을 재검한다.
+> **계획서 6의 필수 항목 ① — 컨테이너 JVM 문자셋.** `pom.xml` 은 Maven·테스트 포크·`spring-boot:run`
+> 세 JVM 만 UTF-8 로 고정할 수 있다. **Phase 6 의 외부 Tomcat 컨테이너 JVM 은 `catalina.sh` 가 띄우므로
+> pom 의 영향권 밖이다.** slim Linux 이미지는 `LANG` 이 `POSIX`/`C` 인 경우가 많고, JDK 17 은
+> UTF-8 기본값(JEP 400)이 없어 `file.encoding` 이 UTF-8 이 되지 않는다.
+> → Dockerfile/compose 에서 `CATALINA_OPTS`(또는 `JAVA_OPTS`)에 `-Dfile.encoding=UTF-8` 을 넣거나
+> 컨테이너 로케일을 UTF-8 로 맞춘다. **누락되면 한글이 컨테이너에서만 깨진다** (로컬은 정상).
+> 같은 이유로 `java -jar target/flowmate.war` 를 손으로 실행할 때도 플래그가 필요하므로,
+> README 의 실행 명령은 `mvnw spring-boot:run` 을 표준으로 적는다.
+>
+> **계획서 6의 필수 항목 ② — 비밀값 재검.** public 전환 **전에** 전체 커밋 이력에서 비밀값을 재검한다.
 > Phase 3에서 Anthropic API 키를 다루므로 `git log -p -- src/main/resources/` 와
 > `git log -p -S "sk-ant"` 로 어느 커밋에도 키가 없는지 확인한다.
 > `.gitignore` 의 `application-local.yml` 이 1차 방어선이고, 이 재검이 2차다.
