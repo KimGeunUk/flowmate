@@ -607,6 +607,15 @@ Security 스타터는 기본 Basic 인증으로 모든 URL을 막아 Task 3의 J
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!--
+                  spring-boot:run 은 별도의 애플리케이션 JVM 을 띄우므로
+                  .mvn/jvm.config 도 Surefire argLine 도 물려받지 않는다.
+                  JDK 17 은 file.encoding 을 플랫폼 문자셋(이 PC 는 MS949)에서 가져오고
+                  UTF-8 기본값(JEP 400)은 JDK 18 부터다. 개발 실행 JVM 도 UTF-8 로 고정한다.
+                -->
+                <configuration>
+                    <jvmArguments>-Dfile.encoding=UTF-8</jvmArguments>
+                </configuration>
             </plugin>
             <!--
               *Test.java 는 Surefire(mvn test), *IT.java 는 Failsafe(mvn verify)가 실행한다.
@@ -659,8 +668,32 @@ mvn -N wrapper:wrapper -Dmaven=3.9.16
 
 이 PC 의 Maven 이 `platform encoding: MS949` 를 보고하기 때문이다. 지금 당장 깨지는 것은 없지만
 Phase 3 의 `PromptRepository` 가 UTF-8 프롬프트 파일을 읽으므로 기본 문자셋을 여기서 고정한다.
-`.mvn/jvm.config` 는 Maven JVM 에만 적용되고 Surefire/Failsafe 포크에는 전파되지 않으므로,
-테스트 JVM 쪽은 Step 1 의 `pom.xml` 에 넣은 `argLine` 이 담당한다.
+**UTF-8 을 세 곳에 따로 걸어야 하는 이유** — JVM 이 세 개고 서로 설정을 물려받지 않는다.
+
+| JVM | 무엇이 담당하는가 |
+|---|---|
+| Maven 자신 | `.mvn/jvm.config` |
+| 테스트 포크 (Surefire · Failsafe) | `pom.xml` 의 각 플러그인 `argLine` |
+| 애플리케이션 (`spring-boot:run`) | `spring-boot-maven-plugin` 의 `jvmArguments` |
+
+이 PC 의 JDK 17 은 `java -XshowSettings:properties -version` 에서 `file.encoding = MS949` 를 보고한다.
+**UTF-8 기본값(JEP 400)은 JDK 18 부터**이므로 Java 17 에서는 명시하지 않으면 플랫폼 문자셋을 쓴다.
+
+세 곳 중 하나를 빠뜨리면 **"테스트는 통과하는데 실제 실행만 깨지는"** 함정이 된다.
+Phase 3 의 `PromptRepository` 가 UTF-8 프롬프트 파일을 읽으므로 여기서 셋 다 막는다.
+
+- [ ] **Step 2b: `mvnw` 에 실행 권한을 준다**
+
+`mvn wrapper:wrapper` 가 만든 `mvnw` 는 Windows 에서 mode `100644` 로 커밋된다.
+**Linux/macOS 에서 클론하면 `./mvnw` 가 `Permission denied` 로 죽는다** — 빌드 오류가 아니라
+처음 실행하는 명령부터 실패하는 상태다. Phase 6 에서 저장소를 공개하고 Linux 컨테이너에 배포하므로 지금 고친다.
+
+```powershell
+git update-index --chmod=+x mvnw
+git ls-files -s mvnw mvnw.cmd
+```
+
+기대: `mvnw` 가 `100755`, `mvnw.cmd` 는 `100644` 유지 (Windows 배치 파일이라 실행 비트가 필요없다).
 
 - [ ] **Step 3: 애플리케이션 진입점 두 개를 만든다**
 
