@@ -17,7 +17,7 @@
  * ── 클래스 목록 (Phase 1) ────────────────────────────────────────
  * 레이아웃   .layout  .content  .page-title
  * 상단       .gnb  .gnb__brand  .gnb__user  .gnb__user-name  .gnb__user-org  .gnb__logout
- * 좌측       .lnb  .lnb__group  .lnb__group-title  .lnb__link  .lnb__link--active
+ * 좌측       .lnb  .lnb__group  .lnb__group-title  .lnb__link
  * 하단       .footer  .footer__name  .footer__desc
  * 폼         .form-row  .form-label  .form-input  .search-form
  * 버튼       .btn  .btn--primary  .btn--plain
