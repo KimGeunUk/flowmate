@@ -521,9 +521,11 @@ Security 스타터는 기본 Basic 인증으로 모든 URL을 막아 Task 3의 J
 
 **Files:**
 - Create: `pom.xml`
+- Create: `.mvn/jvm.config`
 - Create: `src/main/java/com/flowmate/FlowmateApplication.java`
 - Create: `src/main/java/com/flowmate/ServletInitializer.java`
 - Create: `src/main/resources/application.yml`
+- Test: `src/test/java/com/flowmate/FlowmateApplicationIT.java`
 
 - [ ] **Step 1: `pom.xml` 을 만든다**
 
@@ -724,14 +726,57 @@ logging:
     com.flowmate: DEBUG
 ```
 
-- [ ] **Step 5: 애플리케이션이 뜨는지 확인한다**
+- [ ] **Step 5: 컨텍스트 로드 테스트로 부팅을 검증한다**
+
+콘솔에서 `Tomcat started` 를 눈으로 확인하는 대신 자동화된 테스트로 고정한다. 회귀 테스트로 남고,
+서버를 띄워 두는 블로킹 명령이 필요 없다.
+
+`src/test/java/com/flowmate/FlowmateApplicationIT.java`:
+
+```java
+package com.flowmate;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+/**
+ * Spring 컨텍스트가 끝까지 로드되는지만 확인한다.
+ *
+ * 이름이 *Tests 가 아니라 *IT 인 이유:
+ * Task 5 에서 DataSource 를 추가하면 이 테스트가 DB 연결을 요구하게 된다.
+ * *Tests 였다면 그 순간부터 `mvnw test` 가 Docker 없이 실패해
+ * "단위 테스트는 Docker 없이 돈다" 는 규칙이 깨진다. Failsafe(*IT)에 두어 경계를 지킨다.
+ */
+@SpringBootTest
+class FlowmateApplicationIT {
+
+    @Test
+    @DisplayName("Spring 컨텍스트가 로드된다")
+    void contextLoads() {
+        // 컨텍스트 로딩 자체가 검증 대상이다. 실패하면 예외로 터진다.
+    }
+}
+```
+
+실행:
+
+```powershell
+.\mvnw.cmd clean verify
+```
+
+기대: `BUILD SUCCESS`, `Tests run: 1` (Failsafe), `target/flowmate.war` 생성.
+
+> **`~/.m2` 가 비어 있으면 첫 실행이 수백 MB 를 내려받는다.** 수 분이 걸릴 수 있으며 정상이다.
+
+- [ ] **Step 5b: 개발용 실행 명령을 확인한다 (선택)**
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-기대: 콘솔에 `Tomcat started on port 8080` 과 `Started FlowmateApplication in ...` 출력.
-`Ctrl+C` 로 종료한다.
+기대: 콘솔에 `Tomcat started on port 8080` 과 `Started FlowmateApplication in ...`. `Ctrl+C` 로 종료.
+Task 3 에서 브라우저 확인이 필요하므로 이 명령이 동작하는지는 알아 둔다.
 
 > `packaging`이 `war`이고 `spring-boot-starter-tomcat`이 `provided`여도 `spring-boot:run`은 동작한다.
 > 플러그인이 provided 스코프를 실행 클래스패스에 포함시킨다. IDE에서 `main()`을 직접 실행할 때는
