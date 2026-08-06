@@ -1,0 +1,32 @@
+/*
+ * FlowMate 전체 스타일 — 단일 파일로 유지한다.
+ * UI 프레임워크는 쓰지 않는다.
+ *
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ 이 파일은 마지막 Phase 에서 채운다.                          │
+ * │ 그때까지는 아래 "클래스 목록"만 갱신한다.                     │
+ * │                                                             │
+ * │ 규칙:                                                        │
+ * │   영역은 명사        .doc-list  .ai-panel  .approval-line    │
+ * │   상태는 -- 접미     .status--pending  .status--rejected      │
+ * │   버튼은 .btn + 역할 .btn--primary  .btn--danger              │
+ * │   폼은 고정 3종      .form-row  .form-label  .form-input      │
+ * │   시각 기반 금지     .blue-box .big-text .red 를 쓰지 않는다  │
+ * └─────────────────────────────────────────────────────────────┘
+ *
+ * ── 클래스 목록 (Phase 1) ────────────────────────────────────────
+ * 레이아웃   .layout  .content  .page-title
+ * 상단       .gnb  .gnb__brand  .gnb__user  .gnb__user-name  .gnb__user-org  .gnb__logout
+ * 좌측       .lnb  .lnb__group  .lnb__group-title  .lnb__link  .lnb__link--active
+ * 하단       .footer  .footer__name  .footer__desc
+ * 폼         .form-row  .form-label  .form-input  .search-form
+ * 버튼       .btn  .btn--primary  .btn--plain
+ * 알림       .alert  .alert--error  .alert--info
+ * 페이징     .pagination  .pagination__link  .pagination__link--current
+ *            .pagination__link--prev  .pagination__link--next
+ * 로그인     .login-page  .login-box  .login-box__title  .login-box__subtitle
+ * 사원목록   .emp-list  .emp-list__empty  .result-count
+ * 조직도     .dept-tree  .dept-tree__item  .dept-tree__item--depth1 ~ --depth5
+ *            .dept-tree__code  .dept-tree__name  .dept-tree__count
+ * 홈         .home-panel  .home-panel__title  .home-panel__item
+ */

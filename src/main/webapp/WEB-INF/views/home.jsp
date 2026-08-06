@@ -3,17 +3,32 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>FlowMate</title>
-</head>
+<jsp:include page="common/head.jsp">
+    <jsp:param name="pageTitle" value="홈"/>
+</jsp:include>
 <body>
-<h1>FlowMate</h1>
-<p>서버 시각: <fmt:formatDate value="${serverTime}" pattern="yyyy-MM-dd HH:mm:ss"/></p>
-<ul>
-    <c:forEach items="${modules}" var="m">
-        <li><c:out value="${m}"/></li>
-    </c:forEach>
-</ul>
+<jsp:include page="common/header.jsp"/>
+<div class="layout">
+    <jsp:include page="common/sidebar.jsp"/>
+    <main class="content">
+        <h2 class="page-title">홈</h2>
+
+        <section class="home-panel">
+            <h3 class="home-panel__title">시스템 상태</h3>
+            <p class="home-panel__item">
+                서버 시각 <fmt:formatDate value="${serverTime}" pattern="yyyy-MM-dd HH:mm:ss"/>
+            </p>
+            <p class="home-panel__item">DB <c:out value="${dbInfo}"/></p>
+        </section>
+
+        <section class="home-panel">
+            <h3 class="home-panel__title">모듈</h3>
+            <c:forEach items="${modules}" var="m">
+                <p class="home-panel__item"><c:out value="${m}"/></p>
+            </c:forEach>
+        </section>
+    </main>
+</div>
+<jsp:include page="common/footer.jsp"/>
 </body>
 </html>
