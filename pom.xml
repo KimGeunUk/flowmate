@@ -75,6 +75,15 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!--
+                  spring-boot:run 은 별도의 애플리케이션 JVM 을 띄우므로
+                  .mvn/jvm.config 도 Surefire argLine 도 물려받지 않는다.
+                  JDK 17 은 file.encoding 을 플랫폼 문자셋(이 PC 는 MS949)에서 가져오고
+                  UTF-8 기본값(JEP 400)은 JDK 18 부터다. 개발 실행 JVM 도 UTF-8 로 고정한다.
+                -->
+                <configuration>
+                    <jvmArguments>-Dfile.encoding=UTF-8</jvmArguments>
+                </configuration>
             </plugin>
             <!--
               *Test.java 는 Surefire(mvn test), *IT.java 는 Failsafe(mvn verify)가 실행한다.
