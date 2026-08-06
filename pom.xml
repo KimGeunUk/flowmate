@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.flowmate</groupId>
+    <artifactId>flowmate</artifactId>
+    <version>1.0.0</version>
+    <packaging>war</packaging>
+    <name>flowmate</name>
+    <description>AI 사전점검 그룹웨어 — 전자결재 · 근태관리</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jstl-api.version>3.0.0</jstl-api.version>
+        <jstl-impl.version>3.0.1</jstl-impl.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 산출물은 WAR이고 외부 Tomcat 10.1에 배포한다. 내장 Tomcat은 개발 실행용이므로 provided. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- JSP 컴파일러(Jasper). 외부 Tomcat이 제공하므로 provided. 이게 없으면 JSP가 404가 된다. -->
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-jasper</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+          JSTL: Jakarta EE 10 좌표를 써야 한다.
+          javax 시절의 jstl:jstl 이나 taglibs-standard 를 쓰면 taglib URI가 안 맞아
+          태그가 그대로 문자열로 출력된다. Tomcat은 JSTL을 제공하지 않으므로 provided가 아니다.
+        -->
+        <dependency>
+            <groupId>jakarta.servlet.jsp.jstl</groupId>
+            <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+            <version>${jstl-api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.web</groupId>
+            <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+            <version>${jstl-impl.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- 산출물 이름을 flowmate.war 로 고정한다 -->
+        <finalName>flowmate</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!--
+              *Test.java 는 Surefire(mvn test), *IT.java 는 Failsafe(mvn verify)가 실행한다.
+              DB가 필요한 테스트를 mvn test 에서 분리하기 위한 배선이다.
+
+              argLine 으로 문자셋을 고정하는 이유: 이 개발 PC 의 플랫폼 인코딩이 MS949 이고,
+              테스트 JVM 은 Maven JVM(.mvn/jvm.config)의 설정을 물려받지 않는 별도 포크다.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
