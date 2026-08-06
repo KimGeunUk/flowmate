@@ -951,6 +951,16 @@ core와 fmt 두 태그리브가 실제로 동작하는 화면으로 고정해 �
 
 ### Task 4: PostgreSQL 컨테이너
 
+> **★ 실행 순서 변경 (2026-08-06).** Task 0C(WSL2 + Docker Desktop)가 관리자 권한과 재부팅을 요구하는
+> 사용자 작업이라 미완인 상태다. **Task 4 · 5 · 6 · 10 · 11 · 12 는 DB 를 요구하므로 여기서 멈춘다.**
+>
+> 대신 DB 가 필요 없는 Task 를 먼저 소화했다: **Task 7 → 8 → 9**.
+> (`Page<T>` 와 `EmployeeSearchCond` 는 순수 로직, 공통 레이아웃 조각은 JSP·CSS·jQuery 뿐이다.)
+>
+> Docker 가 준비되면 **Task 4 → 5 → 6 → 10 → 11 → 12 → 13** 순서로 재개한다.
+> Task 9 가 먼저 실행되면 `home.jsp` 에 `${dbInfo}` 가 빈 값으로 렌더링되는데 **정상이다** —
+> Task 5 가 `DbHealthService` 를 붙이면 채워진다.
+
 **Files:**
 - Create: `docker-compose.yml`
 - Create: `docker/postgres/init/00-extension.sql`
@@ -1035,6 +1045,7 @@ init 스크립트를 번호 접두사로 관리해 Phase별 스키마를 순서�
 - Modify: `pom.xml` (의존성 2개 추가)
 - Modify: `src/main/resources/application.yml`
 - Create: `src/main/java/com/flowmate/common/mapper/DbHealthMapper.java`
+- Create: `src/main/java/com/flowmate/common/service/DbHealthService.java`
 - Modify: `src/main/java/com/flowmate/org/controller/HomeController.java`
 - Modify: `src/main/webapp/WEB-INF/views/home.jsp`
 - Modify: `README.md`
@@ -1117,6 +1128,43 @@ public interface DbHealthMapper {
 }
 ```
 
+- [ ] **Step 3b: `DbHealthService` 를 만든다**
+
+> **이 클래스를 건너뛰고 `HomeController` 에 `DbHealthMapper` 를 직접 주입하면 안 된다.**
+> 설계서 §4.3 은 "Controller는 Service만 호출. Mapper 직접 호출 금지 — **위반하면 리뷰에서 반려**" 다.
+> 호출이 사소하다는 이유로 예외를 두면, 그것이 계층 규칙이 무너지는 시작점이 된다.
+> 이 프로젝트의 **첫 DB 접근**이므로 여기서 규칙을 지키는 모습이 이후 전부의 기준이 된다.
+
+```java
+package com.flowmate.common.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.flowmate.common.mapper.DbHealthMapper;
+
+/**
+ * DB 연결 상태 조회.
+ *
+ * 하는 일이 위임 한 줄뿐이지만 Service 계층을 두는 이유는 설계서 §4.3 때문이다.
+ * Controller 가 Mapper 를 직접 부르지 않는다는 규칙에 예외를 만들지 않는다.
+ */
+@Service
+public class DbHealthService {
+
+    private final DbHealthMapper dbHealthMapper;
+
+    public DbHealthService(DbHealthMapper dbHealthMapper) {
+        this.dbHealthMapper = dbHealthMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public String findDbInfo() {
+        return dbHealthMapper.selectDbInfo();
+    }
+}
+```
+
 - [ ] **Step 4: `HomeController` 가 DB 정보를 모델에 담게 수정한다**
 
 ```java
@@ -1129,22 +1177,23 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import com.flowmate.common.mapper.DbHealthMapper;
+import com.flowmate.common.service.DbHealthService;
 
 @Controller
 public class HomeController {
 
-    private final DbHealthMapper dbHealthMapper;
+    private final DbHealthService dbHealthService;
 
-    public HomeController(DbHealthMapper dbHealthMapper) {
-        this.dbHealthMapper = dbHealthMapper;
+    public HomeController(DbHealthService dbHealthService) {
+        this.dbHealthService = dbHealthService;
     }
 
     @GetMapping("/")
     public String home(Model model) {
+        // serverTime 이 java.util.Date 인 이유: <fmt:formatDate> 가 java.time 타입을 받지 못한다.
         model.addAttribute("serverTime", new Date());
         model.addAttribute("modules", List.of("전자결재", "근태관리"));
-        model.addAttribute("dbInfo", dbHealthMapper.selectDbInfo());
+        model.addAttribute("dbInfo", dbHealthService.findDbInfo());
         return "home";
     }
 }
