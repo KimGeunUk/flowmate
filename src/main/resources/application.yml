@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: flowmate
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/flowmate
+    username: flowmate
+    password: flowmate
+  mvc:
+    view:
+      prefix: /WEB-INF/views/
+      suffix: .jsp
+
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  # 재귀 스캔이므로 클래스 단순명이 전 패키지에서 유일해야 한다
+  type-aliases-package: com.flowmate
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.flowmate: DEBUG

@@ -1,0 +1,34 @@
+# 빌드 산출물
+target/
+*.war
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+.vscode/
+
+# 로그
+*.log
+logs/
+
+# 로컬 설정 · 비밀값 (Phase 3의 Anthropic API 키가 여기 들어간다)
+# 확장자와 관용 파일명 변형을 함께 막는다. application-local.yaml 한 글자 차이로
+# 키가 추적 대상이 되면 public 전환 시 이력에 영구히 남는다.
+#
+# 주의: application-docker.yml 처럼 정상적으로 커밋해야 하는 프로필이 Phase 6에 생기므로
+# application-*.yml 같은 넓은 와일드카드는 쓰지 않는다.
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-secret.yml
+src/main/resources/application-secret.yaml
+.env
+*.env
+
+# OS
+Thumbs.db
+.DS_Store

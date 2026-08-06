@@ -374,6 +374,7 @@ java -version; mvn -version; docker compose version; gh auth status; git remote 
 
 **Files:**
 - Create: `.gitignore`
+- Create: `.gitattributes`
 - Create: `README.md`
 
 - [ ] **Step 1: Task 0A 가 끝났는지만 확인한다**
@@ -425,6 +426,37 @@ Thumbs.db
 .DS_Store
 ```
 
+- [ ] **Step 3b: `.gitattributes` 를 만든다**
+
+이 PC 의 `core.autocrlf` 는 `true` 라 지금은 저장소에 LF 로 저장된다. 그러나
+**`autocrlf` 는 로컬 설정이지 저장소 속성이 아니다** — `false` 로 설정된 다른 PC 에서 커밋하면
+CRLF 가 저장소에 들어가고, Phase 6 의 Linux 컨테이너에서 `mvnw` 나 셸 스크립트가 깨진다.
+줄바꿈 규칙을 저장소에 고정한다.
+
+```gitattributes
+# 기본: 텍스트는 저장소에 LF 로 저장한다
+* text=auto eol=lf
+
+# Windows 전용 스크립트는 작업 사본에서 CRLF 여야 한다
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Linux 에서 실행되는 것은 반드시 LF (CRLF 면 bad interpreter 로 죽는다)
+mvnw       text eol=lf
+*.sh       text eol=lf
+Dockerfile text eol=lf
+
+# 이진 파일은 변환하지 않는다
+*.jar   binary
+*.war   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+```
+
 - [ ] **Step 4: `README.md` 골격을 만든다**
 
 설계서 §12.1이 확정한 제목·부제를 그대로 쓴다.
@@ -454,12 +486,28 @@ Java 17 · Spring Boot 3.2 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreS
 
 - [ ] **Step 5: 커밋한다**
 
+> **★ Windows PowerShell 주의:** 커밋 메시지 본문에 큰따옴표가 들어가면
+> PowerShell 5.1 의 네이티브 인자 전달이 깨져 git 이 메시지 조각을 pathspec 으로 오인한다
+> (`error: pathspec '...' did not match any file(s)`).
+> **여러 줄 메시지는 파일에 쓴 뒤 `git commit -F <파일>` 로 넘긴다.**
+
 ```powershell
-git add .gitignore README.md
-git commit -m "chore: 저장소 골격 추가 - gitignore와 README 뼈대
+git add .gitignore .gitattributes README.md
+# 메시지를 임시 파일에 쓴 뒤:
+git commit -F <메시지파일경로>
+```
+
+메시지 내용:
+
+```
+chore: 저장소 골격 추가 - gitignore, gitattributes, README 뼈대
 
 WAR 산출물과 로컬 비밀값 파일을 추적 대상에서 제외한다.
-Phase 3의 Anthropic API 키가 application-local.yml 로 들어갈 예정이므로 미리 등록한다."
+Phase 3의 Anthropic API 키가 application-local.yml 로 들어갈 예정이므로 미리 등록한다.
+
+줄바꿈 규칙을 gitattributes 로 저장소에 고정한다. core.autocrlf 는 로컬 설정이라
+저장소 속성이 아니고, Phase 6 은 Linux 컨테이너에 배포하므로 mvnw 와 셸 스크립트가
+CRLF 로 커밋되면 bad interpreter 로 죽는다.
 ```
 
 ---
@@ -473,9 +521,11 @@ Security 스타터는 기본 Basic 인증으로 모든 URL을 막아 Task 3의 J
 
 **Files:**
 - Create: `pom.xml`
+- Create: `.mvn/jvm.config`
 - Create: `src/main/java/com/flowmate/FlowmateApplication.java`
 - Create: `src/main/java/com/flowmate/ServletInitializer.java`
 - Create: `src/main/resources/application.yml`
+- Test: `src/test/java/com/flowmate/FlowmateApplicationIT.java`
 
 - [ ] **Step 1: `pom.xml` 을 만든다**
 
@@ -557,6 +607,15 @@ Security 스타터는 기본 Basic 인증으로 모든 URL을 막아 Task 3의 J
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!--
+                  spring-boot:run 은 별도의 애플리케이션 JVM 을 띄우므로
+                  .mvn/jvm.config 도 Surefire argLine 도 물려받지 않는다.
+                  JDK 17 은 file.encoding 을 플랫폼 문자셋(이 PC 는 MS949)에서 가져오고
+                  UTF-8 기본값(JEP 400)은 JDK 18 부터다. 개발 실행 JVM 도 UTF-8 로 고정한다.
+                -->
+                <configuration>
+                    <jvmArguments>-Dfile.encoding=UTF-8</jvmArguments>
+                </configuration>
             </plugin>
             <!--
               *Test.java 는 Surefire(mvn test), *IT.java 는 Failsafe(mvn verify)가 실행한다.
@@ -609,8 +668,32 @@ mvn -N wrapper:wrapper -Dmaven=3.9.16
 
 이 PC 의 Maven 이 `platform encoding: MS949` 를 보고하기 때문이다. 지금 당장 깨지는 것은 없지만
 Phase 3 의 `PromptRepository` 가 UTF-8 프롬프트 파일을 읽으므로 기본 문자셋을 여기서 고정한다.
-`.mvn/jvm.config` 는 Maven JVM 에만 적용되고 Surefire/Failsafe 포크에는 전파되지 않으므로,
-테스트 JVM 쪽은 Step 1 의 `pom.xml` 에 넣은 `argLine` 이 담당한다.
+**UTF-8 을 세 곳에 따로 걸어야 하는 이유** — JVM 이 세 개고 서로 설정을 물려받지 않는다.
+
+| JVM | 무엇이 담당하는가 |
+|---|---|
+| Maven 자신 | `.mvn/jvm.config` |
+| 테스트 포크 (Surefire · Failsafe) | `pom.xml` 의 각 플러그인 `argLine` |
+| 애플리케이션 (`spring-boot:run`) | `spring-boot-maven-plugin` 의 `jvmArguments` |
+
+이 PC 의 JDK 17 은 `java -XshowSettings:properties -version` 에서 `file.encoding = MS949` 를 보고한다.
+**UTF-8 기본값(JEP 400)은 JDK 18 부터**이므로 Java 17 에서는 명시하지 않으면 플랫폼 문자셋을 쓴다.
+
+세 곳 중 하나를 빠뜨리면 **"테스트는 통과하는데 실제 실행만 깨지는"** 함정이 된다.
+Phase 3 의 `PromptRepository` 가 UTF-8 프롬프트 파일을 읽으므로 여기서 셋 다 막는다.
+
+- [ ] **Step 2b: `mvnw` 에 실행 권한을 준다**
+
+`mvn wrapper:wrapper` 가 만든 `mvnw` 는 Windows 에서 mode `100644` 로 커밋된다.
+**Linux/macOS 에서 클론하면 `./mvnw` 가 `Permission denied` 로 죽는다** — 빌드 오류가 아니라
+처음 실행하는 명령부터 실패하는 상태다. Phase 6 에서 저장소를 공개하고 Linux 컨테이너에 배포하므로 지금 고친다.
+
+```powershell
+git update-index --chmod=+x mvnw
+git ls-files -s mvnw mvnw.cmd
+```
+
+기대: `mvnw` 가 `100755`, `mvnw.cmd` 는 `100644` 유지 (Windows 배치 파일이라 실행 비트가 필요없다).
 
 - [ ] **Step 3: 애플리케이션 진입점 두 개를 만든다**
 
@@ -676,14 +759,57 @@ logging:
     com.flowmate: DEBUG
 ```
 
-- [ ] **Step 5: 애플리케이션이 뜨는지 확인한다**
+- [ ] **Step 5: 컨텍스트 로드 테스트로 부팅을 검증한다**
+
+콘솔에서 `Tomcat started` 를 눈으로 확인하는 대신 자동화된 테스트로 고정한다. 회귀 테스트로 남고,
+서버를 띄워 두는 블로킹 명령이 필요 없다.
+
+`src/test/java/com/flowmate/FlowmateApplicationIT.java`:
+
+```java
+package com.flowmate;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+/**
+ * Spring 컨텍스트가 끝까지 로드되는지만 확인한다.
+ *
+ * 이름이 *Tests 가 아니라 *IT 인 이유:
+ * Task 5 에서 DataSource 를 추가하면 이 테스트가 DB 연결을 요구하게 된다.
+ * *Tests 였다면 그 순간부터 `mvnw test` 가 Docker 없이 실패해
+ * "단위 테스트는 Docker 없이 돈다" 는 규칙이 깨진다. Failsafe(*IT)에 두어 경계를 지킨다.
+ */
+@SpringBootTest
+class FlowmateApplicationIT {
+
+    @Test
+    @DisplayName("Spring 컨텍스트가 로드된다")
+    void contextLoads() {
+        // 컨텍스트 로딩 자체가 검증 대상이다. 실패하면 예외로 터진다.
+    }
+}
+```
+
+실행:
+
+```powershell
+.\mvnw.cmd clean verify
+```
+
+기대: `BUILD SUCCESS`, `Tests run: 1` (Failsafe), `target/flowmate.war` 생성.
+
+> **`~/.m2` 가 비어 있으면 첫 실행이 수백 MB 를 내려받는다.** 수 분이 걸릴 수 있으며 정상이다.
+
+- [ ] **Step 5b: 개발용 실행 명령을 확인한다 (선택)**
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-기대: 콘솔에 `Tomcat started on port 8080` 과 `Started FlowmateApplication in ...` 출력.
-`Ctrl+C` 로 종료한다.
+기대: 콘솔에 `Tomcat started on port 8080` 과 `Started FlowmateApplication in ...`. `Ctrl+C` 로 종료.
+Task 3 에서 브라우저 확인이 필요하므로 이 명령이 동작하는지는 알아 둔다.
 
 > `packaging`이 `war`이고 `spring-boot-starter-tomcat`이 `provided`여도 `spring-boot:run`은 동작한다.
 > 플러그인이 provided 스코프를 실행 클래스패스에 포함시킨다. IDE에서 `main()`을 직접 실행할 때는
@@ -705,8 +831,32 @@ DataSource 자동설정이 켜지면 DB 없이 뜨지 않으므로 MyBatis 의�
 ### Task 3: JSP + Jakarta JSTL 배선 검증 ★ 최대 리스크
 
 > 설계서 §3.1의 유일한 목표. **4시간 초과 시 탈출 조건 발동.**
-> 실패 신호는 500 에러가 아니라 **브라우저에 `<fmt:formatDate .../>` 같은 태그가 문자열로 그대로 보이는 것**이다.
-> 이 경우 원인은 거의 항상 taglib URI가 `javax` 시절 값(`http://java.sun.com/jsp/jstl/core`)인 것이다.
+>
+> **★ 착수 전 확인한 사실 — 설계서 §3.1 의 위험 서술을 정정한다.**
+>
+> `org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1` jar 안의 TLD 를 직접 열어 확인한 결과,
+> 이 jar 은 **두 URI 계열을 모두 등록한다.**
+>
+> | TLD 파일 | 등록된 URI |
+> |---|---|
+> | `c.tld` | `jakarta.tags.core` |
+> | `c-1_2.tld` | `http://java.sun.com/jsp/jstl/core` |
+> | `fmt.tld` / `fmt-1_1.tld` | `jakarta.tags.fmt` / `http://java.sun.com/jsp/jstl/fmt` |
+> | `fn.tld` / `fn-1_1.tld` | `jakarta.tags.functions` / `http://java.sun.com/jsp/jstl/functions` |
+>
+> 따라서 설계서가 말한 "기존 URI 를 쓰면 태그가 문자열로 출력되거나 500 발생" 은 **이 artifact 에서는 성립하지 않는다.**
+> 구형 URI 도 해석된다. 실제 실패 원인은 URI 가 아니라 **artifact 선택**이다.
+>
+> **진짜 실패 모드 세 가지 (혼동하면 엉뚱한 곳을 고치게 된다):**
+>
+> | 증상 | 실제 원인 |
+> |---|---|
+> | 500 `The absolute uri [...] cannot be resolved` | JSTL **구현체 jar 자체가 없다** (API 만 있음). URI 오타여도 이 증상 |
+> | `NoClassDefFoundError: javax/servlet/jsp/...` | `javax` 시절 artifact(`javax.servlet:jstl` 등)를 Tomcat 10.1 에서 썼다. **이것이 설계서가 경계한 진짜 함정** |
+> | 태그가 문자열로 그대로 출력 | `<%@ taglib %>` **선언을 빠뜨렸다**. URI 문제가 아니다 |
+>
+> 그래도 `jakarta.tags.*` 를 쓴다 — 구형 URI 는 하위호환용 잔존물이고 Jakarta EE 10 의 정식 URI 가 이것이다.
+> **위험도가 설계서 예상보다 낮으므로 탈출 조건까지 갈 가능성은 작다.**
 
 **Files:**
 - Create: `src/main/java/com/flowmate/org/controller/HomeController.java`
@@ -780,8 +930,9 @@ public class HomeController {
 | 증상 | 원인 | 조치 |
 |---|---|---|
 | 404 | `tomcat-embed-jasper` 누락 또는 `spring.mvc.view.prefix` 오타 | pom과 application.yml 확인 |
-| 태그가 문자열로 출력 | taglib URI가 `javax` 시절 값 | `jakarta.tags.core` / `jakarta.tags.fmt` 로 교정 |
-| 500 `The absolute uri cannot be resolved` | JSTL 구현체(`org.glassfish.web:jakarta.servlet.jsp.jstl`) 누락 | pom 확인 |
+| 500 `The absolute uri [...] cannot be resolved` | JSTL **구현체** (`org.glassfish.web:jakarta.servlet.jsp.jstl`) 누락. API 만 있으면 이 증상이다. URI 오타여도 같은 증상 | pom 의 구현체 의존성과 `<%@ taglib %>` 의 URI 철자 확인 |
+| `NoClassDefFoundError: javax/servlet/jsp/...` | **`javax` 시절 artifact** 를 Tomcat 10.1 에서 썼다 (`javax.servlet:jstl`, `taglibs-standard` 등). 설계서 §3.1이 경계한 진짜 함정 | pom 에서 `jakarta.*` 좌표만 남긴다 |
+| 태그가 문자열로 그대로 출력 | `<%@ taglib %>` **선언 누락**. URI 문제가 아니다 | JSP 상단의 taglib 지시자 확인 |
 | 500 `Unable to compile class for JSP` | Jasper가 provided인데 실행 클래스패스에 없음 | `spring-boot:run` 으로 실행하는지 확인 |
 | 한글 깨짐 | `pageEncoding` 누락 또는 `server.servlet.encoding.force` 미설정 | 둘 다 확인 |
 
@@ -799,6 +950,16 @@ core와 fmt 두 태그리브가 실제로 동작하는 화면으로 고정해 �
 ---
 
 ### Task 4: PostgreSQL 컨테이너
+
+> **★ 실행 순서 변경 (2026-08-06).** Task 0C(WSL2 + Docker Desktop)가 관리자 권한과 재부팅을 요구하는
+> 사용자 작업이라 미완인 상태다. **Task 4 · 5 · 6 · 10 · 11 · 12 는 DB 를 요구하므로 여기서 멈춘다.**
+>
+> 대신 DB 가 필요 없는 Task 를 먼저 소화했다: **Task 7 → 8 → 9**.
+> (`Page<T>` 와 `EmployeeSearchCond` 는 순수 로직, 공통 레이아웃 조각은 JSP·CSS·jQuery 뿐이다.)
+>
+> Docker 가 준비되면 **Task 4 → 5 → 6 → 10 → 11 → 12 → 13** 순서로 재개한다.
+> Task 9 가 먼저 실행되면 `home.jsp` 에 `${dbInfo}` 가 빈 값으로 렌더링되는데 **정상이다** —
+> Task 5 가 `DbHealthService` 를 붙이면 채워진다.
 
 **Files:**
 - Create: `docker-compose.yml`
@@ -863,8 +1024,47 @@ docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT crypt('
 ```
 
 기대: `$2a$10$` 으로 시작하는 60자 문자열.
-`$2a$` 가 아닌 다른 접두사가 나오면 Task 11의 로그인 통합 테스트가 실패한다. 그때 대안은
-`BCryptPasswordEncoder().encode(...)` 결과를 시드 SQL에 직접 박는 것이다.
+
+> **★ 검증 완료 (2026-08-06). 이 전제는 확인된 사실이다 — 추측이 아니다.**
+>
+> Postgres 가 자기 해시를 검증하는 것과 **Java 가 그 해시를 검증하는 것은 별개 문제**이므로,
+> 시드 20건을 만들기 전에 교차 검증했다. pgcrypto 해시 3개를 뽑아
+> `spring-security-crypto:6.2.4` 를 클래스패스에 올린 단독 프로그램으로 확인한 결과:
+>
+> | 검사 | 결과 |
+> |---|---|
+> | `BCrypt.checkpw("flowmate1!", pgHash)` | 3건 모두 `true` |
+> | `BCrypt.checkpw("wrong", pgHash)` | 3건 모두 `false` |
+> | `new BCryptPasswordEncoder().matches("flowmate1!", pgHash)` | 3건 모두 `true` |
+> | `matches("wrong", pgHash)` | 3건 모두 `false` |
+> | 역방향 — Postgres 가 Java 생성 해시 검증 | `t` / 오답 `f` |
+>
+> 접두사 `$2a$10$`, 길이 60자. **양방향 완전 호환.**
+> 따라서 Task 6 의 시드는 `crypt()` 방식을 그대로 쓴다.
+>
+> `BCryptPasswordEncoder` 는 생성자에서 commons-logging 을 참조하므로 단독 실행 시
+> `spring-jcl` 도 클래스패스에 있어야 한다 (`NoClassDefFoundError: org/apache/commons/logging/LogFactory`).
+> 애플리케이션 안에서는 `spring-core` 가 이미 끌고 오므로 문제되지 않는다.
+
+만약 `$2a$` 가 아닌 접두사가 나오는 환경이라면 대안은
+`BCryptPasswordEncoder().encode(...)` 결과를 시드 SQL 에 직접 박는 것이다.
+
+- [ ] **Step 4b: 타임존 · 인코딩 · 정렬 규칙이 적용됐는지 확인한다**
+
+```powershell
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SHOW timezone; SHOW server_encoding;"
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT datname, datcollate, datctype FROM pg_database WHERE datname = 'flowmate';"
+```
+
+기대: `Asia/Seoul`, `UTF8`, `flowmate | C | C` (실측 확인됨).
+
+> **`SHOW lc_collate` 는 `postgres:16-alpine` 에서 동작하지 않는다.**
+> musl libc 기반 이미지에서 세션 GUC 로 노출되지 않아
+> `ERROR: unrecognized configuration parameter "lc_collate"` 가 난다.
+> **설정 오류가 아니므로 고치려 들지 말고** 위처럼 `pg_database` 로 확인한다.
+>
+> 로케일을 `C` 로 고정한 이유: Task 10 의 조직도 재귀 CTE 가 `sort_path` **문자열 비교**로
+> 계층을 정렬한다. 정렬 규칙이 환경마다 달라지면 조직도 순서가 흔들린다.
 
 - [ ] **Step 5: 커밋한다**
 
@@ -884,6 +1084,7 @@ init 스크립트를 번호 접두사로 관리해 Phase별 스키마를 순서�
 - Modify: `pom.xml` (의존성 2개 추가)
 - Modify: `src/main/resources/application.yml`
 - Create: `src/main/java/com/flowmate/common/mapper/DbHealthMapper.java`
+- Create: `src/main/java/com/flowmate/common/service/DbHealthService.java`
 - Modify: `src/main/java/com/flowmate/org/controller/HomeController.java`
 - Modify: `src/main/webapp/WEB-INF/views/home.jsp`
 - Modify: `README.md`
@@ -966,6 +1167,43 @@ public interface DbHealthMapper {
 }
 ```
 
+- [ ] **Step 3b: `DbHealthService` 를 만든다**
+
+> **이 클래스를 건너뛰고 `HomeController` 에 `DbHealthMapper` 를 직접 주입하면 안 된다.**
+> 설계서 §4.3 은 "Controller는 Service만 호출. Mapper 직접 호출 금지 — **위반하면 리뷰에서 반려**" 다.
+> 호출이 사소하다는 이유로 예외를 두면, 그것이 계층 규칙이 무너지는 시작점이 된다.
+> 이 프로젝트의 **첫 DB 접근**이므로 여기서 규칙을 지키는 모습이 이후 전부의 기준이 된다.
+
+```java
+package com.flowmate.common.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.flowmate.common.mapper.DbHealthMapper;
+
+/**
+ * DB 연결 상태 조회.
+ *
+ * 하는 일이 위임 한 줄뿐이지만 Service 계층을 두는 이유는 설계서 §4.3 때문이다.
+ * Controller 가 Mapper 를 직접 부르지 않는다는 규칙에 예외를 만들지 않는다.
+ */
+@Service
+public class DbHealthService {
+
+    private final DbHealthMapper dbHealthMapper;
+
+    public DbHealthService(DbHealthMapper dbHealthMapper) {
+        this.dbHealthMapper = dbHealthMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public String findDbInfo() {
+        return dbHealthMapper.selectDbInfo();
+    }
+}
+```
+
 - [ ] **Step 4: `HomeController` 가 DB 정보를 모델에 담게 수정한다**
 
 ```java
@@ -978,22 +1216,23 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import com.flowmate.common.mapper.DbHealthMapper;
+import com.flowmate.common.service.DbHealthService;
 
 @Controller
 public class HomeController {
 
-    private final DbHealthMapper dbHealthMapper;
+    private final DbHealthService dbHealthService;
 
-    public HomeController(DbHealthMapper dbHealthMapper) {
-        this.dbHealthMapper = dbHealthMapper;
+    public HomeController(DbHealthService dbHealthService) {
+        this.dbHealthService = dbHealthService;
     }
 
     @GetMapping("/")
     public String home(Model model) {
+        // serverTime 이 java.util.Date 인 이유: <fmt:formatDate> 가 java.time 타입을 받지 못한다.
         model.addAttribute("serverTime", new Date());
         model.addAttribute("modules", List.of("전자결재", "근태관리"));
-        model.addAttribute("dbInfo", dbHealthMapper.selectDbInfo());
+        model.addAttribute("dbInfo", dbHealthService.findDbInfo());
         return "home";
     }
 }
@@ -1359,8 +1598,37 @@ class PageTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("page");
     }
+
+    @Test
+    @DisplayName("totalPagesOf 는 Service 가 요청 페이지를 보정할 때 쓰는 것과 같은 값을 준다")
+    void totalPagesOfMatchesInstanceMethod() {
+        assertThat(Page.totalPagesOf(0, 10)).isEqualTo(1);
+        assertThat(Page.totalPagesOf(20, 10)).isEqualTo(2);
+        assertThat(Page.totalPagesOf(21, 10)).isEqualTo(3);
+        assertThat(new Page<>(List.of("a"), 1, 10, 21).getTotalPages())
+                .isEqualTo(Page.totalPagesOf(21, 10));
+    }
+
+    @Test
+    @DisplayName("전체 페이지를 넘는 페이지를 넘기면 시작 페이지가 끝 페이지보다 커진다 - Service 가 미리 막아야 한다")
+    void pageBeyondLastLeavesStartGreaterThanEnd() {
+        // 11페이지를 보던 중 검색을 좁혀 totalCount 가 20으로 줄어든 상황.
+        // Page 는 넘겨받은 값을 그대로 계산한다. <c:forEach begin=11 end=2> 는 예외 없이
+        // 링크를 0개 그리므로 페이징이 조용히 죽는다.
+        // 따라서 EmployeeService 가 Page 를 만들기 전에 page 를 totalPages 로 보정한다.
+        Page<String> overshoot = new Page<>(List.of(), 11, 10, 20);
+
+        assertThat(overshoot.getTotalPages()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isEqualTo(11);
+        assertThat(overshoot.getEndPage()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isGreaterThan(overshoot.getEndPage());
+    }
 }
 ```
+
+> **★ 이 마지막 테스트는 버그를 고정하는 것이 아니라 `Page` 의 책임 경계를 문서화한다.**
+> `Page` 는 넘겨받은 값을 계산만 하고 검증하지 않는다(생성자 검증은 1 미만 같은 명백한 오류만).
+> **범위를 넘는 페이지는 Task 11 의 `EmployeeService` 가 막는다** — 아래 Task 11 참조.
 
 - [ ] **Step 2: 테스트가 실패하는지 확인한다**
 
@@ -1435,12 +1703,21 @@ public class Page<T> {
         return content.isEmpty();
     }
 
-    /** 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다. */
-    public int getTotalPages() {
+    /**
+     * 전체 페이지 수 계산. Service 가 Page 를 만들기 전에 요청 페이지를 보정할 때도 필요하므로
+     * static 으로 빼 둔다. 같은 식을 Service 에 복사하면 두 곳이 어긋날 수 있다.
+     *
+     * 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다.
+     */
+    public static int totalPagesOf(long totalCount, int size) {
         if (totalCount == 0) {
             return 1;
         }
         return (int) ((totalCount + size - 1) / size);
+    }
+
+    public int getTotalPages() {
+        return totalPagesOf(totalCount, size);
     }
 
     public boolean isFirst() {
@@ -1483,7 +1760,7 @@ public class Page<T> {
 .\mvnw.cmd test -Dtest=PageTest
 ```
 
-기대: `Tests run: 7, Failures: 0, Errors: 0, Skipped: 0`
+기대: `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1665,12 +1942,25 @@ public class EmployeeSearchCond {
         return size;
     }
 
-    /** SQL 의 OFFSET 값 */
-    public int getOffset() {
-        return (page - 1) * size;
+    /**
+     * SQL 의 OFFSET 값.
+     *
+     * long 으로 계산하는 이유: page 는 위쪽 상한이 없다(요청 파라미터를 손으로 고치면
+     * 얼마든 커진다). int 로 곱하면 Java 는 예외 없이 음수로 감싸고, 그 값이
+     * OFFSET 으로 들어가도 오류가 나지 않아 조용히 빈 결과가 된다.
+     * 오버플로 방지를 이 객체가 책임진다 — 호출하는 Service 의 순서에 의존하지 않는다.
+     */
+    public long getOffset() {
+        return (long) (page - 1) * size;
     }
 }
 ```
+
+> **캐스트 위치가 중요하다.** `(long) (page - 1) * size` 는 곱하기 전에 승격한다.
+> `(long) ((page - 1) * size)` 로 쓰면 int 로 먼저 오버플로한 뒤 이미 틀린 값을 넓히므로 의미가 없다.
+>
+> `?page=300000000` 이면 `(300000000-1)*10 = 2999999990` 인데 `Integer.MAX_VALUE` 는 `2147483647` 이다.
+> int 로는 `-1294967306` 으로 감싸고, **음수 OFFSET 은 SQL 오류가 아니라 조용한 빈 결과**가 된다.
 
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
@@ -1678,7 +1968,7 @@ public class EmployeeSearchCond {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 12, Failures: 0, Errors: 0, Skipped: 0` (Page 7건 + SearchCond 5건)
+기대: `Tests run: 15, Failures: 0, Errors: 0, Skipped: 0` (Page 9건 + SearchCond 6건)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -2677,6 +2967,61 @@ class EmployeeMapperIT {
 
 기대: 컴파일 실패 — `cannot find symbol: class Employee`.
 
+- [ ] **Step 3b: `EmployeeSearchCond` 에 `getKeywordEscaped()` 를 추가한다**
+
+> Task 8 에서 만들지 않고 여기서 추가하는 이유: 매퍼가 없으면 쓸 데가 없다(YAGNI).
+> 매퍼를 쓰는 시점에 함께 넣는다.
+
+`src/main/java/com/flowmate/org/domain/EmployeeSearchCond.java` 에 아래 메서드를 추가한다.
+기존 `getKeyword()` 는 그대로 둔다 — 검색 폼에 다시 표시할 값은 원본이어야 한다.
+
+```java
+    /**
+     * LIKE 패턴에 넣을 검색어. `\` `%` `_` 를 이스케이프한다.
+     *
+     * 이스케이프하지 않으면 사용자가 입력한 % 와 _ 가 와일드카드로 해석된다.
+     * 사원번호에 밑줄이 있는 경우(EMP_2024_01) _ 가 "임의의 한 글자" 가 되어
+     * 의도보다 넓은 결과가 나온다. 주입 위험은 없지만(바인딩 파라미터) 결과가 조용히 틀어진다.
+     *
+     * 화면 표시용은 getKeyword() 를 쓴다. 이스케이프된 값을 폼에 되돌리면
+     * 사용자가 입력하지 않은 역슬래시가 보인다.
+     *
+     * `\` 를 가장 먼저 치환해야 한다. 나중에 하면 앞서 넣은 이스케이프 문자를 또 이스케이프한다.
+     */
+    public String getKeywordEscaped() {
+        if (keyword == null) {
+            return null;
+        }
+        return keyword.replace("\\", "\\\\")
+                      .replace("%", "\\%")
+                      .replace("_", "\\_");
+    }
+```
+
+단위 테스트를 `EmployeeSearchCondTest` 에 추가한다.
+
+```java
+    @Test
+    @DisplayName("LIKE 와일드카드 문자를 이스케이프하고 원본 검색어는 그대로 유지한다")
+    void escapesLikeWildcards() {
+        EmployeeSearchCond cond = new EmployeeSearchCond();
+
+        cond.setKeyword("EMP_2024");
+        assertThat(cond.getKeyword()).isEqualTo("EMP_2024");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("EMP\\_2024");
+
+        cond.setKeyword("50%");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("50\\%");
+
+        // 역슬래시를 먼저 치환하지 않으면 이중 이스케이프가 깨진다
+        cond.setKeyword("a\\b");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("a\\\\b");
+
+        cond.setKeyword(null);
+        assertThat(cond.getKeywordEscaped()).isNull();
+    }
+```
+
 - [ ] **Step 3: `Employee` 도메인을 만든다**
 
 ```java
@@ -2870,9 +3215,16 @@ public interface EmployeeMapper {
             <if test="deptId != null">
                 AND e.dept_id = #{deptId}
             </if>
+            <!--
+              ESCAPE 를 붙이는 이유: 사용자가 입력한 % 나 _ 가 LIKE 의 와일드카드로 해석된다.
+              사원번호에 밑줄이 있으면(EMP_2024_01) _ 가 "임의의 한 글자" 가 되어
+              엉뚱한 행까지 걸린다. 주입 위험은 없지만(바인딩 파라미터) 결과가 조용히 넓어진다.
+              바인딩 값 쪽은 keywordEscaped 가 담당한다 (Step 3b 참조).
+              조건 판정은 원본 keyword 로, 값은 이스케이프된 것으로 쓴다.
+            -->
             <if test="keyword != null">
-                AND (e.emp_name LIKE '%' || #{keyword} || '%'
-                  OR e.emp_no   LIKE '%' || #{keyword} || '%')
+                AND (e.emp_name LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\'
+                  OR e.emp_no   LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\')
             </if>
         </where>
     </sql>
@@ -2951,11 +3303,28 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<Employee> search(EmployeeSearchCond cond) {
         long totalCount = employeeMapper.countSearch(cond);
+
+        // ★ 목록 조회 전에 요청 페이지를 실제 마지막 페이지로 보정한다.
+        //
+        // 11페이지를 보던 중 검색을 좁히면 pagination.jsp 가 #searchForm 을 재전송하면서
+        // page=11 을 그대로 보낸다. totalCount 가 20으로 줄면 startPage(11) > endPage(2) 가 되어
+        // <c:forEach begin=11 end=2> 가 예외 없이 링크를 0개 그린다 — 페이징이 조용히 죽는다.
+        //
+        // 건수 조회가 목록 조회보다 먼저이므로 여기서 보정하면 재조회가 필요없다.
+        int totalPages = Page.totalPagesOf(totalCount, cond.getSize());
+        if (cond.getPage() > totalPages) {
+            cond.setPage(totalPages);
+        }
+
         List<Employee> content = employeeMapper.search(cond);
         return new Page<>(content, cond.getPage(), cond.getSize(), totalCount);
     }
 }
 ```
+
+> `cond` 를 그 자리에서 수정하는 이유: 이 객체는 요청 하나에 묶인 바인딩 객체이고,
+> Controller 가 같은 인스턴스를 화면 모델(`cond`)로 되돌려 검색 폼과 hidden `page` 값을 채운다.
+> 보정된 값이 화면에도 반영되어야 다음 클릭이 정상 범위에서 출발한다.
 
 - [ ] **Step 7: 통합 테스트가 통과하는지 확인한다**
 
@@ -2963,7 +3332,7 @@ public class EmployeeService {
 .\mvnw.cmd verify
 ```
 
-기대: 단위 12건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
+기대: 단위 16건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
 
 - [ ] **Step 8: `EmployeeController` 와 `employee-list.jsp` 를 만든다**
 
@@ -3063,8 +3432,14 @@ public class EmployeeController {
             </tr>
             </thead>
             <tbody>
+            <%--
+              "결과 없음" 판정은 paging.empty 가 아니라 totalCount 로 한다.
+              Service 가 페이지를 보정하므로 지금은 둘이 같은 뜻이지만,
+              totalCount 가 "검색 조건에 맞는 행이 정말 없다" 를 직접 말하는 값이다.
+              paging.empty 는 "이 페이지에 행이 없다" 이므로 페이지 보정이 빠지면 거짓을 말한다.
+            --%>
             <c:choose>
-                <c:when test="${paging.empty}">
+                <c:when test="${paging.totalCount == 0}">
                     <tr>
                         <td class="emp-list__empty" colspan="6">조회 결과가 없습니다.</td>
                     </tr>
@@ -3485,7 +3860,7 @@ public class EmployeeUserDetailsService implements UserDetailsService {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 17, Failures: 0, Errors: 0, Skipped: 0` (Page 7 + SearchCond 5 + UserDetailsService 5)
+기대: `Tests run: 21, Failures: 0, Errors: 0, Skipped: 0` (Page 9 + SearchCond 7 + UserDetailsService 5)
 
 - [ ] **Step 7: `LoginEmployeeAdvice` 를 만든다**
 
@@ -3734,7 +4109,7 @@ docker compose up -d postgres
 .\mvnw.cmd verify
 ```
 
-기대: 단위 17건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
+기대: 단위 21건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
 
 실패 시 진단:
 
@@ -3800,7 +4175,7 @@ docker compose up -d postgres
 .\mvnw.cmd clean verify
 ```
 
-기대: `BUILD SUCCESS`, 단위 17건 + 통합 16건.
+기대: `BUILD SUCCESS`, 단위 21건 + 통합 16건.
 **`clean` 과 `down -v` 를 넣는 이유:** 빈 상태에서 시작해도 재현되는지 확인한다.
 여기서 실패하면 어딘가에 "내 PC에서만 되는" 상태가 남아 있다는 뜻이다.
 
@@ -3907,7 +4282,7 @@ gh repo view --json url -q .url
 이 계획서가 추가로 요구하는 것:
 
 - [ ] `docker compose down -v` 후 `clean verify` 가 통과한다 (재현 가능)
-- [ ] 단위 테스트 17건이 **Docker 없이** 통과한다
+- [ ] 단위 테스트 21건이 **Docker 없이** 통과한다
 - [ ] `docs/oracle-mapping.md` 에 지금까지 쓴 PostgreSQL 전용 문법 3종이 기록됐다
 - [ ] Task 12에서 `header.jsp` 를 열지 않았다 (구조 우선 원칙 검증)
 
