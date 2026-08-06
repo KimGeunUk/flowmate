@@ -1024,8 +1024,47 @@ docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT crypt('
 ```
 
 기대: `$2a$10$` 으로 시작하는 60자 문자열.
-`$2a$` 가 아닌 다른 접두사가 나오면 Task 11의 로그인 통합 테스트가 실패한다. 그때 대안은
-`BCryptPasswordEncoder().encode(...)` 결과를 시드 SQL에 직접 박는 것이다.
+
+> **★ 검증 완료 (2026-08-06). 이 전제는 확인된 사실이다 — 추측이 아니다.**
+>
+> Postgres 가 자기 해시를 검증하는 것과 **Java 가 그 해시를 검증하는 것은 별개 문제**이므로,
+> 시드 20건을 만들기 전에 교차 검증했다. pgcrypto 해시 3개를 뽑아
+> `spring-security-crypto:6.2.4` 를 클래스패스에 올린 단독 프로그램으로 확인한 결과:
+>
+> | 검사 | 결과 |
+> |---|---|
+> | `BCrypt.checkpw("flowmate1!", pgHash)` | 3건 모두 `true` |
+> | `BCrypt.checkpw("wrong", pgHash)` | 3건 모두 `false` |
+> | `new BCryptPasswordEncoder().matches("flowmate1!", pgHash)` | 3건 모두 `true` |
+> | `matches("wrong", pgHash)` | 3건 모두 `false` |
+> | 역방향 — Postgres 가 Java 생성 해시 검증 | `t` / 오답 `f` |
+>
+> 접두사 `$2a$10$`, 길이 60자. **양방향 완전 호환.**
+> 따라서 Task 6 의 시드는 `crypt()` 방식을 그대로 쓴다.
+>
+> `BCryptPasswordEncoder` 는 생성자에서 commons-logging 을 참조하므로 단독 실행 시
+> `spring-jcl` 도 클래스패스에 있어야 한다 (`NoClassDefFoundError: org/apache/commons/logging/LogFactory`).
+> 애플리케이션 안에서는 `spring-core` 가 이미 끌고 오므로 문제되지 않는다.
+
+만약 `$2a$` 가 아닌 접두사가 나오는 환경이라면 대안은
+`BCryptPasswordEncoder().encode(...)` 결과를 시드 SQL 에 직접 박는 것이다.
+
+- [ ] **Step 4b: 타임존 · 인코딩 · 정렬 규칙이 적용됐는지 확인한다**
+
+```powershell
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SHOW timezone; SHOW server_encoding;"
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT datname, datcollate, datctype FROM pg_database WHERE datname = 'flowmate';"
+```
+
+기대: `Asia/Seoul`, `UTF8`, `flowmate | C | C` (실측 확인됨).
+
+> **`SHOW lc_collate` 는 `postgres:16-alpine` 에서 동작하지 않는다.**
+> musl libc 기반 이미지에서 세션 GUC 로 노출되지 않아
+> `ERROR: unrecognized configuration parameter "lc_collate"` 가 난다.
+> **설정 오류가 아니므로 고치려 들지 말고** 위처럼 `pg_database` 로 확인한다.
+>
+> 로케일을 `C` 로 고정한 이유: Task 10 의 조직도 재귀 CTE 가 `sort_path` **문자열 비교**로
+> 계층을 정렬한다. 정렬 규칙이 환경마다 달라지면 조직도 순서가 흔들린다.
 
 - [ ] **Step 5: 커밋한다**
 
