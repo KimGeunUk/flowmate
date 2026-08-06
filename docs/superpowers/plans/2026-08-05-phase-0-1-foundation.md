@@ -1559,8 +1559,37 @@ class PageTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("page");
     }
+
+    @Test
+    @DisplayName("totalPagesOf 는 Service 가 요청 페이지를 보정할 때 쓰는 것과 같은 값을 준다")
+    void totalPagesOfMatchesInstanceMethod() {
+        assertThat(Page.totalPagesOf(0, 10)).isEqualTo(1);
+        assertThat(Page.totalPagesOf(20, 10)).isEqualTo(2);
+        assertThat(Page.totalPagesOf(21, 10)).isEqualTo(3);
+        assertThat(new Page<>(List.of("a"), 1, 10, 21).getTotalPages())
+                .isEqualTo(Page.totalPagesOf(21, 10));
+    }
+
+    @Test
+    @DisplayName("전체 페이지를 넘는 페이지를 넘기면 시작 페이지가 끝 페이지보다 커진다 - Service 가 미리 막아야 한다")
+    void pageBeyondLastLeavesStartGreaterThanEnd() {
+        // 11페이지를 보던 중 검색을 좁혀 totalCount 가 20으로 줄어든 상황.
+        // Page 는 넘겨받은 값을 그대로 계산한다. <c:forEach begin=11 end=2> 는 예외 없이
+        // 링크를 0개 그리므로 페이징이 조용히 죽는다.
+        // 따라서 EmployeeService 가 Page 를 만들기 전에 page 를 totalPages 로 보정한다.
+        Page<String> overshoot = new Page<>(List.of(), 11, 10, 20);
+
+        assertThat(overshoot.getTotalPages()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isEqualTo(11);
+        assertThat(overshoot.getEndPage()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isGreaterThan(overshoot.getEndPage());
+    }
 }
 ```
+
+> **★ 이 마지막 테스트는 버그를 고정하는 것이 아니라 `Page` 의 책임 경계를 문서화한다.**
+> `Page` 는 넘겨받은 값을 계산만 하고 검증하지 않는다(생성자 검증은 1 미만 같은 명백한 오류만).
+> **범위를 넘는 페이지는 Task 11 의 `EmployeeService` 가 막는다** — 아래 Task 11 참조.
 
 - [ ] **Step 2: 테스트가 실패하는지 확인한다**
 
@@ -1635,12 +1664,21 @@ public class Page<T> {
         return content.isEmpty();
     }
 
-    /** 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다. */
-    public int getTotalPages() {
+    /**
+     * 전체 페이지 수 계산. Service 가 Page 를 만들기 전에 요청 페이지를 보정할 때도 필요하므로
+     * static 으로 빼 둔다. 같은 식을 Service 에 복사하면 두 곳이 어긋날 수 있다.
+     *
+     * 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다.
+     */
+    public static int totalPagesOf(long totalCount, int size) {
         if (totalCount == 0) {
             return 1;
         }
         return (int) ((totalCount + size - 1) / size);
+    }
+
+    public int getTotalPages() {
+        return totalPagesOf(totalCount, size);
     }
 
     public boolean isFirst() {
@@ -1683,7 +1721,7 @@ public class Page<T> {
 .\mvnw.cmd test -Dtest=PageTest
 ```
 
-기대: `Tests run: 7, Failures: 0, Errors: 0, Skipped: 0`
+기대: `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1878,7 +1916,7 @@ public class EmployeeSearchCond {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 12, Failures: 0, Errors: 0, Skipped: 0` (Page 7건 + SearchCond 5건)
+기대: `Tests run: 14, Failures: 0, Errors: 0, Skipped: 0` (Page 9건 + SearchCond 5건)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -3151,11 +3189,28 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<Employee> search(EmployeeSearchCond cond) {
         long totalCount = employeeMapper.countSearch(cond);
+
+        // ★ 목록 조회 전에 요청 페이지를 실제 마지막 페이지로 보정한다.
+        //
+        // 11페이지를 보던 중 검색을 좁히면 pagination.jsp 가 #searchForm 을 재전송하면서
+        // page=11 을 그대로 보낸다. totalCount 가 20으로 줄면 startPage(11) > endPage(2) 가 되어
+        // <c:forEach begin=11 end=2> 가 예외 없이 링크를 0개 그린다 — 페이징이 조용히 죽는다.
+        //
+        // 건수 조회가 목록 조회보다 먼저이므로 여기서 보정하면 재조회가 필요없다.
+        int totalPages = Page.totalPagesOf(totalCount, cond.getSize());
+        if (cond.getPage() > totalPages) {
+            cond.setPage(totalPages);
+        }
+
         List<Employee> content = employeeMapper.search(cond);
         return new Page<>(content, cond.getPage(), cond.getSize(), totalCount);
     }
 }
 ```
+
+> `cond` 를 그 자리에서 수정하는 이유: 이 객체는 요청 하나에 묶인 바인딩 객체이고,
+> Controller 가 같은 인스턴스를 화면 모델(`cond`)로 되돌려 검색 폼과 hidden `page` 값을 채운다.
+> 보정된 값이 화면에도 반영되어야 다음 클릭이 정상 범위에서 출발한다.
 
 - [ ] **Step 7: 통합 테스트가 통과하는지 확인한다**
 
@@ -3163,7 +3218,7 @@ public class EmployeeService {
 .\mvnw.cmd verify
 ```
 
-기대: 단위 12건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
+기대: 단위 14건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
 
 - [ ] **Step 8: `EmployeeController` 와 `employee-list.jsp` 를 만든다**
 
@@ -3263,8 +3318,14 @@ public class EmployeeController {
             </tr>
             </thead>
             <tbody>
+            <%--
+              "결과 없음" 판정은 paging.empty 가 아니라 totalCount 로 한다.
+              Service 가 페이지를 보정하므로 지금은 둘이 같은 뜻이지만,
+              totalCount 가 "검색 조건에 맞는 행이 정말 없다" 를 직접 말하는 값이다.
+              paging.empty 는 "이 페이지에 행이 없다" 이므로 페이지 보정이 빠지면 거짓을 말한다.
+            --%>
             <c:choose>
-                <c:when test="${paging.empty}">
+                <c:when test="${paging.totalCount == 0}">
                     <tr>
                         <td class="emp-list__empty" colspan="6">조회 결과가 없습니다.</td>
                     </tr>
@@ -3685,7 +3746,7 @@ public class EmployeeUserDetailsService implements UserDetailsService {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 17, Failures: 0, Errors: 0, Skipped: 0` (Page 7 + SearchCond 5 + UserDetailsService 5)
+기대: `Tests run: 19, Failures: 0, Errors: 0, Skipped: 0` (Page 9 + SearchCond 5 + UserDetailsService 5)
 
 - [ ] **Step 7: `LoginEmployeeAdvice` 를 만든다**
 
@@ -3934,7 +3995,7 @@ docker compose up -d postgres
 .\mvnw.cmd verify
 ```
 
-기대: 단위 17건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
+기대: 단위 19건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
 
 실패 시 진단:
 
@@ -4000,7 +4061,7 @@ docker compose up -d postgres
 .\mvnw.cmd clean verify
 ```
 
-기대: `BUILD SUCCESS`, 단위 17건 + 통합 16건.
+기대: `BUILD SUCCESS`, 단위 19건 + 통합 16건.
 **`clean` 과 `down -v` 를 넣는 이유:** 빈 상태에서 시작해도 재현되는지 확인한다.
 여기서 실패하면 어딘가에 "내 PC에서만 되는" 상태가 남아 있다는 뜻이다.
 
@@ -4107,7 +4168,7 @@ gh repo view --json url -q .url
 이 계획서가 추가로 요구하는 것:
 
 - [ ] `docker compose down -v` 후 `clean verify` 가 통과한다 (재현 가능)
-- [ ] 단위 테스트 17건이 **Docker 없이** 통과한다
+- [ ] 단위 테스트 19건이 **Docker 없이** 통과한다
 - [ ] `docs/oracle-mapping.md` 에 지금까지 쓴 PostgreSQL 전용 문법 3종이 기록됐다
 - [ ] Task 12에서 `header.jsp` 를 열지 않았다 (구조 우선 원칙 검증)
 
