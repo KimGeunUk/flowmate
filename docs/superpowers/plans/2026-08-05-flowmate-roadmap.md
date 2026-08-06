@@ -58,6 +58,19 @@
 계획서 3은 도메인에 의존하지 않으므로 **계획서 2와 함께 작성해두고, Phase 2에서 막힐 때마다 전환해 소화한다.**
 브랜치가 다르므로(`feat/phase-2-approval-core` / `feat/phase-3-ai-gateway`) 충돌하지 않는다.
 
+### 2.0 계획서 2 착수 전 확인할 것 (Phase 1 리뷰에서 이월)
+
+Phase 1 은 Critical/Important 없이 마감됐다. 아래는 **"지금 틀린 것"이 아니라
+"Phase 2 에서 특정 변경을 하면 그때 문제가 되는 것"** 이다. 계획서 2를 쓸 때 이 절을 먼저 읽는다.
+
+| # | 이월 항목 | 언제 문제가 되는가 | 그때의 조치 |
+|---|---|---|---|
+| C1 | `LoginEmployee.eraseCredentials()` 가 감싼 `Employee` 인스턴스를 직접 `null` 처리한다 | **`EmployeeMapper.findByEmpNo` 앞에 캐시가 붙는 순간.** 현재는 매 호출이 새 객체를 돌려주므로 안전하지만 그건 *암묵적* 불변식이다. `@Cacheable` 이나 결재선 조회용 공유 맵이 들어가면 캐시된 인스턴스의 해시가 지워져 **그 사원의 이후 모든 로그인이 조용히 실패한다** | `LoginEmployee` 안에 해시 사본을 두고 그걸 지우거나, `EmployeeUserDetailsService` 가 방어적 복사본을 넘긴다 |
+| C2 | CSRF hidden input 이 JSP 파일마다 손으로 복사되는 규약이다 (공유 조각 없음) | **Phase 2 가 POST 폼을 추가할 때.** 출퇴근 등록, 승인/반려 액션마다 같은 줄을 붙여야 하고, 빠뜨리면 컴파일·템플릿 단계에서 아무 신호가 없다가 **제출 시점에 403** 이 난다 | `common/csrf-input.jsp` 조각을 만들어 include 한다. 의존성 추가 없이 복붙 위험만 제거된다 |
+| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 |
+| C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 |
+| C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 |
+
 ### 2.1 축소 순서 (일정이 밀렸을 때)
 
 설계서 §9.1이 확정한 순서를 그대로 따른다. **계획을 세울 때가 아니라 밀렸을 때 꺼내 쓴다.**
