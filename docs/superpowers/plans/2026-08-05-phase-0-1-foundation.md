@@ -374,6 +374,7 @@ java -version; mvn -version; docker compose version; gh auth status; git remote 
 
 **Files:**
 - Create: `.gitignore`
+- Create: `.gitattributes`
 - Create: `README.md`
 
 - [ ] **Step 1: Task 0A 가 끝났는지만 확인한다**
@@ -425,6 +426,37 @@ Thumbs.db
 .DS_Store
 ```
 
+- [ ] **Step 3b: `.gitattributes` 를 만든다**
+
+이 PC 의 `core.autocrlf` 는 `true` 라 지금은 저장소에 LF 로 저장된다. 그러나
+**`autocrlf` 는 로컬 설정이지 저장소 속성이 아니다** — `false` 로 설정된 다른 PC 에서 커밋하면
+CRLF 가 저장소에 들어가고, Phase 6 의 Linux 컨테이너에서 `mvnw` 나 셸 스크립트가 깨진다.
+줄바꿈 규칙을 저장소에 고정한다.
+
+```gitattributes
+# 기본: 텍스트는 저장소에 LF 로 저장한다
+* text=auto eol=lf
+
+# Windows 전용 스크립트는 작업 사본에서 CRLF 여야 한다
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Linux 에서 실행되는 것은 반드시 LF (CRLF 면 bad interpreter 로 죽는다)
+mvnw       text eol=lf
+*.sh       text eol=lf
+Dockerfile text eol=lf
+
+# 이진 파일은 변환하지 않는다
+*.jar   binary
+*.war   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+```
+
 - [ ] **Step 4: `README.md` 골격을 만든다**
 
 설계서 §12.1이 확정한 제목·부제를 그대로 쓴다.
@@ -454,12 +486,28 @@ Java 17 · Spring Boot 3.2 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreS
 
 - [ ] **Step 5: 커밋한다**
 
+> **★ Windows PowerShell 주의:** 커밋 메시지 본문에 큰따옴표가 들어가면
+> PowerShell 5.1 의 네이티브 인자 전달이 깨져 git 이 메시지 조각을 pathspec 으로 오인한다
+> (`error: pathspec '...' did not match any file(s)`).
+> **여러 줄 메시지는 파일에 쓴 뒤 `git commit -F <파일>` 로 넘긴다.**
+
 ```powershell
-git add .gitignore README.md
-git commit -m "chore: 저장소 골격 추가 - gitignore와 README 뼈대
+git add .gitignore .gitattributes README.md
+# 메시지를 임시 파일에 쓴 뒤:
+git commit -F <메시지파일경로>
+```
+
+메시지 내용:
+
+```
+chore: 저장소 골격 추가 - gitignore, gitattributes, README 뼈대
 
 WAR 산출물과 로컬 비밀값 파일을 추적 대상에서 제외한다.
-Phase 3의 Anthropic API 키가 application-local.yml 로 들어갈 예정이므로 미리 등록한다."
+Phase 3의 Anthropic API 키가 application-local.yml 로 들어갈 예정이므로 미리 등록한다.
+
+줄바꿈 규칙을 gitattributes 로 저장소에 고정한다. core.autocrlf 는 로컬 설정이라
+저장소 속성이 아니고, Phase 6 은 Linux 컨테이너에 배포하므로 mvnw 와 셸 스크립트가
+CRLF 로 커밋되면 bad interpreter 로 죽는다.
 ```
 
 ---

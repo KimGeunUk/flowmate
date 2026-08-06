@@ -82,6 +82,8 @@
 | 세션에 올라가는 객체 | `implements Serializable` + `serialVersionUID` | Tomcat 재시작 시 세션 직렬화 실패 방지 |
 | `type-aliases-package` | `com.flowmate` (재귀 스캔) | **클래스 단순명이 전 패키지에서 유일해야 한다.** 충돌하면 별칭이 깨진다 |
 | JSP 출력 | 사용자 입력은 항상 `<c:out>` 또는 `fn:escapeXml` | XSS |
+| **한글 파일 쓰기** | **`Write`/`Edit` 도구로만 쓴다. `Set-Content`·`Out-File`·`>` 금지** | PS 5.1 의 `Set-Content`/`Add-Content` 기본 인코딩이 시스템 ANSI(CP949)다. 한글 소스·JSP·SQL 을 이걸로 쓰면 **실제로 손상된다** |
+| **한글 파일 검증** | **`Read` 도구로 확인한다. `Get-Content`·`cat` 로 판단하지 않는다** | 콘솔 코드페이지가 949 라 UTF-8 한글이 `鍮뚮뱶 ?곗텧臾?` 처럼 깨져 보인다. **파일은 정상인데 손상으로 오판하게 된다** (Task 1 에서 실제로 오경보가 났다). 줄바꿈까지 사라져 보여 더 그럴듯하다 |
 | 날짜 | DB `DATE` → `java.time.LocalDate`, `TIMESTAMP` → `LocalDateTime`. JSP는 `${x.hireDate}` 그대로 출력 | `<fmt:formatDate>`는 `java.util.Date`만 받는다. `LocalDate.toString()`이 이미 `yyyy-MM-dd`다 |
 
 ### 3.3 테스트 분리 (Maven 표준 규약)
@@ -223,7 +225,8 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | Q1 | **Spring Boot 3.2.x는 OSS 지원이 끝난 라인이다** (2024-12 종료). 2026년 포트폴리오에 EOL 버전을 쓰는 것이 맞는가 | 계획서 1 Task 2 (즉시) | **설계서대로 `3.2.5`를 쓴다.** JSP/Jakarta 배선 정보가 3.2 기준으로 가장 풍부해 Phase 0 리스크가 낮다. 지원 라인으로 올릴 경우 `spring-boot-starter-parent` 버전과 `mybatis-spring-boot-starter` 버전만 바꾸면 되고, 계획서의 다른 코드는 영향받지 않는다. **사용자 판단이 필요한 항목** |
 | Q2 | `ApprovalLinePolicy`가 참조하는 **"부서장"을 어떻게 판정하는가.** `department`에 `manager_emp_id` 컬럼이 없다 | 계획서 2 | **같은 부서에서 `position_level`이 가장 높은 사원, 동급이면 `hire_date`가 이른 사람.** 계획서 1의 시드 20명은 부서마다 최고 직급이 1명씩만 나오도록 배치해 이 판정이 항상 유일하게 결정된다. 컬럼 추가가 필요해지면 계획서 2에서 마이그레이션한다 |
 | Q3 | `position`은 PostgreSQL에서 `col_name_keyword`다. 테이블명으로 쓸 수 있지만 경계 대상 | 계획서 1 Task 6에서 스키마 적용 시 즉시 판명 | 설계서대로 `position`을 쓴다. 오류가 나면 `job_position`으로 바꾸고 이 표를 갱신한다 |
-| Q4 | Anthropic API 키 보관 방식 | 계획서 3 | `application-local.yml`(gitignore) + 환경변수 `ANTHROPIC_API_KEY`. 계획서 1에서 `.gitignore` 항목만 미리 넣어둔다 |
+| Q4 | Anthropic API 키 보관 방식 | 계획서 3 | `application-local.yml`(gitignore) + 환경변수 `ANTHROPIC_API_KEY`. 계획서 1에서 `.gitignore` 항목을 확장자·파일명 변형까지 넣어뒀다. **넓은 와일드카드(`application-*.yml`)는 쓰지 않았다** — 계획서 6에서 정상 커밋해야 하는 프로필 설정이 생긴다 |
+| Q6 | **첨부파일 업로드 디렉터리 경로** (`approval_attachment.file_path`) | 계획서 2 | 미정. **경로를 정하는 즉시 `.gitignore` 에 추가한다.** 프로젝트 디렉터리 안(`./upload/` 등)으로 정하면 업로드된 파일이 커밋될 수 있고, 저장소는 Phase 6 이후 public 이 된다. 계획서 1에서 추측성 경로를 미리 넣지 않은 이유는 이름이 다르면 방어가 되지 않기 때문이다 |
 | Q5 | 반려 유형 6종 최종 확정 | 계획서 2 (설계서 §12에 이미 등록됨) | §5.2 정의대로 |
 
 ---
