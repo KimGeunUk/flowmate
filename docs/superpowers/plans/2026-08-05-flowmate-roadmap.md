@@ -98,6 +98,9 @@
 | JSP 출력 | 사용자 입력은 항상 `<c:out>` 또는 `fn:escapeXml` | XSS |
 | **한글 파일 쓰기** | **`Write`/`Edit` 도구로만 쓴다. `Set-Content`·`Out-File`·`>` 금지** | PS 5.1 의 `Set-Content`/`Add-Content` 기본 인코딩이 시스템 ANSI(CP949)다. 한글 소스·JSP·SQL 을 이걸로 쓰면 **실제로 손상된다** |
 | **한글 파일 검증** | **`Read` 도구로 확인한다. `Get-Content`·`cat` 로 판단하지 않는다** | 콘솔 코드페이지가 949 라 UTF-8 한글이 `鍮뚮뱶 ?곗텧臾?` 처럼 깨져 보인다. **파일은 정상인데 손상으로 오판하게 된다** (Task 1 에서 실제로 오경보가 났다). 줄바꿈까지 사라져 보여 더 그럴듯하다 |
+| **Maven `-D` 속성 전달** | **각 인자를 개별 인용한다** — `.\mvnw.cmd verify "-Dit.test=XxxIT"` | PowerShell 5.1 이 네이티브 명령에 `-D...` 를 넘길 때 토큰을 망가뜨려 Maven 이 `LifecyclePhaseNotFoundException` 을 던진다. **실측 확인:** 인용 없음 → 실패, 개별 인용 → 정상, `--%` 정지 토큰 → 정상 |
+| **PowerShell 문자열 안의 `$`** | 백틱으로 이스케이프한다 — `` '`$2a`$10`$%' `` | 백슬래시(`\$`)는 PowerShell 에서 의미가 없어 리터럴 백슬래시가 SQL `LIKE` 패턴에 들어가 매칭이 0건이 된다 (Task 6 에서 실제로 오탐이 났다) |
+| **여러 줄 커밋 메시지** | **파일에 쓴 뒤 `git commit -F <파일>`** | 메시지에 `"` 가 들어가면 인자 전달이 깨져 git 이 메시지 조각을 pathspec 으로 오인한다 (`error: pathspec ... did not match`) |
 | 날짜 | DB `DATE` → `java.time.LocalDate`, `TIMESTAMP` → `LocalDateTime`. JSP는 `${x.hireDate}` 그대로 출력 | `<fmt:formatDate>`는 `java.util.Date`만 받는다. `LocalDate.toString()`이 이미 `yyyy-MM-dd`다 |
 
 ### 3.3 테스트 분리 (Maven 표준 규약)
