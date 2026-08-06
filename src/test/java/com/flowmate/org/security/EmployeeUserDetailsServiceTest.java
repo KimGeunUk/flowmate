@@ -102,4 +102,21 @@ class EmployeeUserDetailsServiceTest {
         assertThat(loaded.getDeptName()).isEqualTo("개발팀");
         assertThat(loaded.getPositionName()).isEqualTo("사원");
     }
+
+    @Test
+    @DisplayName("eraseCredentials 를 호출하면 비밀번호 해시가 지워진다")
+    void erasesPasswordHashAfterAuthentication() {
+        when(employeeMapper.findByEmpNo("2020003")).thenReturn(employee);
+
+        LoginEmployee loaded = (LoginEmployee) userDetailsService.loadUserByUsername("2020003");
+        assertThat(loaded.getPassword()).isNotNull();
+
+        // Spring Security 가 인증 성공 후 자동으로 호출하는 경로
+        loaded.eraseCredentials();
+
+        assertThat(loaded.getPassword()).isNull();
+        // 화면 표시에 필요한 정보는 남아 있어야 한다
+        assertThat(loaded.getEmpName()).isEqualTo("곽수빈");
+        assertThat(loaded.getDeptName()).isEqualTo("개발팀");
+    }
 }

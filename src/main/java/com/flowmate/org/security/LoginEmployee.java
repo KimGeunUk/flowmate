@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
+import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,7 +22,7 @@ import com.flowmate.org.domain.Employee;
  * Service 에는 필요한 식별자(empId 등)만 넘긴다.
  * Service 가 HttpSession 이나 SecurityContext 를 모르게 유지하기 위한 규약이다.
  */
-public class LoginEmployee implements UserDetails, Serializable {
+public class LoginEmployee implements UserDetails, CredentialsContainer, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -69,6 +70,22 @@ public class LoginEmployee implements UserDetails, Serializable {
     @Override
     public String getPassword() {
         return employee.getPasswordHash();
+    }
+
+    /**
+     * 인증이 끝난 뒤 Spring Security 가 호출해 비밀번호 해시를 지운다.
+     *
+     * ProviderManager.eraseCredentialsAfterAuthentication 기본값이 true 이므로
+     * CredentialsContainer 를 구현하면 자동으로 불린다. 구현하지 않으면 아무 일도
+     * 일어나지 않고 BCrypt 해시가 세션에 그대로 남는다 — Tomcat 이 세션을 디스크로
+     * 내리면 해시가 파일로도 남는다.
+     *
+     * Spring 의 기본 UserDetails 구현(User)도 같은 이유로 이 인터페이스를 구현한다.
+     * 비밀번호 비교는 인증 시점에만 필요하므로 이후 null 이어도 문제되지 않는다.
+     */
+    @Override
+    public void eraseCredentials() {
+        employee.setPasswordHash(null);
     }
 
     @Override
