@@ -72,4 +72,16 @@ class EmployeeSearchCondTest {
 
         assertThat(cond.getOffset()).isEqualTo(20);
     }
+
+    @Test
+    @DisplayName("페이지 번호가 아주 커도 offset 이 음수로 뒤집히지 않는다")
+    void offsetDoesNotOverflowIntoNegative() {
+        EmployeeSearchCond cond = new EmployeeSearchCond();
+        cond.setPage(300000000);
+
+        // int 로 계산하면 2999999990 이 -1294967306 으로 감싸고,
+        // 그 값이 OFFSET 에 들어가도 예외가 나지 않는다.
+        assertThat(cond.getOffset()).isEqualTo(2999999990L);
+        assertThat(cond.getOffset()).isPositive();
+    }
 }

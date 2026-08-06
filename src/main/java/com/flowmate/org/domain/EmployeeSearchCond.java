@@ -65,8 +65,15 @@ public class EmployeeSearchCond {
         return size;
     }
 
-    /** SQL 의 OFFSET 값 */
-    public int getOffset() {
-        return (page - 1) * size;
+    /**
+     * SQL 의 OFFSET 값.
+     *
+     * long 으로 계산하는 이유: page 는 위쪽 상한이 없다(요청 파라미터를 손으로 고치면
+     * 얼마든 커진다). int 로 곱하면 Java 는 예외 없이 음수로 감싸고, 그 값이
+     * OFFSET 으로 들어가도 오류가 나지 않아 조용히 빈 결과가 된다.
+     * 오버플로 방지를 이 객체가 책임진다 — 호출하는 Service 의 순서에 의존하지 않는다.
+     */
+    public long getOffset() {
+        return (long) (page - 1) * size;
     }
 }
