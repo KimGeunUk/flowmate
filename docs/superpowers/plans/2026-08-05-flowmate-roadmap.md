@@ -41,6 +41,11 @@
 > 같은 이유로 `java -jar target/flowmate.war` 를 손으로 실행할 때도 플래그가 필요하므로,
 > README 의 실행 명령은 `mvnw spring-boot:run` 을 표준으로 적는다.
 >
+> **계획서 6의 필수 항목 ③ — DB 자격증명.** `application.yml` 에 `flowmate/flowmate` 가 리터럴로
+> 커밋되어 있다. 로컬 개발 컨테이너의 기본값이고 같은 값이 `docker-compose.yml` 에도 있어야 하므로
+> 지금 단계에서는 문제가 아니다. 다만 **public 전환 시점에는** `${DB_PASSWORD:flowmate}` 형태로 바꿔
+> 커밋된 기본값은 그대로 동작하게 두면서 재정의 지점을 남긴다. 설정 한 줄 변경이며 별도 도구는 쓰지 않는다.
+>
 > **계획서 6의 필수 항목 ② — 비밀값 재검.** public 전환 **전에** 전체 커밋 이력에서 비밀값을 재검한다.
 > Phase 3에서 Anthropic API 키를 다루므로 `git log -p -- src/main/resources/` 와
 > `git log -p -S "sk-ant"` 로 어느 커밋에도 키가 없는지 확인한다.
@@ -52,6 +57,19 @@
 **계획서 3의 위치:** 설계서 §9.1은 Phase 3을 Phase 2와 병행하는 것이 "선택이 아니라 전제조건"이라고 못박았다.
 계획서 3은 도메인에 의존하지 않으므로 **계획서 2와 함께 작성해두고, Phase 2에서 막힐 때마다 전환해 소화한다.**
 브랜치가 다르므로(`feat/phase-2-approval-core` / `feat/phase-3-ai-gateway`) 충돌하지 않는다.
+
+### 2.0 계획서 2 착수 전 확인할 것 (Phase 1 리뷰에서 이월)
+
+Phase 1 은 Critical/Important 없이 마감됐다. 아래는 **"지금 틀린 것"이 아니라
+"Phase 2 에서 특정 변경을 하면 그때 문제가 되는 것"** 이다. 계획서 2를 쓸 때 이 절을 먼저 읽는다.
+
+| # | 이월 항목 | 언제 문제가 되는가 | 그때의 조치 |
+|---|---|---|---|
+| C1 | `LoginEmployee.eraseCredentials()` 가 감싼 `Employee` 인스턴스를 직접 `null` 처리한다 | **`EmployeeMapper.findByEmpNo` 앞에 캐시가 붙는 순간.** 현재는 매 호출이 새 객체를 돌려주므로 안전하지만 그건 *암묵적* 불변식이다. `@Cacheable` 이나 결재선 조회용 공유 맵이 들어가면 캐시된 인스턴스의 해시가 지워져 **그 사원의 이후 모든 로그인이 조용히 실패한다** | `LoginEmployee` 안에 해시 사본을 두고 그걸 지우거나, `EmployeeUserDetailsService` 가 방어적 복사본을 넘긴다 |
+| C2 | CSRF hidden input 이 JSP 파일마다 손으로 복사되는 규약이다 (공유 조각 없음) | **Phase 2 가 POST 폼을 추가할 때.** 출퇴근 등록, 승인/반려 액션마다 같은 줄을 붙여야 하고, 빠뜨리면 컴파일·템플릿 단계에서 아무 신호가 없다가 **제출 시점에 403** 이 난다 | `common/csrf-input.jsp` 조각을 만들어 include 한다. 의존성 추가 없이 복붙 위험만 제거된다 |
+| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 |
+| C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 |
+| C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 |
 
 ### 2.1 축소 순서 (일정이 밀렸을 때)
 
@@ -93,6 +111,9 @@
 | JSP 출력 | 사용자 입력은 항상 `<c:out>` 또는 `fn:escapeXml` | XSS |
 | **한글 파일 쓰기** | **`Write`/`Edit` 도구로만 쓴다. `Set-Content`·`Out-File`·`>` 금지** | PS 5.1 의 `Set-Content`/`Add-Content` 기본 인코딩이 시스템 ANSI(CP949)다. 한글 소스·JSP·SQL 을 이걸로 쓰면 **실제로 손상된다** |
 | **한글 파일 검증** | **`Read` 도구로 확인한다. `Get-Content`·`cat` 로 판단하지 않는다** | 콘솔 코드페이지가 949 라 UTF-8 한글이 `鍮뚮뱶 ?곗텧臾?` 처럼 깨져 보인다. **파일은 정상인데 손상으로 오판하게 된다** (Task 1 에서 실제로 오경보가 났다). 줄바꿈까지 사라져 보여 더 그럴듯하다 |
+| **Maven `-D` 속성 전달** | **각 인자를 개별 인용한다** — `.\mvnw.cmd verify "-Dit.test=XxxIT"` | PowerShell 5.1 이 네이티브 명령에 `-D...` 를 넘길 때 토큰을 망가뜨려 Maven 이 `LifecyclePhaseNotFoundException` 을 던진다. **실측 확인:** 인용 없음 → 실패, 개별 인용 → 정상, `--%` 정지 토큰 → 정상 |
+| **PowerShell 문자열 안의 `$`** | 백틱으로 이스케이프한다 — `` '`$2a`$10`$%' `` | 백슬래시(`\$`)는 PowerShell 에서 의미가 없어 리터럴 백슬래시가 SQL `LIKE` 패턴에 들어가 매칭이 0건이 된다 (Task 6 에서 실제로 오탐이 났다) |
+| **여러 줄 커밋 메시지** | **파일에 쓴 뒤 `git commit -F <파일>`** | 메시지에 `"` 가 들어가면 인자 전달이 깨져 git 이 메시지 조각을 pathspec 으로 오인한다 (`error: pathspec ... did not match`) |
 | 날짜 | DB `DATE` → `java.time.LocalDate`, `TIMESTAMP` → `LocalDateTime`. JSP는 `${x.hireDate}` 그대로 출력 | `<fmt:formatDate>`는 `java.util.Date`만 받는다. `LocalDate.toString()`이 이미 `yyyy-MM-dd`다 |
 
 ### 3.3 테스트 분리 (Maven 표준 규약)

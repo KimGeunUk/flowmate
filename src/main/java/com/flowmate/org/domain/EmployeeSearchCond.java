@@ -76,4 +76,25 @@ public class EmployeeSearchCond {
     public long getOffset() {
         return (long) (page - 1) * size;
     }
+
+    /**
+     * LIKE 패턴에 넣을 검색어. `\` `%` `_` 를 이스케이프한다.
+     *
+     * 이스케이프하지 않으면 사용자가 입력한 % 와 _ 가 와일드카드로 해석된다.
+     * 사원번호에 밑줄이 있는 경우(EMP_2024_01) _ 가 "임의의 한 글자" 가 되어
+     * 의도보다 넓은 결과가 나온다. 주입 위험은 없지만(바인딩 파라미터) 결과가 조용히 틀어진다.
+     *
+     * 화면 표시용은 getKeyword() 를 쓴다. 이스케이프된 값을 폼에 되돌리면
+     * 사용자가 입력하지 않은 역슬래시가 보인다.
+     *
+     * `\` 를 가장 먼저 치환해야 한다. 나중에 하면 앞서 넣은 이스케이프 문자를 또 이스케이프한다.
+     */
+    public String getKeywordEscaped() {
+        if (keyword == null) {
+            return null;
+        }
+        return keyword.replace("\\", "\\\\")
+                      .replace("%", "\\%")
+                      .replace("_", "\\_");
+    }
 }

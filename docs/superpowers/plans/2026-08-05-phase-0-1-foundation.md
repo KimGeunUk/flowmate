@@ -1479,8 +1479,51 @@ docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT (SELECT
 docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "SELECT e.dept_id, COUNT(*) AS top_level_count FROM employee e JOIN position p ON p.position_id = e.position_id WHERE p.position_level = (SELECT MAX(p2.position_level) FROM employee e2 JOIN position p2 ON p2.position_id = e2.position_id WHERE e2.dept_id = e.dept_id) GROUP BY e.dept_id ORDER BY e.dept_id;"
 ```
 
-기대: 7개 행 전부 `top_level_count = 1`.
+기대: 7개 행 전부 `top_level_count = 1`. (실측 확인: `1:1 2:1 3:1 4:1 5:1 6:1 7:1`)
 2 이상인 부서가 있으면 시드의 `position_id` 를 조정한다.
+
+- [ ] **Step 4b: 시퀀스가 밀렸는지, 다음 INSERT 가 충돌하지 않는지 확인한다**
+
+```powershell
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -c "BEGIN; INSERT INTO department (dept_name, dept_code) VALUES ('테스트팀','TEST_TMP') RETURNING dept_id; ROLLBACK;"
+```
+
+기대: 반환된 `dept_id` 가 `8`.
+
+> **★ PostgreSQL 시퀀스는 트랜잭션에 묶이지 않는다.** 위 `ROLLBACK` 은 행만 되돌리고
+> 이미 소비한 `nextval` 은 되돌리지 않는다. 그래서 이 검증을 한 번 돌리면
+> `department_dept_id_seq.last_value` 가 `7` 이 아니라 `8` 로 남는다.
+>
+> **정상이며 고칠 필요가 없다.** 대리키에 갭이 생기는 것은 모든 시퀀스 기반 PK 의 정상 동작이고,
+> `docker compose down -v` 로 컨테이너를 다시 만들면 `7` 로 돌아간다.
+> 나중에 시퀀스 값이 `8` 인 것을 보고 시드가 잘못됐다고 오판하지 않기 위해 적어 둔다.
+
+- [ ] **Step 4c: 한글이 깨지지 않고 저장됐는지 확인한다**
+
+**콘솔로 바로 보면 안 된다** — 이 PC 의 콘솔은 CP949 이므로 정상 데이터도 깨져 보인다.
+파일로 받아 UTF-8 로 명시 디코딩한다.
+
+```powershell
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -t -A -c "SELECT string_agg(dept_name, ', ' ORDER BY dept_id) FROM department;" > "$env:TEMP\d.txt"
+[System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes("$env:TEMP\d.txt")).Trim()
+```
+
+기대: `대표이사실, 경영지원본부, 사업본부, 인사팀, 재무팀, 마케팅팀, 개발팀`
+
+- [ ] **Step 4d: 비밀번호 해시 형식을 확인한다**
+
+> **`LIKE '\$2a\$10\$%'` 처럼 백슬래시로 이스케이프하면 PowerShell 에서 틀린 결과가 나온다.**
+> PowerShell 은 백슬래시를 특별하게 처리하지 않으므로 리터럴 백슬래시가 SQL 패턴에 들어가
+> 매칭이 0건이 된다. **PowerShell 에서는 백틱(`` ` ``)으로 `$` 를 이스케이프한다.**
+
+```powershell
+docker exec -i flowmate-postgres psql -U flowmate -d flowmate -t -A -c "SELECT 'total='||COUNT(*)||' bcrypt='||COUNT(*) FILTER (WHERE password_hash LIKE '`$2a`$10`$%')||' len60='||COUNT(*) FILTER (WHERE LENGTH(password_hash)=60)||' distinct='||COUNT(DISTINCT password_hash) FROM employee;"
+```
+
+기대: `total=20 bcrypt=20 len60=20 distinct=20`.
+
+`distinct=20` 이 중요하다 — 20명이 같은 비밀번호를 쓰지만 `gen_salt` 가 매 행 다른 솔트를 만들므로
+해시는 전부 달라야 한다. `distinct` 가 1이면 솔트가 고정된 것이고 그건 BCrypt 를 쓰는 의미가 없다.
 
 > `position` 테이블 생성이 실패했다면 로드맵 Q3의 상황이다.
 > 테이블명을 `job_position` 으로 바꾸고 로드맵 Q3 표를 갱신한다.

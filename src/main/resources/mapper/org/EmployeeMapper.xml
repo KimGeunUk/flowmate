@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.org.mapper.EmployeeMapper">
+
+    <!--
+      검색 조건 조각. search 와 countSearch 가 공유해
+      "목록과 건수의 조건이 어긋나 페이징이 깨지는" 사고를 구조적으로 막는다.
+      employee 테이블 별칭만 쓰므로 countSearch 는 조인 없이 재사용할 수 있다.
+
+      ESCAPE 를 붙이는 이유: 사용자가 입력한 % 나 _ 가 LIKE 의 와일드카드로 해석된다.
+      조건 판정은 원본 keyword 로, 값은 이스케이프된 keywordEscaped 로 쓴다.
+    -->
+    <sql id="searchWhere">
+        <where>
+            e.use_yn = 'Y'
+            <if test="deptId != null">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="keyword != null">
+                AND (e.emp_name LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\'
+                  OR e.emp_no   LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\')
+            </if>
+        </where>
+    </sql>
+
+    <!--
+      목록 조회. password_hash 는 선택하지 않는다 —
+      목록 응답에 해시가 실릴 이유가 없고, 실리면 화면·로그로 새어나갈 경로가 생긴다.
+
+      정렬 마지막에 emp_id 를 두는 이유는 안정 정렬이다. 동일 직급·동일 입사일이 있으면
+      정렬이 흔들려 1페이지와 2페이지에 같은 사람이 중복으로 나온다.
+    -->
+    <select id="search" resultType="Employee">
+        SELECT e.emp_id, e.emp_no, e.emp_name, e.dept_id, e.position_id,
+               e.email, e.hire_date, e.role, e.use_yn,
+               d.dept_name,
+               p.position_name, p.position_level
+          FROM employee e
+          JOIN department d ON d.dept_id     = e.dept_id
+          JOIN position   p ON p.position_id = e.position_id
+        <include refid="searchWhere"/>
+         ORDER BY p.position_level DESC, e.hire_date, e.emp_id
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*)
+          FROM employee e
+        <include refid="searchWhere"/>
+    </select>
+
+    <!-- 로그인 인증 전용. 여기서만 password_hash 를 선택한다. -->
+    <select id="findByEmpNo" resultType="Employee">
+        SELECT e.emp_id, e.emp_no, e.emp_name, e.dept_id, e.position_id,
+               e.email, e.hire_date, e.password_hash, e.role, e.use_yn,
+               d.dept_name,
+               p.position_name, p.position_level
+          FROM employee e
+          JOIN department d ON d.dept_id     = e.dept_id
+          JOIN position   p ON p.position_id = e.position_id
+         WHERE e.emp_no = #{empNo}
+    </select>
+
+</mapper>

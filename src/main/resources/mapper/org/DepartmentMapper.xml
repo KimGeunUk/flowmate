@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.org.mapper.DepartmentMapper">
+
+    <!--
+      조직도 계층 조회 (재귀 CTE).
+
+      형제 정렬을 sort_order 로 하는 이유:
+      department.sort_order 를 NOT NULL 로 선언한 목적이 형제 정렬인데,
+      path 를 dept_id 로만 만들면 정렬이 id 순이 되어 그 컬럼이 무의미해진다.
+      sort_order 를 앞에 두고 dept_id 를 tie-breaker 로 붙인다.
+
+      LPAD 로 자릿수를 맞추는 이유: 문자열 비교이므로 '10' < '9' 가 되는 것을 막는다.
+
+      use_yn = 'Y' 를 anchor 와 recursive term 양쪽에 두면
+      사용하지 않는 부서의 하위 부서까지 자연히 제외된다 (서브트리에 도달하지 못한다).
+
+      Oracle 대응은 docs/oracle-mapping.md 참조 (WITH RECURSIVE → CONNECT BY PRIOR).
+    -->
+    <select id="findDeptTree" resultType="DeptTreeItem">
+        WITH RECURSIVE dept_tree AS (
+            SELECT d.dept_id,
+                   d.parent_dept_id,
+                   d.dept_name,
+                   d.dept_code,
+                   1 AS depth,
+                   LPAD(CAST(d.sort_order AS VARCHAR(5)), 5, '0') || '-' ||
+                   LPAD(CAST(d.dept_id    AS VARCHAR(10)), 10, '0') AS sort_path
+              FROM department d
+             WHERE d.parent_dept_id IS NULL
+               AND d.use_yn = 'Y'
+            UNION ALL
+            SELECT c.dept_id,
+                   c.parent_dept_id,
+                   c.dept_name,
+                   c.dept_code,
+                   t.depth + 1,
+                   t.sort_path || '>' ||
+                   LPAD(CAST(c.sort_order AS VARCHAR(5)), 5, '0') || '-' ||
+                   LPAD(CAST(c.dept_id    AS VARCHAR(10)), 10, '0')
+              FROM department c
+              JOIN dept_tree t ON c.parent_dept_id = t.dept_id
+             WHERE c.use_yn = 'Y'
+        )
+        SELECT t.dept_id,
+               t.parent_dept_id,
+               t.dept_name,
+               t.dept_code,
+               t.depth,
+               (SELECT COUNT(*)
+                  FROM employee e
+                 WHERE e.dept_id = t.dept_id
+                   AND e.use_yn = 'Y') AS emp_count
+          FROM dept_tree t
+         ORDER BY t.sort_path
+    </select>
+
+</mapper>
