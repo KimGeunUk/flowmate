@@ -58,12 +58,21 @@ public class Page<T> {
         return content.isEmpty();
     }
 
-    /** 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다. */
-    public int getTotalPages() {
+    /**
+     * 전체 페이지 수 계산. Service 가 Page 를 만들기 전에 요청 페이지를 보정할 때도 필요하므로
+     * static 으로 빼 둔다. 같은 식을 Service 에 복사하면 두 곳이 어긋날 수 있다.
+     *
+     * 결과가 0건이어도 1페이지로 본다. 화면에 "1 / 0" 같은 표시가 나오지 않게 한다.
+     */
+    public static int totalPagesOf(long totalCount, int size) {
         if (totalCount == 0) {
             return 1;
         }
         return (int) ((totalCount + size - 1) / size);
+    }
+
+    public int getTotalPages() {
+        return totalPagesOf(totalCount, size);
     }
 
     public boolean isFirst() {

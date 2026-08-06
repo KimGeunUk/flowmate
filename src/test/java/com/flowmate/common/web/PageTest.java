@@ -82,4 +82,29 @@ class PageTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("page");
     }
+
+    @Test
+    @DisplayName("totalPagesOf 는 Service 가 요청 페이지를 보정할 때 쓰는 것과 같은 값을 준다")
+    void totalPagesOfMatchesInstanceMethod() {
+        assertThat(Page.totalPagesOf(0, 10)).isEqualTo(1);
+        assertThat(Page.totalPagesOf(20, 10)).isEqualTo(2);
+        assertThat(Page.totalPagesOf(21, 10)).isEqualTo(3);
+        assertThat(new Page<>(List.of("a"), 1, 10, 21).getTotalPages())
+                .isEqualTo(Page.totalPagesOf(21, 10));
+    }
+
+    @Test
+    @DisplayName("전체 페이지를 넘는 페이지를 넘기면 시작 페이지가 끝 페이지보다 커진다 - Service 가 미리 막아야 한다")
+    void pageBeyondLastLeavesStartGreaterThanEnd() {
+        // 11페이지를 보던 중 검색을 좁혀 totalCount 가 20으로 줄어든 상황.
+        // Page 는 넘겨받은 값을 그대로 계산한다. <c:forEach begin=11 end=2> 는 예외 없이
+        // 링크를 0개 그리므로 페이징이 조용히 죽는다.
+        // 따라서 EmployeeService 가 Page 를 만들기 전에 page 를 totalPages 로 보정한다.
+        Page<String> overshoot = new Page<>(List.of(), 11, 10, 20);
+
+        assertThat(overshoot.getTotalPages()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isEqualTo(11);
+        assertThat(overshoot.getEndPage()).isEqualTo(2);
+        assertThat(overshoot.getStartPage()).isGreaterThan(overshoot.getEndPage());
+    }
 }
