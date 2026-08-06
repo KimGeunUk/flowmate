@@ -214,6 +214,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | D5 | §5.1 시드 비밀번호 | pgcrypto `crypt('flowmate1!', gen_salt('bf', 10))` 로 SQL 안에서 생성 | BCrypt 해시를 손으로 복사·붙여넣는 단계가 없어진다. pgcrypto의 `bf`는 `$2a$` 형식이라 `BCryptPasswordEncoder`가 그대로 검증한다. 데모 비밀번호는 ASCII만 쓴다(pgcrypto `bf`의 8bit 문자 이슈 회피) |
 | D6 | §4.2 `config/MyBatisConfig` | 만들지 않는다 | 자동설정 + `application.yml`로 충분. 필요해지는 Phase에서 만든다 |
 | D7 | §4.4 공통 조각에 `ai-panel.jsp` 포함 | `ai-panel.jsp`는 **계획서 5에서** 만든다 | Phase 1에 만들면 내용 없는 파일이 된다. 나머지 5종(head/header/sidebar/footer/pagination)은 Phase 1에서 만든다 |
+| D9 | §3.1 "기존 taglib URI 를 쓰면 태그가 문자열로 출력되거나 500 발생" | **사실이 아니다.** `org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1` 의 TLD 를 직접 확인한 결과 이 jar 은 `jakarta.tags.core` 와 `http://java.sun.com/jsp/jstl/core` 를 **모두 등록**한다 (`c.tld` / `c-1_2.tld`). 구형 URI 도 해석된다 | 실제 실패 원인은 URI 가 아니라 **artifact 선택**이다. `javax` 시절 좌표를 Tomcat 10.1 에서 쓰면 `NoClassDefFoundError: javax/servlet/jsp/...` 가 난다. 태그가 문자열로 출력되는 것은 `<%@ taglib %>` 선언을 빠뜨린 경우다. 세 증상을 구분해 두지 않으면 엉뚱한 곳을 고치게 된다. **그래도 `jakarta.tags.*` 를 쓴다** — Jakarta EE 10 의 정식 URI이고 구형은 하위호환 잔존물이다. Phase 0 의 위험도는 설계서 예상보다 낮다 |
 | D8 | §5.6 Oracle 대응표를 Phase 6에 작성 | 계획서 1에서 만들고 **매 Phase 증분 추가** | §3.5 참조 |
 
 ## 5. 아직 결정되지 않은 것

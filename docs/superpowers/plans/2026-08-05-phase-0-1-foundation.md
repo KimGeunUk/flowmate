@@ -831,8 +831,32 @@ DataSource 자동설정이 켜지면 DB 없이 뜨지 않으므로 MyBatis 의�
 ### Task 3: JSP + Jakarta JSTL 배선 검증 ★ 최대 리스크
 
 > 설계서 §3.1의 유일한 목표. **4시간 초과 시 탈출 조건 발동.**
-> 실패 신호는 500 에러가 아니라 **브라우저에 `<fmt:formatDate .../>` 같은 태그가 문자열로 그대로 보이는 것**이다.
-> 이 경우 원인은 거의 항상 taglib URI가 `javax` 시절 값(`http://java.sun.com/jsp/jstl/core`)인 것이다.
+>
+> **★ 착수 전 확인한 사실 — 설계서 §3.1 의 위험 서술을 정정한다.**
+>
+> `org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1` jar 안의 TLD 를 직접 열어 확인한 결과,
+> 이 jar 은 **두 URI 계열을 모두 등록한다.**
+>
+> | TLD 파일 | 등록된 URI |
+> |---|---|
+> | `c.tld` | `jakarta.tags.core` |
+> | `c-1_2.tld` | `http://java.sun.com/jsp/jstl/core` |
+> | `fmt.tld` / `fmt-1_1.tld` | `jakarta.tags.fmt` / `http://java.sun.com/jsp/jstl/fmt` |
+> | `fn.tld` / `fn-1_1.tld` | `jakarta.tags.functions` / `http://java.sun.com/jsp/jstl/functions` |
+>
+> 따라서 설계서가 말한 "기존 URI 를 쓰면 태그가 문자열로 출력되거나 500 발생" 은 **이 artifact 에서는 성립하지 않는다.**
+> 구형 URI 도 해석된다. 실제 실패 원인은 URI 가 아니라 **artifact 선택**이다.
+>
+> **진짜 실패 모드 세 가지 (혼동하면 엉뚱한 곳을 고치게 된다):**
+>
+> | 증상 | 실제 원인 |
+> |---|---|
+> | 500 `The absolute uri [...] cannot be resolved` | JSTL **구현체 jar 자체가 없다** (API 만 있음). URI 오타여도 이 증상 |
+> | `NoClassDefFoundError: javax/servlet/jsp/...` | `javax` 시절 artifact(`javax.servlet:jstl` 등)를 Tomcat 10.1 에서 썼다. **이것이 설계서가 경계한 진짜 함정** |
+> | 태그가 문자열로 그대로 출력 | `<%@ taglib %>` **선언을 빠뜨렸다**. URI 문제가 아니다 |
+>
+> 그래도 `jakarta.tags.*` 를 쓴다 — 구형 URI 는 하위호환용 잔존물이고 Jakarta EE 10 의 정식 URI 가 이것이다.
+> **위험도가 설계서 예상보다 낮으므로 탈출 조건까지 갈 가능성은 작다.**
 
 **Files:**
 - Create: `src/main/java/com/flowmate/org/controller/HomeController.java`
@@ -906,8 +930,9 @@ public class HomeController {
 | 증상 | 원인 | 조치 |
 |---|---|---|
 | 404 | `tomcat-embed-jasper` 누락 또는 `spring.mvc.view.prefix` 오타 | pom과 application.yml 확인 |
-| 태그가 문자열로 출력 | taglib URI가 `javax` 시절 값 | `jakarta.tags.core` / `jakarta.tags.fmt` 로 교정 |
-| 500 `The absolute uri cannot be resolved` | JSTL 구현체(`org.glassfish.web:jakarta.servlet.jsp.jstl`) 누락 | pom 확인 |
+| 500 `The absolute uri [...] cannot be resolved` | JSTL **구현체** (`org.glassfish.web:jakarta.servlet.jsp.jstl`) 누락. API 만 있으면 이 증상이다. URI 오타여도 같은 증상 | pom 의 구현체 의존성과 `<%@ taglib %>` 의 URI 철자 확인 |
+| `NoClassDefFoundError: javax/servlet/jsp/...` | **`javax` 시절 artifact** 를 Tomcat 10.1 에서 썼다 (`javax.servlet:jstl`, `taglibs-standard` 등). 설계서 §3.1이 경계한 진짜 함정 | pom 에서 `jakarta.*` 좌표만 남긴다 |
+| 태그가 문자열로 그대로 출력 | `<%@ taglib %>` **선언 누락**. URI 문제가 아니다 | JSP 상단의 taglib 지시자 확인 |
 | 500 `Unable to compile class for JSP` | Jasper가 provided인데 실행 클래스패스에 없음 | `spring-boot:run` 으로 실행하는지 확인 |
 | 한글 깨짐 | `pageEncoding` 누락 또는 `server.servlet.encoding.force` 미설정 | 둘 다 확인 |
 
