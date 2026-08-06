@@ -1903,12 +1903,25 @@ public class EmployeeSearchCond {
         return size;
     }
 
-    /** SQL 의 OFFSET 값 */
-    public int getOffset() {
-        return (page - 1) * size;
+    /**
+     * SQL 의 OFFSET 값.
+     *
+     * long 으로 계산하는 이유: page 는 위쪽 상한이 없다(요청 파라미터를 손으로 고치면
+     * 얼마든 커진다). int 로 곱하면 Java 는 예외 없이 음수로 감싸고, 그 값이
+     * OFFSET 으로 들어가도 오류가 나지 않아 조용히 빈 결과가 된다.
+     * 오버플로 방지를 이 객체가 책임진다 — 호출하는 Service 의 순서에 의존하지 않는다.
+     */
+    public long getOffset() {
+        return (long) (page - 1) * size;
     }
 }
 ```
+
+> **캐스트 위치가 중요하다.** `(long) (page - 1) * size` 는 곱하기 전에 승격한다.
+> `(long) ((page - 1) * size)` 로 쓰면 int 로 먼저 오버플로한 뒤 이미 틀린 값을 넓히므로 의미가 없다.
+>
+> `?page=300000000` 이면 `(300000000-1)*10 = 2999999990` 인데 `Integer.MAX_VALUE` 는 `2147483647` 이다.
+> int 로는 `-1294967306` 으로 감싸고, **음수 OFFSET 은 SQL 오류가 아니라 조용한 빈 결과**가 된다.
 
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
@@ -1916,7 +1929,7 @@ public class EmployeeSearchCond {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 14, Failures: 0, Errors: 0, Skipped: 0` (Page 9건 + SearchCond 5건)
+기대: `Tests run: 15, Failures: 0, Errors: 0, Skipped: 0` (Page 9건 + SearchCond 6건)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -2915,6 +2928,61 @@ class EmployeeMapperIT {
 
 기대: 컴파일 실패 — `cannot find symbol: class Employee`.
 
+- [ ] **Step 3b: `EmployeeSearchCond` 에 `getKeywordEscaped()` 를 추가한다**
+
+> Task 8 에서 만들지 않고 여기서 추가하는 이유: 매퍼가 없으면 쓸 데가 없다(YAGNI).
+> 매퍼를 쓰는 시점에 함께 넣는다.
+
+`src/main/java/com/flowmate/org/domain/EmployeeSearchCond.java` 에 아래 메서드를 추가한다.
+기존 `getKeyword()` 는 그대로 둔다 — 검색 폼에 다시 표시할 값은 원본이어야 한다.
+
+```java
+    /**
+     * LIKE 패턴에 넣을 검색어. `\` `%` `_` 를 이스케이프한다.
+     *
+     * 이스케이프하지 않으면 사용자가 입력한 % 와 _ 가 와일드카드로 해석된다.
+     * 사원번호에 밑줄이 있는 경우(EMP_2024_01) _ 가 "임의의 한 글자" 가 되어
+     * 의도보다 넓은 결과가 나온다. 주입 위험은 없지만(바인딩 파라미터) 결과가 조용히 틀어진다.
+     *
+     * 화면 표시용은 getKeyword() 를 쓴다. 이스케이프된 값을 폼에 되돌리면
+     * 사용자가 입력하지 않은 역슬래시가 보인다.
+     *
+     * `\` 를 가장 먼저 치환해야 한다. 나중에 하면 앞서 넣은 이스케이프 문자를 또 이스케이프한다.
+     */
+    public String getKeywordEscaped() {
+        if (keyword == null) {
+            return null;
+        }
+        return keyword.replace("\\", "\\\\")
+                      .replace("%", "\\%")
+                      .replace("_", "\\_");
+    }
+```
+
+단위 테스트를 `EmployeeSearchCondTest` 에 추가한다.
+
+```java
+    @Test
+    @DisplayName("LIKE 와일드카드 문자를 이스케이프하고 원본 검색어는 그대로 유지한다")
+    void escapesLikeWildcards() {
+        EmployeeSearchCond cond = new EmployeeSearchCond();
+
+        cond.setKeyword("EMP_2024");
+        assertThat(cond.getKeyword()).isEqualTo("EMP_2024");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("EMP\\_2024");
+
+        cond.setKeyword("50%");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("50\\%");
+
+        // 역슬래시를 먼저 치환하지 않으면 이중 이스케이프가 깨진다
+        cond.setKeyword("a\\b");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("a\\\\b");
+
+        cond.setKeyword(null);
+        assertThat(cond.getKeywordEscaped()).isNull();
+    }
+```
+
 - [ ] **Step 3: `Employee` 도메인을 만든다**
 
 ```java
@@ -3108,9 +3176,16 @@ public interface EmployeeMapper {
             <if test="deptId != null">
                 AND e.dept_id = #{deptId}
             </if>
+            <!--
+              ESCAPE 를 붙이는 이유: 사용자가 입력한 % 나 _ 가 LIKE 의 와일드카드로 해석된다.
+              사원번호에 밑줄이 있으면(EMP_2024_01) _ 가 "임의의 한 글자" 가 되어
+              엉뚱한 행까지 걸린다. 주입 위험은 없지만(바인딩 파라미터) 결과가 조용히 넓어진다.
+              바인딩 값 쪽은 keywordEscaped 가 담당한다 (Step 3b 참조).
+              조건 판정은 원본 keyword 로, 값은 이스케이프된 것으로 쓴다.
+            -->
             <if test="keyword != null">
-                AND (e.emp_name LIKE '%' || #{keyword} || '%'
-                  OR e.emp_no   LIKE '%' || #{keyword} || '%')
+                AND (e.emp_name LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\'
+                  OR e.emp_no   LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\')
             </if>
         </where>
     </sql>
@@ -3218,7 +3293,7 @@ public class EmployeeService {
 .\mvnw.cmd verify
 ```
 
-기대: 단위 14건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
+기대: 단위 16건 + 통합 11건(Department 4 + Employee 7) 전부 통과.
 
 - [ ] **Step 8: `EmployeeController` 와 `employee-list.jsp` 를 만든다**
 
@@ -3746,7 +3821,7 @@ public class EmployeeUserDetailsService implements UserDetailsService {
 .\mvnw.cmd test
 ```
 
-기대: `Tests run: 19, Failures: 0, Errors: 0, Skipped: 0` (Page 9 + SearchCond 5 + UserDetailsService 5)
+기대: `Tests run: 21, Failures: 0, Errors: 0, Skipped: 0` (Page 9 + SearchCond 7 + UserDetailsService 5)
 
 - [ ] **Step 7: `LoginEmployeeAdvice` 를 만든다**
 
@@ -3995,7 +4070,7 @@ docker compose up -d postgres
 .\mvnw.cmd verify
 ```
 
-기대: 단위 19건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
+기대: 단위 21건 + 통합 16건(Department 4 + Employee 7 + Login 5) 전부 통과.
 
 실패 시 진단:
 
@@ -4061,7 +4136,7 @@ docker compose up -d postgres
 .\mvnw.cmd clean verify
 ```
 
-기대: `BUILD SUCCESS`, 단위 19건 + 통합 16건.
+기대: `BUILD SUCCESS`, 단위 21건 + 통합 16건.
 **`clean` 과 `down -v` 를 넣는 이유:** 빈 상태에서 시작해도 재현되는지 확인한다.
 여기서 실패하면 어딘가에 "내 PC에서만 되는" 상태가 남아 있다는 뜻이다.
 
@@ -4168,7 +4243,7 @@ gh repo view --json url -q .url
 이 계획서가 추가로 요구하는 것:
 
 - [ ] `docker compose down -v` 후 `clean verify` 가 통과한다 (재현 가능)
-- [ ] 단위 테스트 19건이 **Docker 없이** 통과한다
+- [ ] 단위 테스트 21건이 **Docker 없이** 통과한다
 - [ ] `docs/oracle-mapping.md` 에 지금까지 쓴 PostgreSQL 전용 문법 3종이 기록됐다
 - [ ] Task 12에서 `header.jsp` 를 열지 않았다 (구조 우선 원칙 검증)
 
