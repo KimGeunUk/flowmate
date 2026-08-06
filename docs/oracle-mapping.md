@@ -67,4 +67,50 @@ CONNECT BY PRIOR d.dept_id = d.parent_dept_id
    Oracle 에서 같은 동작을 원하면 조건을 `WHERE` 가 아니라 **`CONNECT BY` 절에** 넣어야 한다.
    `WHERE` 에 두면 해당 노드만 빠지고 하위는 남는다.
 
-### 2.2 사원 목록 페이징 — 다음 Task 에서 추가한다
+### 2.2 사원 목록 페이징 — `mapper/org/EmployeeMapper.xml#search`
+
+PostgreSQL:
+
+```sql
+ ORDER BY p.position_level DESC, e.hire_date, e.emp_id
+ LIMIT #{limit} OFFSET #{offset}
+```
+
+Oracle 12c 이상:
+
+```sql
+ ORDER BY p.position_level DESC, e.hire_date, e.emp_id
+ OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+```
+
+Oracle 11g 이하:
+
+```sql
+SELECT * FROM (
+    SELECT inner_q.*, ROWNUM AS rn FROM (
+        SELECT ... ORDER BY p.position_level DESC, e.hire_date, e.emp_id
+    ) inner_q
+     WHERE ROWNUM <= #{offset} + #{limit}
+)
+ WHERE rn > #{offset}
+```
+
+**주의:** 11g 방식은 `ROWNUM` 을 정렬 뒤에 매기기 위해 인라인 뷰가 두 겹 필요하다.
+한 겹으로 쓰면 정렬 전에 번호가 매겨져 엉뚱한 행이 나온다.
+
+### 2.3 부분 일치 검색과 와일드카드 이스케이프 — 같은 파일 `searchWhere`
+
+```sql
+e.emp_name LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\'
+```
+
+`||` 결합과 `ESCAPE` 절은 Oracle 에서 동일하게 동작한다. 변환이 필요 없다.
+
+주의할 차이 두 가지:
+
+1. Oracle 은 빈 문자열을 `NULL` 로 취급하므로 `#{keywordEscaped}` 가 `''` 이면
+   조건 전체가 `NULL` 이 되어 아무 행도 걸리지 않는다. FlowMate 는
+   `EmployeeSearchCond` 의 setter 가 빈 문자열을 `null` 로 바꾸고 매퍼가
+   `<if test="keyword != null">` 로 감싸므로 이 경로에 들어가지 않는다.
+2. 이스케이프 문자로 백슬래시를 쓰면 Oracle 에서도 `ESCAPE '\'` 를 명시해야 한다.
+   기본 이스케이프 문자는 없다.

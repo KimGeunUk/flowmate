@@ -84,4 +84,24 @@ class EmployeeSearchCondTest {
         assertThat(cond.getOffset()).isEqualTo(2999999990L);
         assertThat(cond.getOffset()).isPositive();
     }
+
+    @Test
+    @DisplayName("LIKE 와일드카드 문자를 이스케이프하고 원본 검색어는 그대로 유지한다")
+    void escapesLikeWildcards() {
+        EmployeeSearchCond cond = new EmployeeSearchCond();
+
+        cond.setKeyword("EMP_2024");
+        assertThat(cond.getKeyword()).isEqualTo("EMP_2024");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("EMP\\_2024");
+
+        cond.setKeyword("50%");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("50\\%");
+
+        // 역슬래시를 먼저 치환하지 않으면 이중 이스케이프가 깨진다
+        cond.setKeyword("a\\b");
+        assertThat(cond.getKeywordEscaped()).isEqualTo("a\\\\b");
+
+        cond.setKeyword(null);
+        assertThat(cond.getKeywordEscaped()).isNull();
+    }
 }
