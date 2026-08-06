@@ -41,6 +41,11 @@
 > 같은 이유로 `java -jar target/flowmate.war` 를 손으로 실행할 때도 플래그가 필요하므로,
 > README 의 실행 명령은 `mvnw spring-boot:run` 을 표준으로 적는다.
 >
+> **계획서 6의 필수 항목 ③ — DB 자격증명.** `application.yml` 에 `flowmate/flowmate` 가 리터럴로
+> 커밋되어 있다. 로컬 개발 컨테이너의 기본값이고 같은 값이 `docker-compose.yml` 에도 있어야 하므로
+> 지금 단계에서는 문제가 아니다. 다만 **public 전환 시점에는** `${DB_PASSWORD:flowmate}` 형태로 바꿔
+> 커밋된 기본값은 그대로 동작하게 두면서 재정의 지점을 남긴다. 설정 한 줄 변경이며 별도 도구는 쓰지 않는다.
+>
 > **계획서 6의 필수 항목 ② — 비밀값 재검.** public 전환 **전에** 전체 커밋 이력에서 비밀값을 재검한다.
 > Phase 3에서 Anthropic API 키를 다루므로 `git log -p -- src/main/resources/` 와
 > `git log -p -S "sk-ant"` 로 어느 커밋에도 키가 없는지 확인한다.
