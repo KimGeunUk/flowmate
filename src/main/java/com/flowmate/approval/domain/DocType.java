@@ -1,5 +1,7 @@
 package com.flowmate.approval.domain;
 
+import java.util.List;
+
 /**
  * 문서 유형 5종 (설계서 §12 확정).
  *
@@ -12,6 +14,9 @@ public final class DocType {
     public static final String LEAVE = "LEAVE";
     public static final String CONTRACT = "CONTRACT";
     public static final String GENERAL = "GENERAL";
+
+    /** 화면 선택 상자 순서 */
+    public static final List<String> ALL = List.of(EXPENSE, PURCHASE, LEAVE, CONTRACT, GENERAL);
 
     private DocType() {
     }

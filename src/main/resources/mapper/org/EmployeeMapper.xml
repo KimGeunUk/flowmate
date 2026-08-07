@@ -62,4 +62,16 @@
          WHERE e.emp_no = #{empNo}
     </select>
 
+    <!-- PK 조회. 로그인 경로가 아니므로 password_hash 는 선택하지 않는다. -->
+    <select id="findById" resultType="Employee">
+        SELECT e.emp_id, e.emp_no, e.emp_name, e.dept_id, e.position_id,
+               e.email, e.hire_date, e.role, e.use_yn,
+               d.dept_name,
+               p.position_name, p.position_level
+          FROM employee e
+          JOIN department d ON d.dept_id     = e.dept_id
+          JOIN position   p ON p.position_id = e.position_id
+         WHERE e.emp_id = #{empId}
+    </select>
+
 </mapper>

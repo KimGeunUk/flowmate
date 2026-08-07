@@ -34,7 +34,12 @@
  * 홈         .home-panel  .home-panel__title  .home-panel__item
  *
  * ── 클래스 목록 (Phase 2) ────────────────────────────────────────
- * (전자결재 · 근태관리 등 다음 화면의 클래스는 여기에 이어서 적는다)
+ * 문서폼     .doc-form
+ * 결재선     .approval-line  .approval-line__item  .approval-line__step
+ *            .approval-line__name  .approval-line__position
+ * 상태       .status  .status--draft  .status--pending  .status--approved
+ *            .status--rejected  .status--canceled
+ *            .status--waiting  .status--current  .status--skipped
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */

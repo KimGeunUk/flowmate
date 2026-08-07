@@ -13,6 +13,9 @@ public interface ApprovalLineMapper {
     /** 결재선 전체를 한 번에 저장한다 */
     void insertAll(@Param("lines") List<ApprovalLine> lines);
 
+    /** 문서의 결재선을 전부 지운다. 임시저장 수정 시 다시 만들기 전에 부른다 */
+    void deleteByApprovalId(@Param("approvalId") Long approvalId);
+
     /** 결재자 이름·직급·부서 조인 포함. step_no 순 */
     List<ApprovalLine> findByApprovalId(@Param("approvalId") Long approvalId);
 

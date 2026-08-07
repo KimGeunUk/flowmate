@@ -13,6 +13,10 @@
         </foreach>
     </insert>
 
+    <delete id="deleteByApprovalId">
+        DELETE FROM approval_line WHERE approval_id = #{approvalId}
+    </delete>
+
     <sql id="lineSelect">
         SELECT l.line_id, l.approval_id, l.step_no, l.approver_id,
                l.line_type, l.status, l.comment, l.processed_at,

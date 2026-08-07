@@ -3,6 +3,7 @@ package com.flowmate.org.mapper;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import com.flowmate.org.domain.Employee;
 import com.flowmate.org.domain.EmployeeSearchCond;
@@ -18,4 +19,7 @@ public interface EmployeeMapper {
 
     /** 로그인 인증용. 비밀번호 해시를 포함한다. 없으면 null. */
     Employee findByEmpNo(String empNo);
+
+    /** PK 조회. 로그인 경로가 아니므로 비밀번호 해시는 선택하지 않는다. 없으면 null. */
+    Employee findById(@Param("empId") Long empId);
 }
