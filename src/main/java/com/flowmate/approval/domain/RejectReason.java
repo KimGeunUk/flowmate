@@ -47,8 +47,15 @@ public final class RejectReason {
         return "기타";
     }
 
-    /** 유효한 유형인가. 화면에서 넘어온 값을 신뢰하지 않기 위한 검사다 */
+    /**
+     * 유효한 유형인가. 화면에서 넘어온 값을 신뢰하지 않기 위한 검사다.
+     *
+     * null 을 먼저 걸러내는 이유: ALL 은 List.of(...) 로 만든 불변 리스트인데,
+     * 이런 리스트의 contains(null) 은 false 가 아니라 NullPointerException 을 던진다
+     * (null 원소를 아예 허용하지 않는 리스트라 "포함 여부를 못 묻는다"는 뜻으로 실패한다).
+     * 화면에서 유형을 선택하지 않고 보내면 category 가 정확히 이 null 이 된다.
+     */
     public static boolean isValid(String category) {
-        return ALL.contains(category);
+        return category != null && ALL.contains(category);
     }
 }

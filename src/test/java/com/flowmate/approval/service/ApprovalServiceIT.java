@@ -10,14 +10,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalForm;
+import com.flowmate.approval.domain.ApprovalHistory;
 import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
+import com.flowmate.approval.domain.HistoryAction;
 import com.flowmate.approval.domain.LineStatus;
+import com.flowmate.approval.domain.RejectReason;
+import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
 
@@ -43,6 +48,12 @@ class ApprovalServiceIT {
 
     @Autowired
     private ApprovalLineMapper lineMapper;
+
+    @Autowired
+    private ApprovalHistoryMapper historyMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("임시저장하면 문서번호가 부여되고 결재선이 자동 생성된다")
@@ -119,6 +130,139 @@ class ApprovalServiceIT {
         assertThat(lineMapper.findByApprovalId(id))
                 .extracting(ApprovalLine::getApproverId)
                 .containsExactly(SHIN, PARK, JEONG);
+    }
+
+    @Test
+    @DisplayName("상신하면 진행 중이 되고 1단계가 현재 차례가 된다")
+    void submitActivatesFirstStep() {
+        Long id = approvalService.saveDraft(newForm("상신 대상", "1000000"), KWAK);
+
+        approvalService.submit(id, KWAK);
+
+        ApprovalDoc doc = queryService.findDoc(id, KWAK);
+        assertThat(doc.getStatus()).isEqualTo(ApprovalStatus.PENDING);
+        assertThat(doc.getCurrentStep()).isEqualTo(1);
+
+        List<ApprovalLine> lines = lineMapper.findByApprovalId(id);
+        assertThat(lines.get(0).getStatus()).isEqualTo(LineStatus.CURRENT);
+        assertThat(lines.get(1).getStatus()).isEqualTo(LineStatus.WAITING);
+    }
+
+    @Test
+    @DisplayName("결재자가 없으면 상신 즉시 완료된다")
+    void submitWithoutApproverCompletesImmediately() {
+        Long id = approvalService.saveDraft(newForm("이사 기안", "1000000"), JEONG);
+
+        approvalService.submit(id, JEONG);
+
+        ApprovalDoc doc = queryService.findDoc(id, JEONG);
+        assertThat(doc.getStatus()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(doc.getCompletedAt()).isNotNull();
+        // 승인한 사람이 없으므로 APPROVE 이력을 지어내지 않는다
+        assertThat(queryService.findHistories(id))
+                .extracting(ApprovalHistory::getAction)
+                .containsExactly(HistoryAction.DRAFT, HistoryAction.SUBMIT);
+    }
+
+    @Test
+    @DisplayName("기안자가 아니면 상신할 수 없다")
+    void onlyDrafterCanSubmit() {
+        Long id = approvalService.saveDraft(newForm("남의 문서", "1000000"), KWAK);
+
+        assertThatThrownBy(() -> approvalService.submit(id, SHIN))
+                .isInstanceOf(ApprovalAccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("★ 사원 기안 → 팀장 승인 → 부장 승인 → 완료 전 과정이 이어진다")
+    void fullApprovalFlowCompletes() {
+        Long id = approvalService.saveDraft(newForm("전 과정", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+
+        approvalService.approve(id, SHIN, "확인했습니다");
+
+        ApprovalDoc mid = queryService.findDoc(id, KWAK);
+        assertThat(mid.getStatus()).isEqualTo(ApprovalStatus.PENDING);
+        assertThat(mid.getCurrentStep()).isEqualTo(2);
+        assertThat(lineMapper.findStep(id, 1).getStatus()).isEqualTo(LineStatus.APPROVED);
+        assertThat(lineMapper.findStep(id, 2).getStatus()).isEqualTo(LineStatus.CURRENT);
+
+        approvalService.approve(id, PARK, null);
+
+        ApprovalDoc done = queryService.findDoc(id, KWAK);
+        assertThat(done.getStatus()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(done.getCompletedAt()).isNotNull();
+        assertThat(lineMapper.findStep(id, 2).getStatus()).isEqualTo(LineStatus.APPROVED);
+
+        assertThat(queryService.findHistories(id))
+                .extracting(ApprovalHistory::getAction)
+                .containsExactly(HistoryAction.DRAFT, HistoryAction.SUBMIT,
+                                 HistoryAction.APPROVE, HistoryAction.APPROVE);
+    }
+
+    @Test
+    @DisplayName("자기 차례가 아니면 승인할 수 없다")
+    void cannotApproveOutOfTurn() {
+        Long id = approvalService.saveDraft(newForm("순서 확인", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+
+        // 2단계 결재자가 1단계를 건너뛰고 승인하려 함
+        assertThatThrownBy(() -> approvalService.approve(id, PARK, null))
+                .isInstanceOf(ApprovalAccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("★ 반려하면 뒤 단계가 건너뛰기 처리되고 반려 이력이 유형과 함께 쌓인다")
+    void rejectSkipsRemainingAndRecordsReason() {
+        Long id = approvalService.saveDraft(newForm("반려 대상", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+
+        approvalService.reject(id, SHIN, RejectReason.MISSING_EVIDENCE, "견적서를 첨부해 주세요");
+
+        ApprovalDoc doc = queryService.findDoc(id, KWAK);
+        assertThat(doc.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
+        assertThat(lineMapper.findStep(id, 1).getStatus()).isEqualTo(LineStatus.REJECTED);
+        assertThat(lineMapper.findStep(id, 2).getStatus()).isEqualTo(LineStatus.SKIPPED);
+
+        // ★ Phase 5 사전점검이 읽는 표
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM approval_reject_history WHERE approval_id = ? AND reason_category = ?",
+                Integer.class, id, RejectReason.MISSING_EVIDENCE);
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("반려 유형이 없거나 잘못되면 반려 자체를 거부한다")
+    void rejectRequiresValidReasonCategory() {
+        Long id = approvalService.saveDraft(newForm("유형 검증", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+
+        assertThatThrownBy(() -> approvalService.reject(id, SHIN, null, "이유"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> approvalService.reject(id, SHIN, "NOT_A_REASON", "이유"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("첫 승인 전이면 기안자가 회수할 수 있다")
+    void drafterCanCancelBeforeFirstApproval() {
+        Long id = approvalService.saveDraft(newForm("회수 대상", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+
+        approvalService.cancel(id, KWAK);
+
+        assertThat(queryService.findDoc(id, KWAK).getStatus()).isEqualTo(ApprovalStatus.CANCELED);
+    }
+
+    @Test
+    @DisplayName("한 단계라도 승인되면 회수할 수 없다")
+    void cannotCancelAfterFirstApproval() {
+        Long id = approvalService.saveDraft(newForm("회수 불가", "1000000"), KWAK);
+        approvalService.submit(id, KWAK);
+        approvalService.approve(id, SHIN, null);
+
+        assertThatThrownBy(() -> approvalService.cancel(id, KWAK))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private ApprovalForm newForm(String title, String amount) {

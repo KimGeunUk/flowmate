@@ -16,6 +16,9 @@ import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.HistoryAction;
+import com.flowmate.approval.domain.LineStatus;
+import com.flowmate.approval.domain.RejectHistory;
+import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
@@ -115,6 +118,128 @@ public class ApprovalService {
 
         rebuildLines(doc, requireEmployee(actorId));
         return doc.getApprovalId();
+    }
+
+    /**
+     * 상신한다. 결재선 길이를 도메인 객체에 넘겨 결재자가 0명인 경우까지 한 곳에서 판정하게 한다.
+     */
+    @Transactional
+    public void submit(Long approvalId, Long actorId) {
+        ApprovalDoc doc = requireDocForUpdate(approvalId);
+        if (!Objects.equals(doc.getDrafterId(), actorId)) {
+            throw new ApprovalAccessDeniedException("기안자만 상신할 수 있습니다");
+        }
+        int approverCount = lineMapper.countByApprovalId(approvalId);
+
+        doc.submit(approverCount);
+        docMapper.updateStatus(doc);
+
+        if (approverCount > 0) {
+            lineMapper.activateStep(approvalId, 1);
+        }
+        historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.SUBMIT, null));
+    }
+
+    /**
+     * 현재 단계를 승인한다.
+     *
+     * 행 잠금(FOR UPDATE)으로 조회하는 이유: 두 결재자가 동시에 누르면 잠금이 없으면
+     * 둘 다 같은 current_step 을 읽어 각자 +1 해서 단계가 하나 건너뛰어진다.
+     */
+    @Transactional
+    public void approve(Long approvalId, Long actorId, String comment) {
+        ApprovalDoc doc = requireDocForUpdate(approvalId);
+        ApprovalLine current = requireMyCurrentLine(doc, approvalId, actorId);
+        int totalStep = lineMapper.countByApprovalId(approvalId);
+
+        current.setStatus(LineStatus.APPROVED);
+        current.setComment(comment);
+        current.setProcessedAt(LocalDateTime.now());
+        lineMapper.updateStep(current);
+
+        doc.approve(totalStep);
+        docMapper.updateStatus(doc);
+
+        if (!doc.isCompleted()) {
+            lineMapper.activateStep(approvalId, doc.getCurrentStep());
+        }
+        historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.APPROVE, comment));
+
+        // Phase 4 훅 자리 — 연차 신청서가 최종 승인되면 근태에 반영한다.
+        // Spring 이벤트가 아니라 직접 호출로 붙인다. 같은 트랜잭션에서 어느 한쪽이
+        // 실패하면 전부 롤백되어야 하기 때문이다 (설계서 §6.3).
+    }
+
+    /**
+     * 반려한다. 반려 유형이 없으면 거부한다 — 이 값이 Phase 5 사전점검의 학습 원천이다.
+     */
+    @Transactional
+    public void reject(Long approvalId, Long actorId, String reasonCategory, String reasonText) {
+        if (!RejectReason.isValid(reasonCategory)) {
+            throw new IllegalArgumentException("반려 유형을 선택해야 합니다: " + reasonCategory);
+        }
+        ApprovalDoc doc = requireDocForUpdate(approvalId);
+        ApprovalLine current = requireMyCurrentLine(doc, approvalId, actorId);
+
+        current.setStatus(LineStatus.REJECTED);
+        current.setComment(reasonText);
+        current.setProcessedAt(LocalDateTime.now());
+        lineMapper.updateStep(current);
+
+        // 뒤 단계는 차례가 오지 않는다
+        lineMapper.skipRemaining(approvalId, doc.getCurrentStep() + 1);
+
+        doc.reject();
+        docMapper.updateStatus(doc);
+        historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.REJECT, reasonText));
+
+        // ★ Phase 5 AI 사전점검이 읽는 표. 비정규화된 doc_type/dept_id 를 여기서 채운다.
+        RejectHistory reject = new RejectHistory();
+        reject.setApprovalId(approvalId);
+        reject.setDocType(doc.getDocType());
+        reject.setDeptId(doc.getDeptId());
+        reject.setRejectorId(actorId);
+        reject.setReasonCategory(reasonCategory);
+        reject.setReasonText(reasonText);
+        reject.setRejectedAt(LocalDateTime.now());
+        rejectHistoryMapper.insert(reject);
+    }
+
+    /** 기안자가 회수한다. 가능 여부 판정은 도메인 객체가 한다 */
+    @Transactional
+    public void cancel(Long approvalId, Long actorId) {
+        ApprovalDoc doc = requireDocForUpdate(approvalId);
+
+        doc.cancel(actorId);
+        docMapper.updateStatus(doc);
+
+        lineMapper.skipRemaining(approvalId, 1);
+        historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.CANCEL, null));
+    }
+
+    private ApprovalDoc requireDocForUpdate(Long approvalId) {
+        ApprovalDoc doc = docMapper.findByIdForUpdate(approvalId);
+        if (doc == null) {
+            throw new ApprovalNotFoundException(approvalId);
+        }
+        return doc;
+    }
+
+    /**
+     * 지금 이 사람이 처리할 차례인 결재선 단계를 돌려준다.
+     *
+     * 세 가지를 함께 검사한다 — 문서가 진행 중인지, 그 단계가 존재하는지,
+     * 그 단계의 결재자가 요청자인지. 하나라도 어긋나면 권한 예외다.
+     */
+    private ApprovalLine requireMyCurrentLine(ApprovalDoc doc, Long approvalId, Long actorId) {
+        ApprovalLine line = lineMapper.findStep(approvalId, doc.getCurrentStep());
+        if (line == null || !LineStatus.CURRENT.equals(line.getStatus())) {
+            throw new ApprovalAccessDeniedException("지금 처리할 수 있는 단계가 아닙니다");
+        }
+        if (!Objects.equals(line.getApproverId(), actorId)) {
+            throw new ApprovalAccessDeniedException("이 단계의 결재자가 아닙니다");
+        }
+        return line;
     }
 
     /**
