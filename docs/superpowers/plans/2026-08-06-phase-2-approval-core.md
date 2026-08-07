@@ -159,7 +159,7 @@ src/main/webapp/WEB-INF/views/
 src/test/java/com/flowmate/approval/
 ├─ domain/ApprovalDocTest.java             (단위 13) ★
 ├─ domain/DocTypeTest.java                 (단위 4)
-├─ policy/DefaultApprovalLinePolicyTest.java (단위 8) ★
+├─ policy/DefaultApprovalLinePolicyTest.java (단위 10) ★
 ├─ policy/SimpleTwoStepLinePolicyTest.java   (단위 3)
 ├─ mapper/ApprovalDocMapperIT.java          (통합 6)
 ├─ service/ApprovalServiceIT.java           (통합 9) ★
