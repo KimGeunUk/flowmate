@@ -26,7 +26,7 @@
 | # | 계획서 파일 | 설계서 대응 | 일수 | 이 계획서가 끝나면 무엇이 동작하는가 | 태그 |
 |---|---|---|---:|---|---|
 | 1 | `2026-08-05-phase-0-1-foundation.md` | Phase 0 + 1 | 4.5 | WAR가 Tomcat에서 뜨고, 로그인해서 사원 목록·조직도를 본다. 공통 레이아웃 5종과 클래스 명명 규칙이 고정된다 | `phase-1-org-user` |
-| 2 | `phase-2-approval-core.md` | Phase 2 | 4.5 | 사원A 기안 → 팀장 승인 → 부장 승인 → 완료가 화면에서 전부 된다. 반려 시 유형이 저장된다 | `phase-2-approval-core` |
+| 2 | [`2026-08-06-phase-2-approval-core.md`](2026-08-06-phase-2-approval-core.md) | Phase 2 | 4.5 | 사원A 기안 → 팀장 승인 → 부장 승인 → 완료가 화면에서 전부 된다. 반려 시 유형이 저장된다 | `phase-2-approval-core` |
 | 3 | `phase-3-ai-gateway.md` | Phase 3 | 1.0 | `LlmClient` 데코레이터 체인이 완성되고 `FakeLlmClient`로 마스킹·캐싱·폴백이 검증된다. **화면 없음** | `phase-3-ai-gateway` |
 | 4 | `phase-4-attendance.md` | Phase 4 | 3.0 | 출퇴근이 기록되고, 연차 신청서 승인 시 잔여 연차가 줄고 근태가 '연차'로 바뀐다. 중간 실패 시 전부 롤백된다 | `phase-4-attendance` |
 | 5 | `phase-5-ai-features.md` | Phase 5 | 4.0 | 문서 요약, 상신 전 사전점검(평가셋 5건 통과), 연차 맥락 표시가 동작한다 | `phase-5-ai-features` |
@@ -308,9 +308,26 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 
 | 계획서 | 상태 |
 |---|---|
-| 1. Phase 0+1 토대 | **작성 완료** — 실행 대기 |
-| 2. Phase 2 전자결재 코어 | 미작성 (계획서 1 머지 후) |
-| 3. Phase 3 AI 게이트웨이 | 미작성 (계획서 2와 동시 작성) |
+| 1. Phase 0+1 토대 | **실행 완료** — `main` 에 머지, 태그 `phase-0-bootstrap` · `phase-1-org-user` |
+| — | **사전점검 완료** (Phase 2 착수 전): Boot 3.5.16 업그레이드 · 외부 Tomcat 10.1.57 실배포 검증 · 결재선 정책 확정 · CSS 최소선 · 클린 클론 재현성 |
+| 2. Phase 2 전자결재 코어 | **작성 완료** — 실행 대기 (Task 11개, 목표 단위 50 · 통합 40) |
+| 3. Phase 3 AI 게이트웨이 | 미작성 (계획서 2 머지 후) |
 | 4. Phase 4 근태 + 연동 | 미작성 |
 | 5. Phase 5 AI 기능 | 미작성 |
 | 6. Phase 6 마감 | 미작성 |
+
+### 6.1 사전점검 결과 (2026-08-06)
+
+Phase 2 착수 전에 다섯 가지를 확인했다. **두 가지가 특히 값이 있었다.**
+
+| # | 점검 | 결과 |
+|---|---|---|
+| 1 | Spring Boot 3.2.5(EOL) → **3.5.16** + MyBatis 3.0.5 | 43건 통과. **3.5.16 도 Tomcat 10.1(10.1.55) 을 쓰므로** Jakarta EE 10 / Servlet 6.0 / JSTL 3.0 배선이 그대로 유효하다 — 이것이 안전하게 올릴 수 있었던 근거다 |
+| 2 | **외부 Tomcat 10.1 실배포** | **Apache Tomcat/10.1.57 + JVM 17.0.19 에서 동작 확인.** 지금까지 모든 검증이 `spring-boot:run` 의 내장 Tomcat 이었고 `ServletInitializer` 는 실행된 적이 없었다. 컨텍스트 경로가 `/flowmate/login` 으로 정확히 나가고, `lib-provided/` 를 컨테이너가 무시하고 자기 Jasper 를 써도 JSP 가 컴파일된다. `-Dfile.encoding=UTF-8` 은 이 이미지에선 불필요했으나(Temurin 17.0.19 가 JDK-8291959 백포트 포함) 방어적으로 유지 |
+| 3 | 결재선 정책 확정 | §5.1 에 6가지 케이스 검증 표로 고정 |
+| 4 | CSS 최소선 66개 규칙 | **JSP 0개 변경으로 전 화면 스타일링.** 설계서 §4.4 의 "마지막 Phase 에 JSP 를 열지 않는다" 가 주장이 아니라 사실임이 확인됐다 |
+| 5 | 클린 클론 재현성 | 추적 파일만으로 빌드 성공. `mvnw` 는 LF, `mvnw.cmd` 는 CRLF (`.gitattributes` 작동) |
+
+**2번이 결승선 리스크를 제거했다.** 설계서는 Phase 6 에 0.5일로 컨테이너 배포를 잡았는데,
+거기서 처음 시도해 실패하면 프로젝트의 중심 주장("산출물은 WAR, 외부 Tomcat 배포")이
+고칠 시간 없이 무너진다. 지금 확인해 그 가능성을 없앴다.
