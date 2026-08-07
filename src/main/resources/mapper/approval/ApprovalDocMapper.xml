@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.ApprovalDocMapper">
+
+    <!-- 문서 조회에 늘 붙는 조인. 기안자명·부서명·직급명을 화면이 그대로 쓴다 -->
+    <sql id="docColumns">
+        a.approval_id, a.doc_no, a.doc_type, a.title, a.content,
+        a.drafter_id, a.dept_id, a.amount, a.status, a.current_step,
+        a.drafted_at, a.submitted_at, a.completed_at,
+        e.emp_name  AS drafter_name,
+        p.position_name AS drafter_position_name,
+        d.dept_name
+    </sql>
+
+    <sql id="docJoins">
+        FROM approval_doc a
+        JOIN employee   e ON e.emp_id      = a.drafter_id
+        JOIN position   p ON p.position_id = e.position_id
+        JOIN department d ON d.dept_id     = a.dept_id
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="approvalId" keyColumn="approval_id">
+        INSERT INTO approval_doc
+            (doc_no, doc_type, title, content, drafter_id, dept_id, amount,
+             status, current_step, drafted_at, submitted_at, completed_at)
+        VALUES
+            (#{docNo}, #{docType}, #{title}, #{content}, #{drafterId}, #{deptId}, #{amount},
+             #{status}, #{currentStep}, #{draftedAt}, #{submittedAt}, #{completedAt})
+    </insert>
+
+    <!-- 임시저장 문서의 내용만 고친다. 상태 컬럼은 건드리지 않는다 -->
+    <update id="update">
+        UPDATE approval_doc
+           SET doc_type = #{docType},
+               title    = #{title},
+               content  = #{content},
+               amount   = #{amount}
+         WHERE approval_id = #{approvalId}
+    </update>
+
+    <!-- 상태 전이 결과만 반영한다. 도메인 객체가 계산한 값을 그대로 쓴다 -->
+    <update id="updateStatus">
+        UPDATE approval_doc
+           SET status       = #{status},
+               current_step = #{currentStep},
+               submitted_at = #{submittedAt},
+               completed_at = #{completedAt}
+         WHERE approval_id = #{approvalId}
+    </update>
+
+    <select id="findById" resultType="ApprovalDoc">
+        SELECT <include refid="docColumns"/>
+        <include refid="docJoins"/>
+        WHERE a.approval_id = #{approvalId}
+    </select>
+
+    <!--
+      FOR UPDATE 로 행을 잠근다.
+      두 결재자가 같은 문서의 승인 버튼을 동시에 누르면, 잠금이 없으면 둘 다
+      같은 current_step 을 읽어 각자 +1 해서 단계가 하나 건너뛰어진다.
+      Oracle 대응은 docs/oracle-mapping.md 참조 (구문 동일).
+    -->
+    <select id="findByIdForUpdate" resultType="ApprovalDoc">
+        SELECT <include refid="docColumns"/>
+        <include refid="docJoins"/>
+        WHERE a.approval_id = #{approvalId}
+        FOR UPDATE OF a
+    </select>
+
+    <!--
+      COALESCE 로 0을 돌려주는 이유: 해당 접두사·연도의 문서가 아직 없으면
+      MAX 가 NULL 이고, int 로 받으면 MyBatis 가 예외를 던진다.
+      문서번호 형식은 {접두사}-{연도}-{4자리}. 뒤 4자리만 잘라 숫자로 본다.
+    -->
+    <select id="maxDocNoSeq" resultType="int">
+        SELECT COALESCE(MAX(CAST(SUBSTRING(a.doc_no FROM 10 FOR 4) AS INT)), 0)
+          FROM approval_doc a
+         WHERE a.doc_no LIKE #{prefix} || '-' || CAST(#{year} AS VARCHAR(4)) || '-%'
+    </select>
+
+    <!--
+      내 결재함. 탭에 따라 조건이 크게 달라지므로 <choose> 로 갈라 쓴다.
+        drafted  : 내가 기안한 것 전부
+        pending  : 지금 내 차례인 것 (결재선 CURRENT + 내가 결재자)
+        done     : 내가 처리를 끝낸 것
+        rejected : 내가 기안했고 반려된 것
+    -->
+    <sql id="boxWhere">
+        <where>
+            <choose>
+                <when test="tab == 'pending'">
+                    a.status = 'PENDING'
+                    AND EXISTS (SELECT 1 FROM approval_line l
+                                 WHERE l.approval_id = a.approval_id
+                                   AND l.approver_id = #{empId}
+                                   AND l.status = 'CURRENT')
+                </when>
+                <when test="tab == 'done'">
+                    EXISTS (SELECT 1 FROM approval_line l
+                             WHERE l.approval_id = a.approval_id
+                               AND l.approver_id = #{empId}
+                               AND l.status IN ('APPROVED', 'REJECTED'))
+                </when>
+                <when test="tab == 'rejected'">
+                    a.drafter_id = #{empId} AND a.status = 'REJECTED'
+                </when>
+                <otherwise>
+                    a.drafter_id = #{empId}
+                </otherwise>
+            </choose>
+            <if test="docType != null">
+                AND a.doc_type = #{docType}
+            </if>
+            <if test="keyword != null">
+                AND (a.title LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\'
+                  OR a.doc_no LIKE '%' || #{keywordEscaped} || '%' ESCAPE '\')
+            </if>
+        </where>
+    </sql>
+
+    <select id="searchBox" resultType="ApprovalDoc">
+        SELECT <include refid="docColumns"/>
+        <include refid="docJoins"/>
+        <include refid="boxWhere"/>
+        ORDER BY a.drafted_at DESC, a.approval_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countBox" resultType="long">
+        SELECT COUNT(*)
+          FROM approval_doc a
+        <include refid="boxWhere"/>
+    </select>
+
+</mapper>

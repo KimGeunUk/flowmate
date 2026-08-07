@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.ApprovalHistoryMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="historyId" keyColumn="history_id">
+        INSERT INTO approval_history (approval_id, actor_id, action, comment, created_at)
+        VALUES (#{approvalId}, #{actorId}, #{action}, #{comment}, #{createdAt})
+    </insert>
+
+    <!-- history_id 를 두 번째 정렬키로 두는 이유: 같은 트랜잭션에서 두 이력이 쌓이면
+         created_at 이 동일할 수 있고, 그러면 타임라인 순서가 실행마다 흔들린다 -->
+    <select id="findByApprovalId" resultType="ApprovalHistory">
+        SELECT h.history_id, h.approval_id, h.actor_id, h.action, h.comment, h.created_at,
+               e.emp_name      AS actor_name,
+               p.position_name AS actor_position_name
+          FROM approval_history h
+          JOIN employee e ON e.emp_id      = h.actor_id
+          JOIN position p ON p.position_id = e.position_id
+         WHERE h.approval_id = #{approvalId}
+         ORDER BY h.created_at, h.history_id
+    </select>
+
+</mapper>

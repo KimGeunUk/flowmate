@@ -56,4 +56,47 @@
          ORDER BY t.sort_path
     </select>
 
+    <!--
+      부서장 체인 조회 — 조직도의 재귀 CTE 를 방향만 뒤집었다.
+      조직도는 루트에서 아래로 내려가고, 이것은 주어진 부서에서 위로 올라간다.
+      JOIN 조건이 p.dept_id = c.parent_dept_id 인 것이 그 차이다.
+
+      각 부서에서 최고 직급 1명만 뽑기 위해 ROW_NUMBER() 로 부서별 순위를 매긴다.
+      동급이 있으면 입사일 이른 사람, 그래도 같으면 emp_id 로 결정한다 —
+      결재선이 실행마다 달라지지 않게 하는 안정 정렬이다.
+
+      ORDER BY depth 로 가까운 부서가 먼저 오게 한다. 결재선 정책이 이 순서를 전제한다.
+    -->
+    <select id="findDeptHeadChain" resultType="Employee">
+        WITH RECURSIVE up_chain AS (
+            SELECT d.dept_id, d.parent_dept_id, 1 AS depth
+              FROM department d
+             WHERE d.dept_id = #{deptId}
+               AND d.use_yn = 'Y'
+            UNION ALL
+            SELECT p.dept_id, p.parent_dept_id, c.depth + 1
+              FROM department p
+              JOIN up_chain c ON p.dept_id = c.parent_dept_id
+             WHERE p.use_yn = 'Y'
+        ),
+        ranked AS (
+            SELECT e.emp_id, e.emp_no, e.emp_name, e.dept_id, e.position_id,
+                   e.email, e.hire_date, e.role, e.use_yn,
+                   d.dept_name, p.position_name, p.position_level,
+                   u.depth,
+                   ROW_NUMBER() OVER (PARTITION BY u.dept_id
+                                      ORDER BY p.position_level DESC, e.hire_date, e.emp_id) AS rn
+              FROM up_chain u
+              JOIN employee   e ON e.dept_id     = u.dept_id AND e.use_yn = 'Y'
+              JOIN department d ON d.dept_id     = e.dept_id
+              JOIN position   p ON p.position_id = e.position_id
+        )
+        SELECT r.emp_id, r.emp_no, r.emp_name, r.dept_id, r.position_id,
+               r.email, r.hire_date, r.role, r.use_yn,
+               r.dept_name, r.position_name, r.position_level
+          FROM ranked r
+         WHERE r.rn = 1
+         ORDER BY r.depth
+    </select>
+
 </mapper>
