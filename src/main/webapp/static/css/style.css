@@ -3,8 +3,11 @@
  * UI 프레임워크는 쓰지 않는다.
  *
  * ┌─────────────────────────────────────────────────────────────┐
- * │ 이 파일은 마지막 Phase 에서 채운다.                          │
- * │ 그때까지는 아래 "클래스 목록"만 갱신한다.                     │
+ * │ 최종 디자인은 마지막 Phase 에서 채운다.                       │
+ * │ 아래 규칙 블록은 데모 대비용 최소 스타일("not embarrassing"    │
+ * │ pass)이며, JSP 를 한 번도 열지 않고 이 클래스 목록만으로       │
+ * │ 작성했다. 최종 Phase 는 위쪽 :root 변수만 바꿔도 톤을 다시     │
+ * │ 잡을 수 있도록 색상·간격을 변수로 뺐다.                       │
  * │                                                             │
  * │ 규칙:                                                        │
  * │   영역은 명사        .doc-list  .ai-panel  .approval-line    │
@@ -29,4 +32,221 @@
  * 조직도     .dept-tree  .dept-tree__item  .dept-tree__item--depth1 ~ --depth5
  *            .dept-tree__code  .dept-tree__name  .dept-tree__count
  * 홈         .home-panel  .home-panel__title  .home-panel__item
+ *
+ * ── 클래스 목록 (Phase 2) ────────────────────────────────────────
+ * (전자결재 · 근태관리 등 다음 화면의 클래스는 여기에 이어서 적는다)
  */
+
+/* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
+:root {
+    --color-bg: #eef1f5;
+    --color-surface: #ffffff;
+    --color-border: #dfe3e8;
+    --color-text: #2b2f36;
+    --color-text-muted: #6b7280;
+    --color-primary: #2f5fa8;
+    --color-primary-hover: #24487f;
+    --color-danger: #c0392b;
+    --color-danger-bg: #fdecea;
+    --color-info: #2f5fa8;
+    --color-info-bg: #eaf1fb;
+    --color-stripe: #f7f9fb;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius: 4px;
+    --lnb-width: 200px;
+    --font-sans: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+}
+
+/* ── 리셋 ── */
+* { box-sizing: border-box; }
+body { margin: 0; }
+h1, h2, h3, p, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+
+body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-text);
+    background: var(--color-bg);
+}
+
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── 상단 GNB ── */
+.gnb {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 var(--space-5);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+.gnb__brand { font-size: 18px; font-weight: 700; color: var(--color-primary); }
+.gnb__user { display: flex; align-items: center; gap: var(--space-3); color: var(--color-text-muted); }
+.gnb__user-name { font-weight: 700; color: var(--color-text); }
+.gnb__user-org { font-size: 13px; }
+.gnb__logout { margin: 0; }
+
+/* ── 레이아웃 (좌측 고정폭 + 본문 flex) ── */
+.layout {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-5);
+    padding: var(--space-5);
+    background: var(--color-bg);
+}
+
+.lnb {
+    flex: 0 0 var(--lnb-width);
+    width: var(--lnb-width);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-4) 0;
+}
+.lnb__group { margin-bottom: var(--space-4); }
+.lnb__group-title {
+    padding: var(--space-2) var(--space-4);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    letter-spacing: .03em;
+}
+.lnb__link { display: block; padding: var(--space-2) var(--space-4); color: var(--color-text); }
+.lnb__link:hover { background: var(--color-bg); text-decoration: none; }
+
+.content {
+    flex: 1;
+    min-width: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-5);
+}
+.page-title { font-size: 20px; font-weight: 700; margin-bottom: var(--space-4); }
+
+/* ── 하단 ── */
+.footer {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    color: var(--color-text-muted);
+    font-size: 12px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+.footer__name { font-weight: 700; color: var(--color-text); }
+
+/* ── 버튼 ── */
+.btn {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 14px;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+}
+.btn--primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.btn--primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.btn--plain { background: transparent; border-color: transparent; color: var(--color-text-muted); }
+.btn--plain:hover { color: var(--color-text); text-decoration: underline; }
+
+/* ── 폼 ── */
+.form-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+}
+.form-label { color: var(--color-text-muted); font-size: 13px; }
+.form-input {
+    font-family: inherit;
+    font-size: 14px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+}
+.search-form { margin-bottom: var(--space-4); }
+
+/* ── 알림 ── */
+.alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius); margin-bottom: var(--space-4); font-size: 13px; }
+.alert--error { background: var(--color-danger-bg); color: var(--color-danger); }
+.alert--info { background: var(--color-info-bg); color: var(--color-info); }
+
+/* ── 페이징 ── */
+.pagination { display: flex; gap: var(--space-1); margin-top: var(--space-4); }
+.pagination__link {
+    display: inline-block;
+    min-width: 28px;
+    padding: var(--space-1) var(--space-2);
+    text-align: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+}
+.pagination__link:hover { background: var(--color-bg); text-decoration: none; }
+.pagination__link--current { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 700; }
+
+/* ── 로그인 ── */
+.login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--color-bg); }
+.login-box {
+    width: 320px;
+    padding: var(--space-6) var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+}
+.login-box__title { text-align: center; font-size: 24px; color: var(--color-primary); margin-bottom: var(--space-1); }
+.login-box__subtitle { text-align: center; color: var(--color-text-muted); font-size: 13px; margin-bottom: var(--space-5); }
+.login-box .btn--primary { display: block; width: 100%; margin-top: var(--space-2); }
+
+/* ── 사원 목록 ── */
+.result-count { margin-bottom: var(--space-2); color: var(--color-text-muted); }
+.result-count strong { color: var(--color-text); }
+
+.emp-list { width: 100%; border-collapse: collapse; margin-bottom: var(--space-2); }
+.emp-list th, .emp-list td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); text-align: left; }
+.emp-list thead th { background: var(--color-bg); color: var(--color-text-muted); font-weight: 700; font-size: 13px; }
+.emp-list tbody tr:nth-child(even) { background: var(--color-stripe); }
+.emp-list tbody tr:hover { background: var(--color-info-bg); }
+.emp-list__empty { text-align: center; color: var(--color-text-muted); padding: var(--space-6) 0; }
+
+/* ── 조직도 : 들여쓰기는 depth 클래스만으로 만든다 ── */
+.dept-tree__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+}
+.dept-tree__item--depth1 { padding-left: var(--space-3); font-weight: 700; }
+.dept-tree__item--depth2 { padding-left: calc(var(--space-3) + var(--space-5) * 1); }
+.dept-tree__item--depth3 { padding-left: calc(var(--space-3) + var(--space-5) * 2); }
+.dept-tree__item--depth4 { padding-left: calc(var(--space-3) + var(--space-5) * 3); }
+.dept-tree__item--depth5 { padding-left: calc(var(--space-3) + var(--space-5) * 4); }
+.dept-tree__code { font-family: Consolas, monospace; font-size: 12px; color: var(--color-text-muted); }
+.dept-tree__name { flex: 1; }
+.dept-tree__count { font-size: 13px; color: var(--color-text-muted); }
+
+/* ── 홈 ── */
+.home-panel { padding-bottom: var(--space-4); margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.home-panel:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.home-panel__title { font-size: 15px; margin-bottom: var(--space-2); }
+.home-panel__item { padding: var(--space-1) 0; color: var(--color-text-muted); }
