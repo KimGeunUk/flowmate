@@ -27,9 +27,15 @@ import org.springframework.context.annotation.Configuration;
  *         Resilient (안쪽) → 타임아웃·예외를 흡수한다.
  *           실제 구현 (ClaudeLlmClient 또는 FakeLlmClient)
  *
- *   Masking 이 Caching 보다 안쪽인 것이 특히 중요하다.
- *   뒤집히면 캐시 테이블에 원문이 그대로 저장된다.
- *   LlmChainIT 가 이 순서를 단정한다.
+ *   ★ Masking 이 실제 호출보다 바깥인 것이 중요하다 — 이게 유출을 막는 지점이다.
+ *     실제 LLM 응답은 입력을 인용할 수 있다(요약문에 계좌번호가 들어오는 것은 정상 동작이다).
+ *     마스킹이 호출 뒤에 있거나 빠지면 응답 자체가 원문을 실어오고,
+ *     그 응답이 ai_result_cache 와 ai_call_log 에 저장된다.
+ *     LlmChainIT 가 "실제 호출에 도달한 프롬프트가 이미 마스킹돼 있다"를 단정한다.
+ *
+ *   Masking 과 Caching 의 상대 순서는 유출과 무관하다 —
+ *   ai_result_cache 에는 프롬프트 컬럼이 없고 키는 해시이므로 어느 순서든 원문이 저장되지 않는다.
+ *   이 순서가 바꾸는 것은 비용이다: Caching 이 바깥이면 히트 시 마스킹조차 건너뛴다.
  *
  * ★ 순환 참조 함정 — llmClient() 가 LlmClient 를 반환하면서 동시에 LlmClient 파라미터를
  *   받는다. 실제로 이 프로젝트(Spring Boot 3.5.16 / Spring 6.2)에서 시험해 보니
