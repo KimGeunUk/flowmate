@@ -37,6 +37,15 @@ public interface ApprovalDocMapper {
     /** 같은 접두사·연도의 최대 일련번호. 없으면 0 */
     int maxDocNoSeq(@Param("prefix") String prefix, @Param("year") int year);
 
+    /**
+     * 같은 접두사·연도의 문서번호 채번을 트랜잭션 단위로 직렬화한다.
+     *
+     * 자문 잠금(advisory lock)은 트랜잭션이 끝날 때 자동으로 풀리므로 해제를 잊을 수 없다.
+     * 이 잠금을 잡은 뒤 maxDocNoSeq + insert 를 하면 같은 유형·연도에서
+     * 두 트랜잭션이 같은 번호를 만들 수 없다.
+     */
+    int lockDocNoSeq(@Param("key") String key);
+
     /** 내 결재함 목록 */
     List<ApprovalDoc> searchBox(ApprovalSearchCond cond);
 

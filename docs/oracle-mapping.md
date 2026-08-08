@@ -159,3 +159,32 @@ Oracle 에서도 `FOR UPDATE OF <별칭 또는 컬럼>` 이 동작한다. 다만
    Oracle 도 같은 옵션이 있으나 `WAIT n` 초 지정이 추가로 가능하다.
 
 FlowMate 는 결재 문서 한 건에 대한 동시 클릭만 막으면 되므로 기본 대기로 충분하다.
+
+### 2.6 문서번호 채번 직렬화 — `mapper/approval/ApprovalDocMapper.xml#lockDocNoSeq`
+
+PostgreSQL:
+
+```sql
+SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext('EXP-2026'))) locked
+```
+
+Oracle 에는 `pg_advisory_xact_lock` 이 없다. 두 가지 대안이 있다.
+
+1. **채번 테이블 + `SELECT ... FOR UPDATE`** (이식성이 가장 높다)
+
+   ```sql
+   SELECT next_seq FROM doc_no_seq
+    WHERE prefix = 'EXP' AND seq_year = 2026
+      FOR UPDATE;
+   ```
+
+   행 잠금이 트랜잭션 종료까지 유지되므로 자문 잠금과 같은 효과를 낸다.
+   PostgreSQL 에서도 동일하게 동작하므로, 이식성을 최우선한다면 처음부터 이 방식을 쓸 수 있다.
+
+2. **`DBMS_LOCK.REQUEST`** — 자문 잠금에 가장 가깝지만 패키지 실행 권한이 필요하고
+   잠금 핸들을 직접 할당해야 해서 운영 부담이 크다.
+
+**왜 재시도가 아니라 잠금인가:** PostgreSQL 은 제약 위반이 나면 트랜잭션을 중단 상태로 만들어
+같은 트랜잭션의 이후 쿼리가 전부 `25P02` 로 실패한다. Oracle 은 문 단위 롤백이라 제약 위반 후에도
+같은 트랜잭션을 계속 쓸 수 있다 — **두 DB 의 동작이 다르므로 재시도 방식은 이식되지 않는다.**
+잠금 방식은 양쪽에서 같은 의미를 갖는다.

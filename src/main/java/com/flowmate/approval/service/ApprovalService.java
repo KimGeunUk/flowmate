@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +38,6 @@ import com.flowmate.org.service.DepartmentService;
  */
 @Service
 public class ApprovalService {
-
-    private static final int DOC_NO_RETRY = 3;
 
     private final ApprovalDocMapper docMapper;
     private final ApprovalLineMapper lineMapper;
@@ -228,13 +225,17 @@ public class ApprovalService {
     /**
      * 지금 이 사람이 처리할 차례인 결재선 단계를 돌려준다.
      *
-     * 세 가지를 함께 검사한다 — 문서가 진행 중인지, 그 단계가 존재하는지,
-     * 그 단계의 결재자가 요청자인지. 하나라도 어긋나면 권한 예외다.
+     * 두 가지를 구분해서 검사한다.
+     * 1) 그 단계가 지금 처리 가능한 상태인가 — 아니라면 상태 문제다 (IllegalStateException, 409).
+     *    이미 처리된 단계를 다시 누른 경우(중복 클릭, 다른 탭)가 여기 해당하는데,
+     *    이건 권한이 없는 것이 아니라 타이밍이 어긋난 것이므로 "권한이 없습니다"라고 하면
+     *    정당한 결재자를 오도한다.
+     * 2) 그 단계의 결재자가 요청자인가 — 아니라면 진짜 권한 문제다 (ApprovalAccessDeniedException, 403).
      */
     private ApprovalLine requireMyCurrentLine(ApprovalDoc doc, Long approvalId, Long actorId) {
         ApprovalLine line = lineMapper.findStep(approvalId, doc.getCurrentStep());
         if (line == null || !LineStatus.CURRENT.equals(line.getStatus())) {
-            throw new ApprovalAccessDeniedException("지금 처리할 수 있는 단계가 아닙니다");
+            throw new IllegalStateException("지금 처리할 수 있는 단계가 아닙니다");
         }
         if (!Objects.equals(line.getApproverId(), actorId)) {
             throw new ApprovalAccessDeniedException("이 단계의 결재자가 아닙니다");
@@ -269,25 +270,20 @@ public class ApprovalService {
     /**
      * 문서번호를 부여해 저장한다.
      *
-     * MAX + 1 방식이라 동시에 두 명이 같은 유형을 기안하면 같은 번호가 나올 수 있다.
-     * doc_no 의 UNIQUE 제약이 최후 방어선이고, 충돌하면 번호를 다시 계산해 재시도한다.
-     * (운영 규모에서는 유형별 시퀀스를 쓰는 것이 정석이다 — 여기서는 제약 + 재시도로 충분하다.)
+     * 채번 전에 (접두사, 연도) 단위 자문 잠금을 잡아 동시 기안이 같은 번호를 만들지 못하게 한다.
+     * 재시도로 수습하지 않는 이유: PostgreSQL 은 제약 위반 시 트랜잭션 전체를 중단시키므로
+     * DuplicateKeyException 을 잡아도 같은 트랜잭션에서 다음 쿼리를 실행할 수 없다.
+     * doc_no 의 UNIQUE 제약은 여전히 최후 방어선으로 남는다.
      */
     private void insertWithGeneratedDocNo(ApprovalDoc doc) {
         int year = Year.now().getValue();
         String prefix = DocType.prefixOf(doc.getDocType());
-        for (int attempt = 1; attempt <= DOC_NO_RETRY; attempt++) {
-            int seq = docMapper.maxDocNoSeq(prefix, year) + 1;
-            doc.setDocNo(String.format("%s-%d-%04d", prefix, year, seq));
-            try {
-                docMapper.insert(doc);
-                return;
-            } catch (DuplicateKeyException e) {
-                if (attempt == DOC_NO_RETRY) {
-                    throw e;
-                }
-            }
-        }
+
+        docMapper.lockDocNoSeq(prefix + "-" + year);
+
+        int seq = docMapper.maxDocNoSeq(prefix, year) + 1;
+        doc.setDocNo(String.format("%s-%d-%04d", prefix, year, seq));
+        docMapper.insert(doc);
     }
 
     private ApprovalDoc requireDoc(Long approvalId) {

@@ -10,12 +10,14 @@ import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
 
 /**
- * 업무 예외를 화면에 맞는 형태로 바꾼다.
+ * 결재 화면의 업무 예외를 화면에 맞는 형태로 바꾼다.
  *
- * 권한 예외가 500 으로 보이면 데모에서 사고처럼 보인다.
- * IllegalStateException 도 처리하는 이유: 도메인 객체의 전이 거부가 그 타입이다.
+ * basePackages 로 범위를 좁힌 이유:
+ * IllegalArgumentException 과 IllegalStateException 은 JDK 전반에서 흔히 던져진다
+ * (NumberFormatException 도 IllegalArgumentException 이다). 범위를 제한하지 않으면
+ * 다른 모듈의 진짜 버그가 친절한 400/409 화면으로 덮여 500 으로 드러나지 않는다.
  */
-@ControllerAdvice
+@ControllerAdvice(basePackages = "com.flowmate.approval.controller")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApprovalNotFoundException.class)

@@ -206,9 +206,25 @@ class ApprovalServiceIT {
         Long id = approvalService.saveDraft(newForm("순서 확인", "1000000"), KWAK);
         approvalService.submit(id, KWAK);
 
-        // 2단계 결재자가 1단계를 건너뛰고 승인하려 함
+        // 2단계 결재자가 1단계를 건너뛰고 승인하려 함 - 1단계는 CURRENT 이지만
+        // 그 결재자는 박현주가 아니라 신동혁이므로 여전히 권한 문제다 (상태 문제가 아니다)
         assertThatThrownBy(() -> approvalService.approve(id, PARK, null))
                 .isInstanceOf(ApprovalAccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("이미 처리된 단계를 다시 승인하려 하면 권한이 아니라 상태 문제로 거부한다")
+    void reApprovingProcessedStepIsStateError() {
+        // 신동혁(과장)이 기안하면 결재선은 박현주 1명뿐이다 (로드맵 §5.1 검증 표).
+        // 결재자가 1명이라 첫 승인이 곧 최종 승인이고, current_step 이 그대로 1에 머문다 —
+        // 그래서 다시 눌러도 "다른 사람 차례"가 아니라 "이미 끝난 단계"로 걸린다.
+        Long id = approvalService.saveDraft(newForm("중복 클릭", "1000000"), SHIN);
+        approvalService.submit(id, SHIN);
+        approvalService.approve(id, PARK, null);
+
+        // 박현주가 같은 버튼을 한 번 더 누른 상황 - 그의 단계는 이미 APPROVED 다
+        assertThatThrownBy(() -> approvalService.approve(id, PARK, null))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

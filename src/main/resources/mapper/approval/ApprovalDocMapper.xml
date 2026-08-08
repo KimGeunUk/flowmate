@@ -69,6 +69,21 @@
     </select>
 
     <!--
+      문서번호 채번 직렬화.
+
+      재시도로 충돌을 수습하지 않고 충돌 자체를 막는 이유:
+      PostgreSQL 은 제약 위반이 나면 트랜잭션 전체를 중단 상태로 만든다. DuplicateKeyException 을
+      자바에서 잡아도 트랜잭션은 살아나지 않고, 다음 쿼리가 25P02(current transaction is aborted)로
+      죽는다. 즉 catch 후 재시도하는 코드는 그 상황에서 동작하지 않는다.
+
+      pg_advisory_xact_lock 은 트랜잭션 종료 시 자동 해제되므로 해제 누락이 없다.
+      Oracle 대응은 docs/oracle-mapping.md §2.6 참조.
+    -->
+    <select id="lockDocNoSeq" resultType="int">
+        SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(#{key}))) locked
+    </select>
+
+    <!--
       COALESCE 로 0을 돌려주는 이유: 해당 접두사·연도의 문서가 아직 없으면
       MAX 가 NULL 이고, int 로 받으면 MyBatis 가 예외를 던진다.
       문서번호 형식은 {접두사}-{연도}-{4자리}. 뒤 4자리만 잘라 숫자로 본다.

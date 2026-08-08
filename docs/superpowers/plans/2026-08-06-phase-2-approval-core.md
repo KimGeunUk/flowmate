@@ -2383,9 +2383,17 @@ public final class RejectReason {
         return "기타";
     }
 
-    /** 유효한 유형인가. 화면에서 넘어온 값을 신뢰하지 않기 위한 검사다 */
+    /**
+     * 유효한 유형인가. 화면에서 넘어온 값을 신뢰하지 않기 위한 검사다.
+     *
+     * ★ null 가드가 반드시 있어야 한다. ALL 은 List.of(...) 로 만든 불변 리스트이고
+     *   JDK 의 List.of() 는 contains(null) 에서 false 를 돌려주지 않고
+     *   **NullPointerException 을 던진다** (ArrayList 는 false 를 돌려준다).
+     *   가드가 없으면 반려 유형을 비운 요청이 IllegalArgumentException 이 아니라
+     *   NPE 로 터져 500 이 되고, Task 9 의 ControllerAdvice 가 400 으로 바꿀 기회를 잃는다.
+     */
     public static boolean isValid(String category) {
-        return ALL.contains(category);
+        return category != null && ALL.contains(category);
     }
 }
 ```
@@ -2651,6 +2659,15 @@ public interface ApprovalDocMapper {
     /** 같은 접두사·연도의 최대 일련번호. 없으면 0 */
     int maxDocNoSeq(@Param("prefix") String prefix, @Param("year") int year);
 
+    /**
+     * 같은 접두사·연도의 문서번호 채번을 트랜잭션 단위로 직렬화한다.
+     *
+     * 자문 잠금(advisory lock)은 트랜잭션이 끝날 때 자동으로 풀리므로 해제를 잊을 수 없다.
+     * 이 잠금을 잡은 뒤 maxDocNoSeq + insert 를 하면 같은 유형·연도에서
+     * 두 트랜잭션이 같은 번호를 만들 수 없다. Task 6 의 `insertWithGeneratedDocNo` 가 부른다.
+     */
+    int lockDocNoSeq(@Param("key") String key);
+
     /** 내 결재함 목록 */
     List<ApprovalDoc> searchBox(ApprovalSearchCond cond);
 
@@ -2776,6 +2793,21 @@ public interface ApprovalLineMapper {
         <include refid="docJoins"/>
         WHERE a.approval_id = #{approvalId}
         FOR UPDATE OF a
+    </select>
+
+    <!--
+      문서번호 채번 직렬화.
+
+      재시도로 충돌을 수습하지 않고 충돌 자체를 막는 이유:
+      PostgreSQL 은 제약 위반이 나면 트랜잭션 전체를 중단 상태로 만든다. DuplicateKeyException 을
+      자바에서 잡아도 트랜잭션은 살아나지 않고, 다음 쿼리가 25P02(current transaction is aborted)로
+      죽는다. 즉 catch 후 재시도하는 코드는 그 상황에서 동작하지 않는다.
+
+      pg_advisory_xact_lock 은 트랜잭션 종료 시 자동 해제되므로 해제 누락이 없다.
+      Oracle 대응은 docs/oracle-mapping.md §2.6 참조.
+    -->
+    <select id="lockDocNoSeq" resultType="int">
+        SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(#{key}))) locked
     </select>
 
     <!--
@@ -3150,6 +3182,10 @@ Oracle 에서도 `FOR UPDATE OF <별칭 또는 컬럼>` 이 동작한다. 다만
 FlowMate 는 결재 문서 한 건에 대한 동시 클릭만 막으면 되므로 기본 대기로 충분하다.
 ```
 
+> **§2.6 은 이 Task 에서 쓰지 않는다.** Task 6 이 `insertWithGeneratedDocNo` 를 자문 잠금으로
+> 구현하면서 `docs/oracle-mapping.md` 에 §2.6 (문서번호 채번 직렬화) 을 추가한다. §2.4·§2.5 만
+> 여기서 붙인다 — 지금 시점에는 아직 `insertWithGeneratedDocNo` 자체가 없다.
+
 - [ ] **Step 10: 전체 빌드 후 커밋한다**
 
 ```powershell
@@ -3295,6 +3331,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.flowmate.approval.domain.ApprovalDoc;
+import com.flowmate.approval.domain.ApprovalForm;
 import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
@@ -3492,7 +3529,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -3522,8 +3558,6 @@ import com.flowmate.org.service.DepartmentService;
  */
 @Service
 public class ApprovalService {
-
-    private static final int DOC_NO_RETRY = 3;
 
     private final ApprovalDocMapper docMapper;
     private final ApprovalLineMapper lineMapper;
@@ -3630,25 +3664,20 @@ public class ApprovalService {
     /**
      * 문서번호를 부여해 저장한다.
      *
-     * MAX + 1 방식이라 동시에 두 명이 같은 유형을 기안하면 같은 번호가 나올 수 있다.
-     * doc_no 의 UNIQUE 제약이 최후 방어선이고, 충돌하면 번호를 다시 계산해 재시도한다.
-     * (운영 규모에서는 유형별 시퀀스를 쓰는 것이 정석이다 — 여기서는 제약 + 재시도로 충분하다.)
+     * 채번 전에 (접두사, 연도) 단위 자문 잠금을 잡아 동시 기안이 같은 번호를 만들지 못하게 한다.
+     * 재시도로 수습하지 않는 이유: PostgreSQL 은 제약 위반 시 트랜잭션 전체를 중단시키므로
+     * DuplicateKeyException 을 잡아도 같은 트랜잭션에서 다음 쿼리를 실행할 수 없다.
+     * doc_no 의 UNIQUE 제약은 여전히 최후 방어선으로 남는다.
      */
     private void insertWithGeneratedDocNo(ApprovalDoc doc) {
         int year = Year.now().getValue();
         String prefix = DocType.prefixOf(doc.getDocType());
-        for (int attempt = 1; attempt <= DOC_NO_RETRY; attempt++) {
-            int seq = docMapper.maxDocNoSeq(prefix, year) + 1;
-            doc.setDocNo(String.format("%s-%d-%04d", prefix, year, seq));
-            try {
-                docMapper.insert(doc);
-                return;
-            } catch (DuplicateKeyException e) {
-                if (attempt == DOC_NO_RETRY) {
-                    throw e;
-                }
-            }
-        }
+
+        docMapper.lockDocNoSeq(prefix + "-" + year);
+
+        int seq = docMapper.maxDocNoSeq(prefix, year) + 1;
+        doc.setDocNo(String.format("%s-%d-%04d", prefix, year, seq));
+        docMapper.insert(doc);
     }
 
     private ApprovalDoc requireDoc(Long approvalId) {
@@ -3668,6 +3697,16 @@ public class ApprovalService {
     }
 }
 ```
+
+> **`insertWithGeneratedDocNo` 가 재시도가 아니라 자문 잠금을 쓰는 이유 (코드 리뷰에서 수정).**
+> 처음에는 "MAX+1 로 계산 → 충돌하면 `DuplicateKeyException` 을 잡고 다시 계산" 방식을 썼다.
+> 그런데 PostgreSQL 은 제약 위반이 나면 **트랜잭션 전체**를 중단 상태로 만든다. 자바에서
+> `DuplicateKeyException` 을 잡아도 트랜잭션은 살아나지 않고, 재시도의 첫 쿼리(`maxDocNoSeq`)가
+> `25P02`(current transaction is aborted) 로 죽는다 — catch 문 자체가 도달할 수 없는 코드였다.
+> 그래서 충돌을 수습하는 대신 `lockDocNoSeq` 로 (접두사, 연도) 단위 자문 잠금을 먼저 잡아
+> 충돌 자체가 생기지 않게 바꿨다. `pg_advisory_xact_lock` 은 트랜잭션이 끝나면 자동으로 풀리므로
+> 해제를 잊을 걱정이 없다. `doc_no` 의 UNIQUE 제약은 그래도 최후 방어선으로 남긴다.
+> Oracle 대응은 `docs/oracle-mapping.md` §2.6 참조.
 
 추가로 필요한 것 둘:
 
@@ -4053,6 +4092,18 @@ common/csrf-input.jsp 조각을 만든다. Spring Security 6 은 일반 form 에
 `com.flowmate.approval.mapper.ApprovalHistoryMapper`, `org.springframework.jdbc.core.JdbcTemplate`.
 `@Autowired` 필드로 `ApprovalHistoryMapper historyMapper` 와 `JdbcTemplate jdbcTemplate` 를 추가한다.
 
+> **`reApprovingProcessedStepIsStateError` 는 코드 리뷰 이후 추가한 테스트다 (Step 3 의
+> `requireMyCurrentLine` 수정과 짝을 이룬다).** 처음에는 KWAK 이 기안한 2단계 문서에서
+> 신동혁이 자기 단계를 두 번 누르는 시나리오로 썼는데, 실행해 보니 실패했다 — 신동혁이
+> 승인하면 `current_step` 이 2(박현주 차례)로 넘어가므로, 신동혁이 다시 누르면
+> `findStep(id, 2)` 가 박현주의 CURRENT 단계를 돌려주고 "결재자가 다르다"로 걸려
+> **여전히** `ApprovalAccessDeniedException` 이 난다. "이미 처리된 단계 재클릭"을 실제로
+> 시연하려면 결재자가 1명이라 승인 후에도 `current_step` 이 그대로인 시나리오가 필요하다 —
+> 그래서 신동혁이 기안하고(결재선 박현주 1명) 박현주가 두 번 누르는 것으로 바꿨다.
+> `cannotApproveOutOfTurn` 은 그대로 둔다 — 그 테스트는 "다른 사람 단계에 손대는" 경우라
+> `requireMyCurrentLine` 의 두 번째 분기(진짜 권한 문제)를 그대로 타므로 수정 전후로 동작이
+> 바뀌지 않는다.
+
 ```java
     @Test
     @DisplayName("상신하면 진행 중이 되고 1단계가 현재 차례가 된다")
@@ -4128,9 +4179,25 @@ common/csrf-input.jsp 조각을 만든다. Spring Security 6 은 일반 form 에
         Long id = approvalService.saveDraft(newForm("순서 확인", "1000000"), KWAK);
         approvalService.submit(id, KWAK);
 
-        // 2단계 결재자가 1단계를 건너뛰고 승인하려 함
+        // 2단계 결재자가 1단계를 건너뛰고 승인하려 함 - 1단계는 CURRENT 이지만
+        // 그 결재자는 박현주가 아니라 신동혁이므로 여전히 권한 문제다 (상태 문제가 아니다)
         assertThatThrownBy(() -> approvalService.approve(id, PARK, null))
                 .isInstanceOf(ApprovalAccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("이미 처리된 단계를 다시 승인하려 하면 권한이 아니라 상태 문제로 거부한다")
+    void reApprovingProcessedStepIsStateError() {
+        // 신동혁(과장)이 기안하면 결재선은 박현주 1명뿐이다 (로드맵 §5.1 검증 표).
+        // 결재자가 1명이라 첫 승인이 곧 최종 승인이고, current_step 이 그대로 1에 머문다 —
+        // 그래서 다시 눌러도 "다른 사람 차례"가 아니라 "이미 끝난 단계"로 걸린다.
+        Long id = approvalService.saveDraft(newForm("중복 클릭", "1000000"), SHIN);
+        approvalService.submit(id, SHIN);
+        approvalService.approve(id, PARK, null);
+
+        // 박현주가 같은 버튼을 한 번 더 누른 상황 - 그의 단계는 이미 APPROVED 다
+        assertThatThrownBy(() -> approvalService.approve(id, PARK, null))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -4307,13 +4374,17 @@ common/csrf-input.jsp 조각을 만든다. Spring Security 6 은 일반 form 에
     /**
      * 지금 이 사람이 처리할 차례인 결재선 단계를 돌려준다.
      *
-     * 세 가지를 함께 검사한다 — 문서가 진행 중인지, 그 단계가 존재하는지,
-     * 그 단계의 결재자가 요청자인지. 하나라도 어긋나면 권한 예외다.
+     * 두 가지를 구분해서 검사한다.
+     * 1) 그 단계가 지금 처리 가능한 상태인가 — 아니라면 상태 문제다 (IllegalStateException, 409).
+     *    이미 처리된 단계를 다시 누른 경우(중복 클릭, 다른 탭)가 여기 해당하는데,
+     *    이건 권한이 없는 것이 아니라 타이밍이 어긋난 것이므로 "권한이 없습니다"라고 하면
+     *    정당한 결재자를 오도한다.
+     * 2) 그 단계의 결재자가 요청자인가 — 아니라면 진짜 권한 문제다 (ApprovalAccessDeniedException, 403).
      */
     private ApprovalLine requireMyCurrentLine(ApprovalDoc doc, Long approvalId, Long actorId) {
         ApprovalLine line = lineMapper.findStep(approvalId, doc.getCurrentStep());
         if (line == null || !LineStatus.CURRENT.equals(line.getStatus())) {
-            throw new ApprovalAccessDeniedException("지금 처리할 수 있는 단계가 아닙니다");
+            throw new IllegalStateException("지금 처리할 수 있는 단계가 아닙니다");
         }
         if (!Objects.equals(line.getApproverId(), actorId)) {
             throw new ApprovalAccessDeniedException("이 단계의 결재자가 아닙니다");
@@ -4324,13 +4395,22 @@ common/csrf-input.jsp 조각을 만든다. Spring Security 6 은 일반 form 에
 
 `import` 추가: `LineStatus`, `RejectHistory`, `RejectReason`.
 
+> **첫 번째 분기가 `IllegalStateException` 인 이유 (코드 리뷰에서 수정).** 처음에는 두 분기
+> 모두 `ApprovalAccessDeniedException` 이었다. 그런데 첫 번째 분기는 "이 사람이 권한이 없다"가
+> 아니라 "이 단계가 지금 처리할 수 있는 상태가 아니다"를 검사한다 — 이미 처리된 단계를
+> 두 번 클릭하거나 다른 탭에서 먼저 처리된 경우가 여기 해당한다. 정당한 결재자가 중복
+> 클릭했는데 "권한이 없습니다"를 보면 오도된다. 이 프로젝트의 다른 모든 상태 오류
+> (`ApprovalDoc.approve/reject/cancel`)가 `IllegalStateException` 을 쓰는 것과도 맞춘다.
+> 두 번째 분기(결재자가 다름)는 진짜 권한 문제이므로 그대로 둔다.
+
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
 ```powershell
 .\mvnw.cmd verify "-Dit.test=ApprovalServiceIT"
 ```
 
-기대: `Tests run: 15, Failures: 0, Errors: 0, Skipped: 0` (임시저장 6 + 전이 9)
+기대: `Tests run: 16, Failures: 0, Errors: 0, Skipped: 0` (임시저장 6 + 전이 10,
+`reApprovingProcessedStepIsStateError` 포함)
 
 진단표:
 
@@ -4912,12 +4992,14 @@ import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
 
 /**
- * 업무 예외를 화면에 맞는 형태로 바꾼다.
+ * 결재 화면의 업무 예외를 화면에 맞는 형태로 바꾼다.
  *
- * 권한 예외가 500 으로 보이면 데모에서 사고처럼 보인다.
- * IllegalStateException 도 처리하는 이유: 도메인 객체의 전이 거부가 그 타입이다.
+ * basePackages 로 범위를 좁힌 이유:
+ * IllegalArgumentException 과 IllegalStateException 은 JDK 전반에서 흔히 던져진다
+ * (NumberFormatException 도 IllegalArgumentException 이다). 범위를 제한하지 않으면
+ * 다른 모듈의 진짜 버그가 친절한 400/409 화면으로 덮여 500 으로 드러나지 않는다.
  */
-@ControllerAdvice
+@ControllerAdvice(basePackages = "com.flowmate.approval.controller")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApprovalNotFoundException.class)
@@ -4955,6 +5037,14 @@ public class GlobalExceptionHandler {
     }
 }
 ```
+
+> **`basePackages` 로 좁힌 이유 (코드 리뷰에서 수정).** 처음에는 범위를 두지 않은 그냥
+> `@ControllerAdvice` 로 두었다. 그런데 `IllegalArgumentException`·`IllegalStateException` 은
+> JDK 전반에서 흔히 던져지는 타입이다(`NumberFormatException` 도 `IllegalArgumentException` 이다).
+> 범위를 좁히지 않으면 이후 다른 모듈(조직, Phase 4 근태, Phase 5 AI)에서 난 진짜 버그가
+> 이 결재 화면용 400/409 로 덮여 500 으로 드러나지 않는다. `com.flowmate.approval.controller`
+> 로 좁혀도 결재 컨트롤러 4종(`ApprovalWriteController`·`ApprovalActionController`·
+> `ApprovalBoxController`·`AttachmentController`)은 모두 그 패키지 소속이라 커버리지는 그대로다.
 
 `src/main/webapp/WEB-INF/views/error/business.jsp`:
 
@@ -5437,6 +5527,11 @@ Surefire · Failsafe 실제 숫자를 기록한다. 목표는 **단위 50 이상
 설계서 §10 의 "단위 40건 이상 · 통합 3건 이상"을 크게 넘긴다.
 
 `mvnw test` 가 **DB 없이** 통과하는지도 확인한다 — 이 경계가 이 프로젝트의 규약이다.
+
+> `docs/oracle-mapping.md` 는 이 Phase 를 거치며 §2.6(문서번호 채번 직렬화)까지 늘었다.
+> Task 5(§2.4·§2.5)에 이어 Task 6 이 `insertWithGeneratedDocNo` 를 자문 잠금으로 구현하며
+> 추가했다. PostgreSQL 전용 문법을 쓸 때마다 그 자리에서 한 줄 추가하는 규칙(문서 서두)을
+> 지켰는지 여기서 다시 확인한다.
 
 - [ ] **Step 2: 상태 색을 CSS 에 얹는다**
 

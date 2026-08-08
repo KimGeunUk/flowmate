@@ -86,6 +86,24 @@ class ApprovalDocMapperIT {
     }
 
     @Test
+    @DisplayName("채번 잠금을 잡아도 같은 트랜잭션에서 조회와 저장이 이어진다")
+    void lockDocNoSeqDoesNotBreakTransaction() {
+        assertThat(approvalDocMapper.lockDocNoSeq("EXP-2026")).isEqualTo(1);
+
+        // 잠금 이후에도 트랜잭션이 정상이어야 한다
+        int seq = approvalDocMapper.maxDocNoSeq("EXP", 2026);
+        assertThat(seq).isGreaterThanOrEqualTo(3);
+
+        ApprovalDoc doc = newDraft();
+        doc.setDocNo(String.format("EXP-2026-%04d", seq + 1));
+        approvalDocMapper.insert(doc);
+        assertThat(doc.getApprovalId()).isNotNull();
+
+        // 같은 키를 다시 잡아도 (같은 트랜잭션이므로) 막히지 않는다
+        assertThat(approvalDocMapper.lockDocNoSeq("EXP-2026")).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("상태 전이 결과만 갱신한다")
     void updateStatusPersistsTransition() {
         ApprovalDoc doc = approvalDocMapper.findById(1L);
