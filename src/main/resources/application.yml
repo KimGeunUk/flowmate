@@ -41,6 +41,15 @@ flowmate:
     base-dir: ./upload
     max-file-size: 10MB
 
+ai:
+  enabled: false          # 기본값 - API 키 없이 빌드·실행된다 (계획서 3 D3)
+  model: claude-opus-5
+  timeout-seconds: 30
+  features:
+    summary: true
+    preflight: true
+    leave-context: true
+
 logging:
   level:
     com.flowmate: DEBUG
