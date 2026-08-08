@@ -188,3 +188,10 @@ Oracle 에는 `pg_advisory_xact_lock` 이 없다. 두 가지 대안이 있다.
 같은 트랜잭션의 이후 쿼리가 전부 `25P02` 로 실패한다. Oracle 은 문 단위 롤백이라 제약 위반 후에도
 같은 트랜잭션을 계속 쓸 수 있다 — **두 DB 의 동작이 다르므로 재시도 방식은 이식되지 않는다.**
 잠금 방식은 양쪽에서 같은 의미를 갖는다.
+
+### 2.7 AI 게이트웨이 스키마 (`ai_result_cache`, `ai_call_log`) — Oracle 특이사항 없음
+
+두 테이블 모두 `BIGSERIAL`(§1 대응)과 표준 `VARCHAR`/`TEXT`/`TIMESTAMP`/`CHAR(1)` 컬럼,
+평범한 `CREATE INDEX` 뿐이다. 재귀 쿼리·자문 잠금·`LIMIT`/`FETCH` 같은 PostgreSQL 전용
+문법을 전혀 쓰지 않으므로 Oracle 이식 시 `BIGSERIAL → NUMBER + SEQUENCE` 치환 외에는
+손댈 곳이 없다.

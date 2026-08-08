@@ -256,7 +256,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | Q1 | **Spring Boot 3.2.x는 OSS 지원이 끝난 라인이다** (2024-12 종료). 2026년 포트폴리오에 EOL 버전을 쓰는 것이 맞는가 | 계획서 1 Task 2 (즉시) | **설계서대로 `3.2.5`를 쓴다.** JSP/Jakarta 배선 정보가 3.2 기준으로 가장 풍부해 Phase 0 리스크가 낮다. 지원 라인으로 올릴 경우 `spring-boot-starter-parent` 버전과 `mybatis-spring-boot-starter` 버전만 바꾸면 되고, 계획서의 다른 코드는 영향받지 않는다. **사용자 판단이 필요한 항목** |
 | Q2 | `ApprovalLinePolicy` 의 부서장 판정 | — | **확정 (2026-08-06). 아래 §5.1 에 전문.** `department` 에 `manager_emp_id` 컬럼은 **추가하지 않는다** |
 | Q3 | `position`은 PostgreSQL에서 `col_name_keyword`다. 테이블명으로 쓸 수 있지만 경계 대상 | 계획서 1 Task 6에서 스키마 적용 시 즉시 판명 | 설계서대로 `position`을 쓴다. 오류가 나면 `job_position`으로 바꾸고 이 표를 갱신한다 |
-| Q4 | Anthropic API 키 보관 방식 | 계획서 3 | `application-local.yml`(gitignore) + 환경변수 `ANTHROPIC_API_KEY`. 계획서 1에서 `.gitignore` 항목을 확장자·파일명 변형까지 넣어뒀다. **넓은 와일드카드(`application-*.yml`)는 쓰지 않았다** — 계획서 6에서 정상 커밋해야 하는 프로필 설정이 생긴다 |
+| Q4 | Anthropic API 키 보관 방식 | 계획서 3 | **확정 (2026-08-08).** `application-local.yml`(gitignore) 에도 넣지 않는다 — 파일에 있으면 언젠가 스크린샷·붙여넣기로 샌다. **환경변수 `ANTHROPIC_API_KEY` 로만** 받는다. SDK의 `AnthropicOkHttpClient.fromEnv()` 가 환경변수를 직접 읽으므로 코드·설정 파일 어디에도 키 문자열이 등장하지 않는다. `ai.enabled` 는 기본값 `false` 로 두어 키 없이도 클론·빌드·기동·테스트가 전부 통과한다(계획서 3 D3, `mvnw clean verify` 로 실증) — public 전환 후 클론한 사람이 키 없이도 저장소를 살펴볼 수 있어야 한다는 요구를 이 기본값 하나로 만족시킨다 |
 | Q6 | **첨부파일 업로드 디렉터리 경로** (`approval_attachment.file_path`) | 계획서 2 | **확정 (`1043d70`).** 설정 키 `flowmate.upload.base-dir`, 기본값 `./upload`. 실제 저장 경로는 `{base-dir}/approval/{yyyy}/{MM}/{UUID}.{ext}`. `.gitignore` 에 `/upload/` 추가 완료(같은 커밋). 원본 파일명은 `approval_attachment.file_name` 에만 두고 디스크에는 UUID 로 저장해 경로 조작·덮어쓰기·한글 파일명 문제를 한 번에 없앤다 |
 | Q5 | 반려 유형 6종 최종 확정 | 계획서 2 (설계서 §12에 이미 등록됨) | **확정.** §5.2 정의대로 6종(`INSUFFICIENT_CONTENT`/`EXCESSIVE_AMOUNT`/`MISSING_EVIDENCE`/`PROCEDURE_ERROR`/`BUDGET_EXCEEDED`/`OTHER`) 그대로 구현. 반려 화면에서 유형 선택을 필수로 만들어 `approval_reject_history` 에 쌓는다(Phase 5 사전점검의 학습 원천) |
 
@@ -311,7 +311,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | 1. Phase 0+1 토대 | **실행 완료** — `main` 에 머지, 태그 `phase-0-bootstrap` · `phase-1-org-user` |
 | — | **사전점검 완료** (Phase 2 착수 전): Boot 3.5.16 업그레이드 · 외부 Tomcat 10.1.57 실배포 검증 · 결재선 정책 확정 · CSS 최소선 · 클린 클론 재현성 |
 | 2. Phase 2 전자결재 코어 | **완료** — Task 11개 실행 완료, 머지 대기(Task 11 Step 6은 코디네이터가 수행). 단위 52 · 통합 55 (목표 단위 50 · 통합 40 초과 달성) |
-| 3. Phase 3 AI 게이트웨이 | 미작성 (계획서 2 머지 후) |
+| 3. Phase 3 AI 게이트웨이 | **완료** — Task 6개 실행 완료, 머지 대기(코디네이터가 수행). 단위 81 · 통합 61 (계획 단위 81 · 통합 61 그대로 달성) |
 | 4. Phase 4 근태 + 연동 | 미작성 |
 | 5. Phase 5 AI 기능 | 미작성 |
 | 6. Phase 6 마감 | 미작성 |
@@ -377,3 +377,29 @@ Phase 2 착수 전에 다섯 가지를 확인했다. **두 가지가 특히 값�
    `IllegalArgumentException`/`IllegalStateException` 을 4xx 로 매핑하는 핸들러를 새로
    만들 때는 처음부터 `basePackages` 로 범위를 좁힌다 — "일단 전역으로 만들고 나중에 좁히기"는
    그 사이에 다른 모듈의 버그를 숨긴 기간을 만든다.
+
+### 6.3 Phase 3 리뷰가 잡은 것 (2026-08-08) — 계획서의 예측 두 건이 실측과 달랐다
+
+계획서 3(D6 부속, Task 5)을 쓰면서 미리 적어둔 위험 두 가지가 있었다. 실측해보니 **하나는
+걱정할 필요가 없었고, 다른 하나는 계획서 예상보다 나쁜 형태로 실재했다.** 둘 다
+"계획서가 틀렸을 때 코드로 확인하고 계획서를 고친" 사례라서 남긴다.
+
+1. **순환 참조 함정은 실측에서 발생하지 않았다.** `LlmConfig.llmClient(LlmClient baseClient, ...)`
+   가 `LlmClient` 를 반환하면서 동시에 `LlmClient` 파라미터를 받길래 `BeanCurrentlyInCreationException`
+   을 예상했다. **실제로는 나지 않는다** — Spring 이 자기 자신(지금 만들고 있는 빈)을 후보에서
+   제외하는 자기 참조 배제 규칙 때문에, `ai.enabled` 조건으로 `claudeLlmClient`/`fakeLlmClient`
+   중 정확히 하나만 활성화되는 이 배선에서는 애초에 후보가 하나뿐이라 모호함이 생기지 않는다.
+   그래도 `@Qualifier("baseLlmClient")` 는 남겨뒀다 — 이 암묵적 배제에 기대면, 조건 없는
+   세 번째 `LlmClient` 빈이 언젠가 추가되는 순간 후보가 둘로 늘어 다시 모호해지기 때문이다.
+
+2. **`AnthropicOkHttpClient.fromEnv()` 는 키가 없어도 예외를 던지지 않는다 — 계획서 예상보다
+   나쁜 결과였다.** 계획서는 "`ai.enabled=true` 인데 키가 없으면 `fromEnv()` 가 알아서
+   실패할 것"이라고 적었다. 실측 결과 `fromEnv()` 는 클라이언트를 정상적으로 만들어 주고,
+   첫 AI 호출에서야 401 이 난다 — 그런데 그 401 은 바로 바깥의 `ResilientLlmClient` 가
+   설계대로 흡수해 `Optional.empty()` 로 바꿔버린다. 결과적으로 **설정 실수(키를 안 넣음)와
+   일시적 장애가 화면에서 구별되지 않고, 아무도 눈치채지 못한 채 AI 기능이 영구히 죽은 채로
+   운영될 뻔했다** — 폴백이 의도대로 잘 작동하는 것 자체가 문제를 숨기는 역설적인 사례다.
+   `claudeLlmClient` 빈 생성 시점에 환경변수를 직접 검사해 없으면 `IllegalStateException` 으로
+   기동을 막는 방어 코드를 추가해 고쳤다(fail-fast). **다음 Phase가 지킬 규칙:** SDK의
+   "느슨한" 초기화(생성 시점에 필수 자격증명을 검증하지 않는 것)를 가정하지 않는다 —
+   문서화된 동작이 아니라 실측으로 확인하고, 필요하면 우리 쪽에서 기동 시점 검사를 추가한다.
