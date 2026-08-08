@@ -24,6 +24,7 @@ public class FakeLlmClient implements LlmClient {
     private LlmResponse fixedResponse = defaultResponse();
     private long delayMillis;
     private RuntimeException exceptionToThrow;
+    private boolean echoPrompt;
 
     @Override
     public Optional<LlmResponse> complete(LlmRequest request) {
@@ -40,6 +41,15 @@ public class FakeLlmClient implements LlmClient {
 
         if (exceptionToThrow != null) {
             throw exceptionToThrow;
+        }
+
+        if (echoPrompt) {
+            LlmResponse echoed = new LlmResponse();
+            echoed.setText(request.getPrompt());
+            echoed.setModel(fixedResponse.getModel());
+            echoed.setInputTokens(fixedResponse.getInputTokens());
+            echoed.setOutputTokens(fixedResponse.getOutputTokens());
+            return Optional.of(echoed);
         }
 
         return Optional.of(fixedResponse);
@@ -71,6 +81,18 @@ public class FakeLlmClient implements LlmClient {
     /** 폴백 테스트용 — complete() 가 이 예외를 던지게 한다. null 이면 던지지 않는다 */
     public void setExceptionToThrow(RuntimeException exceptionToThrow) {
         this.exceptionToThrow = exceptionToThrow;
+    }
+
+    /**
+     * 캐싱 데코레이터 순서 검증용(계획서 3 D8) — 받은 프롬프트를 그대로 응답 텍스트로 돌려준다.
+     *
+     * 고정 응답만 쓰면 그 응답은 입력과 무관한 상수라서, "캐시에 저장된 결과에 원문이 없다"는
+     * 단정이 항상 참이 되어 아무것도 증명하지 못한다. 실제 Claude 가 요약 중 입력 내용을
+     * 일부 그대로 옮길 수 있는 상황을 흉내내야, 그 응답이 캐시에 저장됐을 때 원문이 아니라
+     * 마스킹된 토큰만 들어있다는 것이 비로소 의미 있는 단정이 된다.
+     */
+    public void setEchoPrompt(boolean echoPrompt) {
+        this.echoPrompt = echoPrompt;
     }
 
     private static LlmResponse defaultResponse() {

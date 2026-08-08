@@ -879,15 +879,15 @@ if (apiKey == null || apiKey.isBlank()) {
 
 ### 마감 체크리스트
 
-- [ ] `mvnw clean verify` — 단위 **81** / 통합 **61** 기대. **실제 숫자를 기록한다**
-- [ ] **`ANTHROPIC_API_KEY` 환경변수를 지운 상태에서** 다시 `clean verify` — 통과해야 한다 (D3의 실증)
-- [ ] `git log -p -S "sk-ant"` — 어느 커밋에도 키가 없는지
-- [ ] `application.yml` 의 `ai.enabled` 가 `false` 인지
-- [ ] 시드 무결: `docs=6 cache=0 log=0`
-- [ ] `README.md` 의 구현 현황에 Phase 3 체크, 테스트 수 갱신
-- [ ] 로드맵 §6 진행 상황에 계획서 3 완료, §5 Q4(API 키 보관) 확정으로 표시
-- [ ] `docs/oracle-mapping.md` — AI 스키마는 표준 SQL 이라 특이사항 없음을 한 줄 기록
-- [ ] merge → tag `phase-3-ai-gateway` → push
+- [x] `mvnw clean verify` — 단위 **81** / 통합 **61** 기대. **실제 숫자를 기록한다** → **실측 단위 81 · 통합 61, BUILD SUCCESS. 기대와 정확히 일치했다**
+- [x] **`ANTHROPIC_API_KEY` 환경변수를 지운 상태에서** 다시 `clean verify` — 통과해야 한다 (D3의 실증) → 프로세스·사용자·시스템 세 범위 모두 미설정 확인 후 `clean verify` 통과
+- [x] `git log -p -S "sk-ant"` — 어느 커밋에도 키가 없는지 → 두 커밋에서 문자열이 걸리지만 둘 다 계획서/로드맵 마크다운이 이 체크리스트 명령 자체를 리터럴로 담고 있는 것뿐이다. 실제 키 값은 어떤 커밋에도 없다
+- [x] `application.yml` 의 `ai.enabled` 가 `false` 인지 → 확인
+- [x] 시드 무결: `docs=6 cache=0 log=0` → `depts=7 emps=20 docs=6 cache=0 log=0` (트랜잭션 테스트가 전부 롤백됨을 증명)
+- [x] `README.md` 의 구현 현황에 Phase 3 체크, 테스트 수 갱신
+- [x] 로드맵 §6 진행 상황에 계획서 3 완료, §5 Q4(API 키 보관) 확정으로 표시
+- [x] `docs/oracle-mapping.md` — AI 스키마는 표준 SQL 이라 특이사항 없음을 한 줄 기록
+- [ ] merge → tag `phase-3-ai-gateway` → push — **코디네이터가 수행한다 (이 세션의 범위 밖)**
 
 ### 다음 계획서로 넘기는 것
 

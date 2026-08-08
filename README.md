@@ -9,7 +9,7 @@ AI가 결재 반려를 미리 막아주는 사내 그룹웨어.
 
 ## 기술 스택
 
-Java 17 · Spring Boot 3.2 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreSQL 16 · Spring Security 6 · Maven · Docker
+Java 17 · Spring Boot 3.5.16 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreSQL 16 · Spring Security 6 · Anthropic Java SDK · Maven · Docker
 
 ## 실행 방법
 
@@ -98,7 +98,7 @@ docker compose up -d postgres
 - [x] Phase 0 — 환경 구축 (JSP + Jakarta JSTL + MyBatis + PostgreSQL)
 - [x] Phase 1 — 조직 · 사용자 (로그인, 사원 목록, 조직도, 공통 레이아웃)
 - [x] Phase 2 — 전자결재 코어
-- [ ] Phase 3 — AI 게이트웨이
+- [x] Phase 3 — AI 게이트웨이 (화면 없음 - `LlmClient` 데코레이터 체인, 마스킹, 캐싱, 폴백)
 - [ ] Phase 4 — 근태 + 연동
 - [ ] Phase 5 — AI 기능
 - [ ] Phase 6 — 마감 (CSS · Docker 배포 · README)
@@ -110,7 +110,11 @@ docker compose up -d postgres
 | 단위 | `*Test.java` | `mvnw.cmd test` | 불필요 |
 | 통합 | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
-Phase 2 종료 시점: 단위 52건 · 통합 55건 (Phase 1 종료 시점 단위 22건 · 통합 21건에서 증가).
+Phase 3 종료 시점: 단위 81건 · 통합 61건 (Phase 2 종료 시점 단위 52건 · 통합 55건에서 증가).
+
+`ai.enabled` 는 기본값이 `false` 라 `ANTHROPIC_API_KEY` 없이도 빌드·기동·테스트가 전부
+통과한다 — AI 게이트웨이는 화면이 없고 `FakeLlmClient` 로 마스킹·캐싱·폴백 전 과정이
+체인 수준에서 검증된다.
 
 단위 테스트가 DB 없이 도는 경계를 의도적으로 유지한다. 이 경계가 무너지면
 순수 로직 테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃는다.
