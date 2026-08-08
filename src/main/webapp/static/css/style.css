@@ -40,6 +40,8 @@
  * 상태       .status  .status--draft  .status--pending  .status--approved
  *            .status--rejected  .status--canceled
  *            .status--waiting  .status--current  .status--skipped
+ * 결재함     .box-tabs  .box-tabs__item  .box-tabs__link  .box-tabs__link--active
+ * 문서목록   .doc-list  .doc-list__empty  .doc-list__link  .doc-list__amount
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */

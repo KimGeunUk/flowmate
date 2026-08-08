@@ -38,4 +38,20 @@ $(function () {
         $form.find('input[name="page"]').val(targetPage);
         $form.trigger('submit');
     });
+
+    /*
+     * 내 결재함 탭. 페이징과 같은 이유로 링크가 아니라 폼 재전송이다.
+     * 탭을 바꾸면 페이지는 1로 되돌린다 — 3페이지에서 탭을 옮기면
+     * 그 탭에 3페이지가 없어 빈 화면이 된다.
+     */
+    $(document).on('click', '.box-tabs__link[data-tab]', function (event) {
+        event.preventDefault();
+        var $form = $('#searchForm');
+        if ($form.length === 0) {
+            return;
+        }
+        $form.find('input[name="tab"]').val($(this).data('tab'));
+        $form.find('input[name="page"]').val(1);
+        $form.trigger('submit');
+    });
 });
