@@ -42,6 +42,14 @@
  *            .status--waiting  .status--current  .status--skipped
  * 결재함     .box-tabs  .box-tabs__item  .box-tabs__link  .box-tabs__link--active
  * 문서목록   .doc-list  .doc-list__empty  .doc-list__link  .doc-list__amount
+ * 문서상세   .doc-detail  .doc-detail__amount  .doc-content  .doc-content__body
+ * 결재선박스 .approval-line-box  .approval-line__comment  .approval-line__at
+ * 액션       .doc-actions  .doc-actions__approve
+ * 이력       .doc-history  .history-list  .history-list__item  .history-list__at
+ *            .history-list__actor  .history-list__action  .history-list__comment
+ * 반려모달   .reject-modal  .reject-modal__panel  .reject-modal__title
+ * 버튼추가   .btn--danger
+ * 오류       (error/business.jsp 는 기존 .alert--error 재사용)
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */

@@ -54,4 +54,12 @@ $(function () {
         $form.find('input[name="page"]').val(1);
         $form.trigger('submit');
     });
+
+    /* 반려 모달. hidden 속성만 토글한다 — CSS 는 마지막 Phase 에서 얹는다 */
+    $(document).on('click', '#rejectOpen', function () {
+        $('#rejectModal').prop('hidden', false);
+    });
+    $(document).on('click', '#rejectCancel', function () {
+        $('#rejectModal').prop('hidden', true);
+    });
 });
