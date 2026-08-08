@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalForm;
 import com.flowmate.approval.domain.DocType;
+import com.flowmate.approval.mapper.ApprovalAttachmentMapper;
 import com.flowmate.approval.service.ApprovalQueryService;
 import com.flowmate.approval.service.ApprovalService;
 import com.flowmate.org.security.LoginEmployee;
@@ -22,10 +23,13 @@ public class ApprovalWriteController {
 
     private final ApprovalService approvalService;
     private final ApprovalQueryService queryService;
+    private final ApprovalAttachmentMapper attachmentMapper;
 
-    public ApprovalWriteController(ApprovalService approvalService, ApprovalQueryService queryService) {
+    public ApprovalWriteController(ApprovalService approvalService, ApprovalQueryService queryService,
+                                   ApprovalAttachmentMapper attachmentMapper) {
         this.approvalService = approvalService;
         this.queryService = queryService;
+        this.attachmentMapper = attachmentMapper;
     }
 
     /** 새 기안 또는 임시저장 문서 수정 */
@@ -44,6 +48,7 @@ public class ApprovalWriteController {
             form.setAmount(doc.getAmount());
             model.addAttribute("doc", doc);
             model.addAttribute("lines", queryService.findLines(approvalId));
+            model.addAttribute("attachments", attachmentMapper.findByApprovalId(approvalId));
         }
         model.addAttribute("form", form);
         model.addAttribute("docTypes", DocType.ALL);

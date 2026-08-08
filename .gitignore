@@ -12,6 +12,9 @@ target/
 .project
 .vscode/
 
+# 업로드 파일 (flowmate.upload.base-dir 기본값)
+/upload/
+
 # 로그
 *.log
 logs/

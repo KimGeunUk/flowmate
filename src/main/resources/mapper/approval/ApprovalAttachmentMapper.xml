@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.ApprovalAttachmentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="attachId" keyColumn="attach_id">
+        INSERT INTO approval_attachment (approval_id, file_name, file_path, file_size, uploaded_at)
+        VALUES (#{approvalId}, #{fileName}, #{filePath}, #{fileSize}, #{uploadedAt})
+    </insert>
+
+    <select id="findByApprovalId" resultType="ApprovalAttachment">
+        SELECT attach_id, approval_id, file_name, file_path, file_size, uploaded_at
+          FROM approval_attachment
+         WHERE approval_id = #{approvalId}
+         ORDER BY uploaded_at, attach_id
+    </select>
+
+    <select id="findById" resultType="ApprovalAttachment">
+        SELECT attach_id, approval_id, file_name, file_path, file_size, uploaded_at
+          FROM approval_attachment
+         WHERE attach_id = #{attachId}
+    </select>
+
+    <delete id="delete">
+        DELETE FROM approval_attachment WHERE attach_id = #{attachId}
+    </delete>
+
+</mapper>

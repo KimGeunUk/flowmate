@@ -90,6 +90,45 @@
                 <button class="btn btn--primary" type="submit">상신</button>
             </form>
         </c:if>
+
+        <%-- 첨부는 임시저장 상태에서만 다룬다 (기안자 + DRAFT). doc.editable 이 그 판정이다 --%>
+        <c:if test="${doc != null and doc.editable}">
+            <section class="attach-section">
+                <h3 class="page-title">첨부파일</h3>
+                <c:choose>
+                    <c:when test="${empty attachments}">
+                        <p class="alert alert--info">첨부된 파일이 없습니다.</p>
+                    </c:when>
+                    <c:otherwise>
+                        <ul class="attach-list">
+                            <c:forEach items="${attachments}" var="file">
+                                <li class="attach-list__item">
+                                    <a class="attach-list__link"
+                                       href="${pageContext.request.contextPath}/approval/attach/${file.attachId}">
+                                        <c:out value="${file.fileName}"/>
+                                    </a>
+                                    <span class="attach-list__size">(<c:out value="${file.fileSizeLabel}"/>)</span>
+                                    <form method="post"
+                                          action="${pageContext.request.contextPath}/approval/attach/${file.attachId}/delete">
+                                        <jsp:include page="../common/csrf-input.jsp"/>
+                                        <button class="btn btn--plain" type="submit">삭제</button>
+                                    </form>
+                                </li>
+                            </c:forEach>
+                        </ul>
+                    </c:otherwise>
+                </c:choose>
+
+                <form class="attach-form" method="post" enctype="multipart/form-data"
+                      action="${pageContext.request.contextPath}/approval/${doc.approvalId}/attach">
+                    <jsp:include page="../common/csrf-input.jsp"/>
+                    <div class="form-row">
+                        <input class="form-input" type="file" name="file" required>
+                        <button class="btn btn--primary" type="submit">첨부</button>
+                    </div>
+                </form>
+            </section>
+        </c:if>
     </main>
 </div>
 <jsp:include page="../common/footer.jsp"/>

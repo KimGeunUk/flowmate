@@ -15,6 +15,7 @@ import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalSearchCond;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.RejectReason;
+import com.flowmate.approval.mapper.ApprovalAttachmentMapper;
 import com.flowmate.approval.service.ApprovalQueryService;
 import com.flowmate.org.security.LoginEmployee;
 
@@ -23,9 +24,11 @@ import com.flowmate.org.security.LoginEmployee;
 public class ApprovalBoxController {
 
     private final ApprovalQueryService queryService;
+    private final ApprovalAttachmentMapper attachmentMapper;
 
-    public ApprovalBoxController(ApprovalQueryService queryService) {
+    public ApprovalBoxController(ApprovalQueryService queryService, ApprovalAttachmentMapper attachmentMapper) {
         this.queryService = queryService;
+        this.attachmentMapper = attachmentMapper;
     }
 
     /**
@@ -53,6 +56,7 @@ public class ApprovalBoxController {
         model.addAttribute("doc", doc);
         model.addAttribute("lines", lines);
         model.addAttribute("histories", queryService.findHistories(approvalId));
+        model.addAttribute("attachments", attachmentMapper.findByApprovalId(approvalId));
         model.addAttribute("rejectReasons", RejectReason.ALL);
         model.addAttribute("myTurn", queryService.isMyTurn(doc, lines, viewerId));
         model.addAttribute("canCancel", queryService.canCancel(doc, viewerId));

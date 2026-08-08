@@ -36,6 +36,28 @@
             <pre class="doc-content__body"><c:out value="${doc.content}"/></pre>
         </section>
 
+        <section class="attach-section">
+            <h3 class="page-title">첨부파일</h3>
+            <c:choose>
+                <c:when test="${empty attachments}">
+                    <p class="alert alert--info">첨부된 파일이 없습니다.</p>
+                </c:when>
+                <c:otherwise>
+                    <ul class="attach-list">
+                        <c:forEach items="${attachments}" var="file">
+                            <li class="attach-list__item">
+                                <a class="attach-list__link"
+                                   href="${pageContext.request.contextPath}/approval/attach/${file.attachId}">
+                                    <c:out value="${file.fileName}"/>
+                                </a>
+                                <span class="attach-list__size">(<c:out value="${file.fileSizeLabel}"/>)</span>
+                            </li>
+                        </c:forEach>
+                    </ul>
+                </c:otherwise>
+            </c:choose>
+        </section>
+
         <section class="approval-line-box">
             <h3 class="page-title">결재선</h3>
             <c:choose>

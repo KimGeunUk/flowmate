@@ -50,6 +50,8 @@
  * 반려모달   .reject-modal  .reject-modal__panel  .reject-modal__title
  * 버튼추가   .btn--danger
  * 오류       (error/business.jsp 는 기존 .alert--error 재사용)
+ * 첨부       .attach-section  .attach-list  .attach-list__item
+ *            .attach-list__link  .attach-list__size  .attach-form
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
