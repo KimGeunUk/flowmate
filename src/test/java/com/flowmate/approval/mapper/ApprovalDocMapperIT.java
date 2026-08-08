@@ -69,12 +69,20 @@ class ApprovalDocMapperIT {
     @Test
     @DisplayName("문서번호 일련번호는 같은 유형·같은 연도에서 이어진다")
     void docNoSequenceContinuesPerTypeAndYear() {
-        // 시드에 EXP-2026-0001 ~ 0003 이 있다
-        assertThat(approvalDocMapper.maxDocNoSeq("EXP", 2026)).isEqualTo(3);
-        // PUR 은 0001 ~ 0002
-        assertThat(approvalDocMapper.maxDocNoSeq("PUR", 2026)).isEqualTo(2);
-        // 쓰이지 않은 접두사는 0
+        // 절대값을 단정하지 않는다. 화면 검증이 실제 DB 에 문서를 남기면 시드 기준 숫자가
+        // 달라지는데, 그때 이 테스트가 깨지는 것은 문서번호 로직의 문제가 아니다.
+        int expBefore = approvalDocMapper.maxDocNoSeq("EXP", 2026);
+        assertThat(expBefore).isGreaterThanOrEqualTo(3);   // 시드에 EXP-2026-0001~0003
+        assertThat(approvalDocMapper.maxDocNoSeq("PUR", 2026)).isGreaterThanOrEqualTo(2);
+
+        // 쓰이지 않은 접두사는 0 — COALESCE 가 NULL 을 0 으로 바꾸는지의 검증이다
         assertThat(approvalDocMapper.maxDocNoSeq("CON", 2026)).isZero();
+
+        // 새 문서를 넣으면 그 유형의 최대 일련번호가 정확히 1 늘어난다
+        ApprovalDoc doc = newDraft();
+        doc.setDocNo(String.format("EXP-2026-%04d", expBefore + 1));
+        approvalDocMapper.insert(doc);
+        assertThat(approvalDocMapper.maxDocNoSeq("EXP", 2026)).isEqualTo(expBefore + 1);
     }
 
     @Test
