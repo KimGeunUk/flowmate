@@ -58,11 +58,35 @@ public class LlmConfig {
         return chain;
     }
 
-    /** ai.enabled=true 이고 키가 있을 때만 실제 호출을 배선한다 (계획서 3 D3) */
+    /**
+     * ai.enabled=true 일 때 실제 호출을 배선한다 (계획서 3 D3).
+     *
+     * ★ 키가 없으면 기동을 막는다. 이유가 있다 — 실측으로 확인한 것이다:
+     *
+     *   AnthropicOkHttpClient.fromEnv() 는 ANTHROPIC_API_KEY 가 없어도
+     *   예외를 던지지 않고 클라이언트를 만들어 준다. 즉 이 검사가 없으면
+     *   키 없는 배포가 정상 기동한다.
+     *
+     *   그다음이 문제다. 첫 호출에서 401 이 나고, 그 401 은 바로 바깥의
+     *   ResilientLlmClient 가 설계대로 흡수해 Optional.empty() 로 바꾼다.
+     *   화면에는 "AI 기능을 일시적으로 사용할 수 없습니다"가 뜬다.
+     *   → **설정 실수가 일시적 장애와 구별되지 않는다.** 아무도 눈치채지 못하고
+     *     AI 기능이 영구히 죽은 채로 운영된다.
+     *
+     *   그래서 기동 시점에 크게 실패시킨다. 배포한 사람이 즉시 알아야 하는 종류의
+     *   문제이지, 사용자가 "AI가 안 되는데요"로 알려줄 문제가 아니다.
+     */
     @Bean
     @Qualifier("baseLlmClient")
     @ConditionalOnProperty(name = "ai.enabled", havingValue = "true")
     public LlmClient claudeLlmClient(AiProperties props) {
+        String apiKey = System.getenv("ANTHROPIC_API_KEY");
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "ai.enabled=true 인데 환경변수 ANTHROPIC_API_KEY 가 없습니다. "
+                    + "키를 설정하거나 ai.enabled 를 false 로 두십시오. "
+                    + "(false 로 두면 FakeLlmClient 가 배선되어 AI 기능만 비활성화되고 나머지는 정상 동작합니다)");
+        }
         return new ClaudeLlmClient(props.getModel());
     }
 

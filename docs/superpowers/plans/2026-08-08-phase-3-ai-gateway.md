@@ -804,9 +804,9 @@ public class LlmConfig {
 }
 ```
 
-**함정:** 위 배선은 `llmClient` 가 `LlmClient` 를 주입받는데 자기도 `LlmClient` 라서 **순환 참조**가 난다. `@Qualifier` 로 구분하거나 base 빈의 타입을 좁혀야 한다. 실행 시 `BeanCurrentlyInCreationException` 이 나면 이것이다 — `@Qualifier("baseLlmClient")` 를 붙여 해결한다.
+**순환 참조에 대한 정정 (실측 결과):** `llmClient` 가 `LlmClient` 를 주입받으면서 자기도 `LlmClient` 라서 순환 참조가 날 것이라고 처음에 적었는데, **실제로는 나지 않는다.** Spring 이 타입 후보를 고를 때 "지금 만들고 있는 빈 자기 자신"을 후보에서 제외하기 때문이다(자기 참조 배제). `ai.enabled` 에 따라 `claudeLlmClient`/`fakeLlmClient` 중 정확히 하나만 활성화되므로 후보가 하나로 좁혀져 모호함이 없다.
 
-이 함정을 계획서에 미리 적는 이유: 컴파일은 되고 **컨텍스트 기동에서만** 터지므로, `mvnw test` 는 통과하고 `mvnw verify` 에서 처음 드러난다.
+그래도 `@Qualifier("baseLlmClient")` 를 붙인다 — 그 암묵적 동작에 기대면, 조건 없는 세 번째 `LlmClient` 빈이 언젠가 추가되는 순간 후보가 둘로 늘어나 다시 모호해진다.
 
 ### Step 4. `application.yml`
 
@@ -829,14 +829,34 @@ ai:
 
 `ai.enabled=false` 로 뜨는지 확인한다.
 
-### Step 6. 교체 확인
+### Step 6. ★ 키 없는 `enabled=true` 를 기동 시점에 막는다 (실측으로 밝혀진 결함)
 
-`application.yml` 의 `ai.enabled` 를 `true` 로 바꾸고 **환경변수 없이** 기동해본다.
-`fromEnv()` 가 키를 못 찾아 실패해야 한다 — 그게 정상이다. 실패 메시지를 기록하고 **`false` 로 되돌린다.**
+처음 이 계획서는 "`ai.enabled=true` 로 두고 키가 없으면 `fromEnv()` 가 실패하니 그게 정상"이라고 적었다. **틀렸다. 실측 결과 `fromEnv()` 는 키가 없어도 예외를 던지지 않고 클라이언트를 만들어 준다.**
 
-이 확인의 목적은 "키 없이 `true` 로 두면 뜨지 않는다"를 아는 것이다. 배포 시 설정 실수를 조용히 넘기지 않는다는 뜻이다.
+그래서 실제 동작은 계획서가 예상한 것보다 **나쁘다**:
 
-**되돌렸는지 Read 도구로 확인하고 커밋한다.**
+1. 키 없이 `enabled=true` → 앱이 **정상 기동**한다
+2. 첫 AI 호출 → 401
+3. 그 401 을 바로 바깥의 `ResilientLlmClient` 가 **설계대로** 흡수해 `Optional.empty()` 로 바꾼다
+4. 화면에는 "AI 기능을 일시적으로 사용할 수 없습니다"가 뜬다
+5. → **설정 실수가 일시적 장애와 구별되지 않는다.** 아무도 눈치채지 못하고 AI 기능이 영구히 죽은 채로 운영된다
+
+폴백이 잘 작동하기 때문에 오히려 문제가 숨는다는 점이 고약하다.
+
+**조치 — `claudeLlmClient` 빈에서 기동 시점에 검사한다:**
+
+```java
+String apiKey = System.getenv("ANTHROPIC_API_KEY");
+if (apiKey == null || apiKey.isBlank()) {
+    throw new IllegalStateException(
+            "ai.enabled=true 인데 환경변수 ANTHROPIC_API_KEY 가 없습니다. "
+            + "키를 설정하거나 ai.enabled 를 false 로 두십시오.");
+}
+```
+
+배포한 사람이 즉시 알아야 하는 종류의 문제이지, 사용자가 "AI가 안 되는데요"로 알려줄 문제가 아니다.
+
+**확인:** `ai.enabled: true` + 키 없음 → 기동 실패 + 위 메시지. 그 뒤 **`false` 로 되돌리고 Read 도구로 확인하고 커밋한다.**
 
 ---
 
