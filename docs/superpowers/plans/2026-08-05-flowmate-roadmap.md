@@ -63,13 +63,13 @@
 Phase 1 은 Critical/Important 없이 마감됐다. 아래는 **"지금 틀린 것"이 아니라
 "Phase 2 에서 특정 변경을 하면 그때 문제가 되는 것"** 이다. 계획서 2를 쓸 때 이 절을 먼저 읽는다.
 
-| # | 이월 항목 | 언제 문제가 되는가 | 그때의 조치 |
-|---|---|---|---|
-| C1 | `LoginEmployee.eraseCredentials()` 가 감싼 `Employee` 인스턴스를 직접 `null` 처리한다 | **`EmployeeMapper.findByEmpNo` 앞에 캐시가 붙는 순간.** 현재는 매 호출이 새 객체를 돌려주므로 안전하지만 그건 *암묵적* 불변식이다. `@Cacheable` 이나 결재선 조회용 공유 맵이 들어가면 캐시된 인스턴스의 해시가 지워져 **그 사원의 이후 모든 로그인이 조용히 실패한다** | `LoginEmployee` 안에 해시 사본을 두고 그걸 지우거나, `EmployeeUserDetailsService` 가 방어적 복사본을 넘긴다 |
-| C2 | CSRF hidden input 이 JSP 파일마다 손으로 복사되는 규약이다 (공유 조각 없음) | **Phase 2 가 POST 폼을 추가할 때.** 출퇴근 등록, 승인/반려 액션마다 같은 줄을 붙여야 하고, 빠뜨리면 컴파일·템플릿 단계에서 아무 신호가 없다가 **제출 시점에 403** 이 난다 | `common/csrf-input.jsp` 조각을 만들어 include 한다. 의존성 추가 없이 복붙 위험만 제거된다 |
-| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 |
-| C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 |
-| C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 |
+| # | 이월 항목 | 언제 문제가 되는가 | 그때의 조치 | Phase 2 처리 결과 |
+|---|---|---|---|---|
+| C1 | `LoginEmployee.eraseCredentials()` 가 감싼 `Employee` 인스턴스를 직접 `null` 처리한다 | **`EmployeeMapper.findByEmpNo` 앞에 캐시가 붙는 순간.** 현재는 매 호출이 새 객체를 돌려주므로 안전하지만 그건 *암묵적* 불변식이다. `@Cacheable` 이나 결재선 조회용 공유 맵이 들어가면 캐시된 인스턴스의 해시가 지워져 **그 사원의 이후 모든 로그인이 조용히 실패한다** | `LoginEmployee` 안에 해시 사본을 두고 그걸 지우거나, `EmployeeUserDetailsService` 가 방어적 복사본을 넘긴다 | **이월 (미해결).** 계획서 2 D4 가 미리 정한 대로 `EmployeeMapper` 에 캐시를 붙이지 않았다 — 붙이지 않는 것 자체가 이 Phase 의 조치다. `DefaultApprovalLinePolicy`·부서장 체인 조회도 캐시 없이 매번 새로 조회한다. **여전히 서 있는 제약**: 이후 Phase 에서 이 매퍼에 캐시를 붙이는 순간 이 항목이 다시 유효해진다 |
+| C2 | CSRF hidden input 이 JSP 파일마다 손으로 복사되는 규약이다 (공유 조각 없음) | **Phase 2 가 POST 폼을 추가할 때.** 출퇴근 등록, 승인/반려 액션마다 같은 줄을 붙여야 하고, 빠뜨리면 컴파일·템플릿 단계에서 아무 신호가 없다가 **제출 시점에 403** 이 난다 | `common/csrf-input.jsp` 조각을 만들어 include 한다. 의존성 추가 없이 복붙 위험만 제거된다 | **해결 (`a8064c7`).** `common/csrf-input.jsp` 를 만들어 기안·상신·승인·반려·회수·첨부 폼 전부가 include 한다 |
+| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 | 이월 (미해결). Phase 2 는 AJAX/`fetch` 를 쓰지 않아 해당 없음. Phase 5 설계 착수 전에 다시 확인한다 |
+| C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 | 이월 (미해결). Phase 2 는 `SecurityConfig` 의 `permitAll` 목록을 손대지 않았다 |
+| C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 | **해결 (`6fce0f6`).** 내 결재함 Task 에서 `defaultSuccessUrl("/", false)` 로 바꿔 저장된 요청(딥링크)을 보존한다 |
 
 ### 2.1 축소 순서 (일정이 밀렸을 때)
 
@@ -257,8 +257,8 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | Q2 | `ApprovalLinePolicy` 의 부서장 판정 | — | **확정 (2026-08-06). 아래 §5.1 에 전문.** `department` 에 `manager_emp_id` 컬럼은 **추가하지 않는다** |
 | Q3 | `position`은 PostgreSQL에서 `col_name_keyword`다. 테이블명으로 쓸 수 있지만 경계 대상 | 계획서 1 Task 6에서 스키마 적용 시 즉시 판명 | 설계서대로 `position`을 쓴다. 오류가 나면 `job_position`으로 바꾸고 이 표를 갱신한다 |
 | Q4 | Anthropic API 키 보관 방식 | 계획서 3 | `application-local.yml`(gitignore) + 환경변수 `ANTHROPIC_API_KEY`. 계획서 1에서 `.gitignore` 항목을 확장자·파일명 변형까지 넣어뒀다. **넓은 와일드카드(`application-*.yml`)는 쓰지 않았다** — 계획서 6에서 정상 커밋해야 하는 프로필 설정이 생긴다 |
-| Q6 | **첨부파일 업로드 디렉터리 경로** (`approval_attachment.file_path`) | 계획서 2 | 미정. **경로를 정하는 즉시 `.gitignore` 에 추가한다.** 프로젝트 디렉터리 안(`./upload/` 등)으로 정하면 업로드된 파일이 커밋될 수 있고, 저장소는 Phase 6 이후 public 이 된다. 계획서 1에서 추측성 경로를 미리 넣지 않은 이유는 이름이 다르면 방어가 되지 않기 때문이다 |
-| Q5 | 반려 유형 6종 최종 확정 | 계획서 2 (설계서 §12에 이미 등록됨) | §5.2 정의대로 |
+| Q6 | **첨부파일 업로드 디렉터리 경로** (`approval_attachment.file_path`) | 계획서 2 | **확정 (`1043d70`).** 설정 키 `flowmate.upload.base-dir`, 기본값 `./upload`. 실제 저장 경로는 `{base-dir}/approval/{yyyy}/{MM}/{UUID}.{ext}`. `.gitignore` 에 `/upload/` 추가 완료(같은 커밋). 원본 파일명은 `approval_attachment.file_name` 에만 두고 디스크에는 UUID 로 저장해 경로 조작·덮어쓰기·한글 파일명 문제를 한 번에 없앤다 |
+| Q5 | 반려 유형 6종 최종 확정 | 계획서 2 (설계서 §12에 이미 등록됨) | **확정.** §5.2 정의대로 6종(`INSUFFICIENT_CONTENT`/`EXCESSIVE_AMOUNT`/`MISSING_EVIDENCE`/`PROCEDURE_ERROR`/`BUDGET_EXCEEDED`/`OTHER`) 그대로 구현. 반려 화면에서 유형 선택을 필수로 만들어 `approval_reject_history` 에 쌓는다(Phase 5 사전점검의 학습 원천) |
 
 ### 5.1 `ApprovalLinePolicy` 확정안 (2026-08-06)
 
@@ -310,7 +310,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 |---|---|
 | 1. Phase 0+1 토대 | **실행 완료** — `main` 에 머지, 태그 `phase-0-bootstrap` · `phase-1-org-user` |
 | — | **사전점검 완료** (Phase 2 착수 전): Boot 3.5.16 업그레이드 · 외부 Tomcat 10.1.57 실배포 검증 · 결재선 정책 확정 · CSS 최소선 · 클린 클론 재현성 |
-| 2. Phase 2 전자결재 코어 | **작성 완료** — 실행 대기 (Task 11개, 목표 단위 50 · 통합 40) |
+| 2. Phase 2 전자결재 코어 | **완료** — Task 11개 실행 완료, 머지 대기(Task 11 Step 6은 코디네이터가 수행). 단위 52 · 통합 55 (목표 단위 50 · 통합 40 초과 달성) |
 | 3. Phase 3 AI 게이트웨이 | 미작성 (계획서 2 머지 후) |
 | 4. Phase 4 근태 + 연동 | 미작성 |
 | 5. Phase 5 AI 기능 | 미작성 |
@@ -331,3 +331,49 @@ Phase 2 착수 전에 다섯 가지를 확인했다. **두 가지가 특히 값�
 **2번이 결승선 리스크를 제거했다.** 설계서는 Phase 6 에 0.5일로 컨테이너 배포를 잡았는데,
 거기서 처음 시도해 실패하면 프로젝트의 중심 주장("산출물은 WAR, 외부 Tomcat 배포")이
 고칠 시간 없이 무너진다. 지금 확인해 그 가능성을 없앴다.
+
+### 6.2 Phase 2 리뷰가 잡은 것 (2026-08-08)
+
+계획서 3 이하를 쓰는 사람이 같은 실수를 반복하지 않도록, Phase 2 구현 중 자체 리뷰와
+별도 코드 리뷰(커밋 `aa79392`)가 잡은 것 중 다음 Phase에 영향을 주는 세 건을 남긴다.
+
+1. **`RejectReason.isValid(null)` 의 `NullPointerException` (커밋 `275a1b0`).**
+   `ALL` 이 `List.of(...)` 로 만든 불변 리스트인데, 이런 리스트의 `contains(null)` 은
+   `false` 가 아니라 예외를 던진다("null 원소를 아예 허용하지 않는 리스트라 포함 여부를
+   못 묻는다"는 뜻으로 실패한다). 화면에서 반려 유형을 선택하지 않고 보내면 `category` 가
+   정확히 이 `null` 이 되어 실사용 경로에서 터진다. **교훈:** `List.of(...)` 로 만든 상수
+   컬렉션에 `contains()` 를 걸 때는 인자가 `null` 일 수 있는 자리마다 `x != null && list.contains(x)`
+   순서를 지킨다 — 검증 대상이 사용자 입력이면 거의 항상 `null` 이 올 수 있는 자리다.
+
+2. **PostgreSQL 에서는 "제약 위반 → catch → 재시도" 가 죽은 코드다 (커밋 `aa79392`, 가장 심각).**
+   문서번호를 `MAX+1` 로 계산해 넣고 `doc_no` UNIQUE 충돌 시 `DuplicateKeyException` 을 잡아
+   재계산·재시도하는 코드를 처음에 짰다. **PostgreSQL 은 제약 위반이 나면 트랜잭션 전체를
+   중단(abort) 상태로 만들어**, 예외를 잡아도 같은 트랜잭션의 다음 쿼리가 전부 `25P02
+   (current transaction is aborted)` 로 죽는다 — 재시도할 "다음 쿼리" 자체가 실행되지 않으므로
+   이 재시도 루프는 실전에서 한 번도 동작하지 않는 죽은 코드였다. `pg_try_advisory_xact_lock`
+   으로 직접 검증(같은 키는 `false`, 다른 키는 `true`, 트랜잭션 종료 시 자동 해제)한 뒤
+   `(접두사, 연도)` 단위 `pg_advisory_xact_lock` 을 채번 전에 걸어 충돌 자체를 없애는 방식으로
+   교체했다.
+   **Oracle 에서는 다르다** — Oracle 은 문장 단위(statement-level) 롤백이라 제약 위반 문장만
+   되돌리고 트랜잭션은 계속 살아 있으므로, "제약 위반 → catch → 재시도" 패턴이 Oracle 에서는
+   실제로 동작한다. **즉 이 재시도 패턴은 이식 가능하지 않다** — DB 마다 트랜잭션 중단 범위가
+   다르다는 것을 코드 형태로 보여준 사례다. 자문 잠금(advisory lock)은 Oracle 에 없으므로
+   Oracle 대응은 `SELECT ... FOR UPDATE` 로 잠금 대상 행을 먼저 확보하거나 전용 채번
+   테이블/시퀀스를 쓴다 (`docs/oracle-mapping.md` §2.6).
+   **다음 Phase가 반드시 지킬 규칙:** PostgreSQL 트랜잭션 안에서 제약 위반을 잡아 같은
+   트랜잭션 안에서 재시도하지 않는다. Phase 4 의 근태 기록이 `ApprovalService.approve()`
+   안에 들어가므로(계획서 2 Task 7 이 남긴 주석 자리, 설계서 §6.3), 그 지점에서 유니크
+   제약이나 체크 제약을 걸고 실패 시 재시도하는 코드를 짜면 이 항목이 그대로 재발한다 —
+   사전에 잠그거나(advisory lock), 애초에 충돌이 나지 않게 설계한다.
+
+3. **범위를 두지 않은 `@ControllerAdvice` 가 다른 모듈의 버그를 삼킬 뻔했다 (커밋 `aa79392`).**
+   `GlobalExceptionHandler` 가 `IllegalArgumentException`/`IllegalStateException` 을 잡아
+   결재 도메인의 4xx 안내 화면으로 바꿔주고 있었는데, 두 예외는 JDK 전반에서 흔히 던져진다
+   (`NumberFormatException` 도 `IllegalArgumentException` 의 하위 타입이다). 범위를 좁히지
+   않으면 **전혀 관련 없는 모듈의 진짜 버그가 "정상적인 4xx 안내"로 둔갑해 500 으로 드러나지
+   않는다** — 근태·AI 모듈이 같은 예외 타입을 쓰는 순간 조용히 서로의 버그를 가려주는
+   관계가 생긴다. `@ControllerAdvice(basePackages = "com.flowmate.approval.controller")`
+   로 결재 컨트롤러 패키지에만 적용하도록 좁혔다. **다음 Phase가 지킬 규칙:** 공통
+   `IllegalArgumentException`/`IllegalStateException` 을 4xx 로 매핑하는 핸들러를 새로
+   만들 때는 처음부터 `basePackages` 로 범위를 좁힌다 — "일단 전역으로 만들고 나중에 좁히기"는
+   그 사이에 다른 모듈의 버그를 숨긴 기간을 만든다.

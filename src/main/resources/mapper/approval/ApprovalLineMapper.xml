@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.ApprovalLineMapper">
+
+    <insert id="insertAll">
+        INSERT INTO approval_line
+            (approval_id, step_no, approver_id, line_type, status, comment, processed_at)
+        VALUES
+        <foreach collection="lines" item="l" separator=",">
+            (#{l.approvalId}, #{l.stepNo}, #{l.approverId}, #{l.lineType},
+             #{l.status}, #{l.comment}, #{l.processedAt})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByApprovalId">
+        DELETE FROM approval_line WHERE approval_id = #{approvalId}
+    </delete>
+
+    <sql id="lineSelect">
+        SELECT l.line_id, l.approval_id, l.step_no, l.approver_id,
+               l.line_type, l.status, l.comment, l.processed_at,
+               e.emp_name      AS approver_name,
+               p.position_name AS approver_position_name,
+               d.dept_name     AS approver_dept_name
+          FROM approval_line l
+          JOIN employee   e ON e.emp_id      = l.approver_id
+          JOIN position   p ON p.position_id = e.position_id
+          JOIN department d ON d.dept_id     = e.dept_id
+    </sql>
+
+    <select id="findByApprovalId" resultType="ApprovalLine">
+        <include refid="lineSelect"/>
+        WHERE l.approval_id = #{approvalId}
+        ORDER BY l.step_no
+    </select>
+
+    <select id="findStep" resultType="ApprovalLine">
+        <include refid="lineSelect"/>
+        WHERE l.approval_id = #{approvalId}
+          AND l.step_no = #{stepNo}
+    </select>
+
+    <update id="updateStep">
+        UPDATE approval_line
+           SET status       = #{status},
+               comment      = #{comment},
+               processed_at  = #{processedAt}
+         WHERE line_id = #{lineId}
+    </update>
+
+    <!-- 대기 중인 단계만 올린다. 이미 처리된 단계를 되돌리지 않기 위한 조건이다 -->
+    <update id="activateStep">
+        UPDATE approval_line
+           SET status = 'CURRENT'
+         WHERE approval_id = #{approvalId}
+           AND step_no = #{stepNo}
+           AND status = 'WAITING'
+    </update>
+
+    <!-- 반려 시 뒤 단계 정리. 이미 처리된 단계는 건드리지 않는다 -->
+    <update id="skipRemaining">
+        UPDATE approval_line
+           SET status = 'SKIPPED'
+         WHERE approval_id = #{approvalId}
+           AND step_no >= #{fromStepNo}
+           AND status IN ('WAITING', 'CURRENT')
+    </update>
+
+    <select id="countByApprovalId" resultType="int">
+        SELECT COUNT(*) FROM approval_line WHERE approval_id = #{approvalId}
+    </select>
+
+</mapper>

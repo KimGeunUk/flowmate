@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.RejectHistoryMapper">
+
+    <!--
+      Phase 5 AI 사전점검의 학습 원천에 한 줄을 쌓는다.
+      유형별 빈도 집계 쿼리는 Phase 5 에서 이 파일에 추가한다 — 지금 만들면 쓰는 곳이 없다.
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO approval_reject_history
+            (approval_id, doc_type, dept_id, rejector_id, reason_category, reason_text, rejected_at)
+        VALUES
+            (#{approvalId}, #{docType}, #{deptId}, #{rejectorId},
+             #{reasonCategory}, #{reasonText}, #{rejectedAt})
+    </insert>
+
+</mapper>

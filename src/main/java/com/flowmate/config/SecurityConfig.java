@@ -51,9 +51,13 @@ public class SecurityConfig {
                 .loginProcessingUrl("/login")
                 .usernameParameter("empNo")
                 .passwordParameter("password")
-                // true 를 주는 이유: 저장된 이전 요청으로 돌아가지 않고 항상 홈으로 보낸다.
-                // 데모 중 예상 못한 화면으로 튀는 것을 막는다.
-                .defaultSuccessUrl("/", true)
+                // 저장된 요청이 있으면 그곳으로 돌아간다 (로드맵 C5).
+                // 문서 상세가 딥링크 대상이 되었으므로 항상 홈으로 보내면
+                // 링크를 받은 사용자가 로그인 후 다시 링크를 눌러야 한다.
+                //
+                // 오픈 리다이렉트 위험은 없다 — 저장된 요청은 실제로 거부된 요청에서
+                // 서버가 만든 값이고 URL 파라미터로 조작할 수 없다.
+                .defaultSuccessUrl("/", false)
                 .failureUrl("/login?error")
                 .permitAll())
             .logout(logout -> logout

@@ -10,6 +10,11 @@ spring:
     view:
       prefix: /WEB-INF/views/
       suffix: .jsp
+  servlet:
+    # 설정하지 않으면 기본 1MB 에서 조용히 막힌다 (Task 10).
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
 
 server:
   port: 8080
@@ -24,6 +29,17 @@ mybatis:
   type-aliases-package: com.flowmate
   configuration:
     map-underscore-to-camel-case: true
+
+flowmate:
+  approval:
+    # 결재선 정책 교체 지점. default | simple-two-step
+    # 고객사별 납품에서 코드를 고치지 않고 이 값만 바꾼다.
+    line-policy: default
+  upload:
+    # 첨부파일 저장 위치. 저장 경로는 {base-dir}/approval/{yyyy}/{MM}/{UUID}.{ext}
+    # .gitignore 의 /upload/ 와 짝이다 — 기본값을 바꾸면 그쪽도 함께 바꾼다.
+    base-dir: ./upload
+    max-file-size: 10MB
 
 logging:
   level:
