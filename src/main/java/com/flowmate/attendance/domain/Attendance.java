@@ -97,4 +97,21 @@ public class Attendance implements Serializable {
     public void setNote(String note) {
         this.note = note;
     }
+
+    // ── 판정 (계획서 4 Task 7 — JSP 는 이 boolean/label 만 읽는다) ──────────
+
+    /** 출근 기록이 있는가 */
+    public boolean isCheckedIn() {
+        return checkIn != null;
+    }
+
+    /** 퇴근 기록이 있는가 */
+    public boolean isCheckedOut() {
+        return checkOut != null;
+    }
+
+    /** 화면 표시용 상태 한글명 */
+    public String getStatusLabel() {
+        return AttendanceStatus.labelOf(status);
+    }
 }

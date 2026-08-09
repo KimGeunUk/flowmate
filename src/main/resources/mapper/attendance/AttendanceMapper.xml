@@ -47,4 +47,46 @@
          WHERE att_id = #{attId}
     </update>
 
+    <!-- "내 근태"(계획서 4 Task 7). ?ym=2026-08 로 넘어온 달의 행만, 날짜순 -->
+    <select id="findByEmpIdAndMonth" resultType="Attendance">
+        SELECT att_id, emp_id, work_date, check_in, check_out, work_minutes, overtime_minutes, status, note
+          FROM attendance
+         WHERE emp_id = #{empId}
+           AND work_date BETWEEN #{start} AND #{end}
+         ORDER BY work_date
+    </select>
+
+    <!--
+      "부서 근태 현황"(계획서 4 Task 7). employee 를 기준으로 LEFT JOIN 하므로
+      그 달에 근태 행이 하나도 없는 사원(예: 이번 달 신규 입사자)도 0으로
+      채워진 행으로 나온다 — 누락되지 않는다.
+
+      CASE WHEN ... THEN 1 ELSE 0 END 로 세는 이유: COUNT(*) FILTER (WHERE ...)
+      도 같은 결과를 내지만 PostgreSQL 전용 문법이다(docs/oracle-mapping.md §1).
+      CASE WHEN 은 Oracle 에서도 동일하게 동작해 이식 시 고칠 곳이 없다.
+    -->
+    <select id="findDeptMonthlySummary" resultType="DeptAttendanceRow">
+        SELECT e.emp_id                                                                AS emp_id,
+               e.emp_name                                                              AS emp_name,
+               d.dept_name                                                             AS dept_name,
+               SUM(CASE WHEN a.check_in IS NOT NULL THEN 1 ELSE 0 END)                 AS working_days,
+               SUM(CASE WHEN a.status = 'LATE' THEN 1 ELSE 0 END)                      AS late_count,
+               COALESCE(SUM(a.overtime_minutes), 0)                                    AS overtime_minutes,
+               COALESCE(SUM(CASE WHEN a.status = 'LEAVE' THEN 1
+                                  WHEN a.status = 'HALF_LEAVE' THEN 0.5
+                                  ELSE 0 END), 0)                                       AS leave_used_days
+          FROM employee e
+          JOIN department d ON d.dept_id = e.dept_id
+          LEFT JOIN attendance a
+                 ON a.emp_id = e.emp_id
+                AND a.work_date BETWEEN #{start} AND #{end}
+         WHERE e.use_yn = 'Y'
+           AND e.dept_id IN
+               <foreach item="deptId" collection="deptIds" open="(" separator="," close=")">
+                   #{deptId}
+               </foreach>
+         GROUP BY e.emp_id, e.emp_name, d.dept_name
+         ORDER BY d.dept_name, e.emp_name
+    </select>
+
 </mapper>

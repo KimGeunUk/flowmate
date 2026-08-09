@@ -27,4 +27,30 @@ public final class AttendanceStatus {
 
     private AttendanceStatus() {
     }
+
+    /** 화면 표시용 한글명. DocType.labelOf/LeaveType.labelOf 와 같은 자리(계획서 4 Task 7) */
+    public static String labelOf(String status) {
+        if (NORMAL.equals(status)) {
+            return "정상";
+        }
+        if (LATE.equals(status)) {
+            return "지각";
+        }
+        if (EARLY_LEAVE.equals(status)) {
+            return "조퇴/미달";
+        }
+        if (ABSENT.equals(status)) {
+            return "결근";
+        }
+        if (LEAVE.equals(status)) {
+            return "연차";
+        }
+        if (HALF_LEAVE.equals(status)) {
+            return "반차";
+        }
+        if (HOLIDAY.equals(status)) {
+            return "휴일";
+        }
+        return status;
+    }
 }

@@ -1,11 +1,13 @@
 package com.flowmate.attendance.mapper;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.flowmate.attendance.domain.Attendance;
+import com.flowmate.attendance.domain.DeptAttendanceRow;
 
 /**
  * 일별 근태. Task 6(연차 반영)은 upsertForLeave 만 썼다. 출퇴근 등록(Task 3)의
@@ -41,4 +43,19 @@ public interface AttendanceMapper {
      * 이미 조회된 상태(attId 확보됨)에서만 이 메서드가 불린다.
      */
     void updateCheckOut(Attendance attendance);
+
+    /** "내 근태"(Task 7) — 한 사원의 한 달치 행. work_date 오름차순 */
+    List<Attendance> findByEmpIdAndMonth(@Param("empId") Long empId,
+                                         @Param("start") LocalDate start,
+                                         @Param("end") LocalDate end);
+
+    /**
+     * "부서 근태 현황"(Task 7) — 주어진 deptId 목록(본인 부서 + 하위 전체, 호출자가
+     * DepartmentService.findDeptAndDescendantIds 로 계산해 넘긴다)에 속한 사원별
+     * 한 달 집계. employee LEFT JOIN attendance 라 그 달에 근태 행이 없는 사원도
+     * 0으로 채워진 행으로 나온다.
+     */
+    List<DeptAttendanceRow> findDeptMonthlySummary(@Param("deptIds") List<Long> deptIds,
+                                                    @Param("start") LocalDate start,
+                                                    @Param("end") LocalDate end);
 }
