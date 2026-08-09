@@ -31,6 +31,55 @@
             </tr>
         </table>
 
+        <%--
+          연차 맥락 패널(설계서 §6.4.7 3a, 계획서 5 Task 4) - LEAVE 문서에만,
+          문서를 볼 수 있는 사람에게만 보인다(leaveContext 자체가 그 권한 검사를
+          통과한 뒤에만 채워진다 - ApprovalBoxController 참고). LLM 을 쓰지
+          않으므로 API 키 없이도 항상 값이 채워진다. leaveContext 가 null 이면
+          (LEAVE 가 아니거나 확장 데이터가 없으면) 패널 자체가 나타나지 않는다 -
+          JSP 는 그 판정을 하지 않고 null 여부만 본다.
+        --%>
+        <c:if test="${leaveContext != null}">
+            <section class="leave-context">
+                <h3 class="page-title">연차 신청 검토 정보</h3>
+                <dl class="leave-context__list">
+                    <dt class="leave-context__term">신청일</dt>
+                    <dd class="leave-context__value">
+                        <c:out value="${leaveContext.leaveRequest.startDate}"/> ~
+                        <c:out value="${leaveContext.leaveRequest.endDate}"/>
+                        · <c:out value="${leaveContext.leaveRequest.days}"/>일
+                    </dd>
+
+                    <dt class="leave-context__term">연차 현황</dt>
+                    <dd class="leave-context__value">
+                        <c:choose>
+                            <c:when test="${leaveContext.leaveBalance != null}">
+                                부여 <c:out value="${leaveContext.leaveBalance.grantedDays}"/>
+                                · 사용 <c:out value="${leaveContext.leaveBalance.usedDays}"/>
+                                · 잔여 <c:out value="${leaveContext.leaveBalance.remainingDays}"/>
+                                · 소진율 <c:out value="${leaveContext.leaveBalance.usedPercent}"/>%
+                            </c:when>
+                            <c:otherwise>연차 현황 정보가 없습니다.</c:otherwise>
+                        </c:choose>
+                    </dd>
+
+                    <dt class="leave-context__term">해당일 팀 현황</dt>
+                    <dd class="leave-context__value">
+                        팀 부재 <c:out value="${leaveContext.teamAvailability.absentCount}"/>명
+                        · 팀 가동률 <c:out value="${leaveContext.teamAvailability.availabilityPercent}"/>%
+                        (팀 인원 <c:out value="${leaveContext.teamAvailability.teamSize}"/>명)
+                    </dd>
+
+                    <dt class="leave-context__term">최근 3개월</dt>
+                    <dd class="leave-context__value">
+                        지각 <c:out value="${leaveContext.recentSummary.lateCount}"/>회
+                        · 연장 <c:out value="${leaveContext.recentSummary.overtimeHours}"/>시간
+                        · 결근 <c:out value="${leaveContext.recentSummary.absentCount}"/>회
+                    </dd>
+                </dl>
+            </section>
+        </c:if>
+
         <section class="doc-content">
             <h3 class="page-title">본문</h3>
             <pre class="doc-content__body"><c:out value="${doc.content}"/></pre>

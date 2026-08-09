@@ -24,14 +24,16 @@ public final class AttendanceMonthlySummary {
     private final int lateCount;
     private final int overtimeMinutes;
     private final BigDecimal leaveUsedDays;
+    private final int absentCount;
 
     private AttendanceMonthlySummary(List<Attendance> rows, int workingDays, int lateCount,
-                                     int overtimeMinutes, BigDecimal leaveUsedDays) {
+                                     int overtimeMinutes, BigDecimal leaveUsedDays, int absentCount) {
         this.rows = rows;
         this.workingDays = workingDays;
         this.lateCount = lateCount;
         this.overtimeMinutes = overtimeMinutes;
         this.leaveUsedDays = leaveUsedDays;
+        this.absentCount = absentCount;
     }
 
     public static AttendanceMonthlySummary of(List<Attendance> rows) {
@@ -42,6 +44,7 @@ public final class AttendanceMonthlySummary {
         int lateCount = 0;
         int overtimeMinutes = 0;
         BigDecimal leaveUsedDays = BigDecimal.ZERO;
+        int absentCount = 0;
 
         for (Attendance row : rows) {
             if (row.isCheckedIn()) {
@@ -58,8 +61,11 @@ public final class AttendanceMonthlySummary {
             } else if (AttendanceStatus.HALF_LEAVE.equals(row.getStatus())) {
                 leaveUsedDays = leaveUsedDays.add(HALF_DAY);
             }
+            if (AttendanceStatus.ABSENT.equals(row.getStatus())) {
+                absentCount++;
+            }
         }
-        return new AttendanceMonthlySummary(rows, workingDays, lateCount, overtimeMinutes, leaveUsedDays);
+        return new AttendanceMonthlySummary(rows, workingDays, lateCount, overtimeMinutes, leaveUsedDays, absentCount);
     }
 
     public List<Attendance> getRows() {
@@ -80,5 +86,20 @@ public final class AttendanceMonthlySummary {
 
     public BigDecimal getLeaveUsedDays() {
         return leaveUsedDays;
+    }
+
+    /**
+     * 결근 횟수(계획서 5 Task 4 - 연차 맥락 패널의 "최근 3개월" 항목). 기존
+     * 4개 합계(근무일수·지각·연장·연차사용)는 Phase 4 화면이 요구한 것이고,
+     * 이 필드는 그 화면들을 건드리지 않고 덧붙인 것이다 - of(rows) 는 여전히
+     * 순수 함수이므로 기존 호출부는 이 필드의 존재를 몰라도 된다.
+     */
+    public int getAbsentCount() {
+        return absentCount;
+    }
+
+    /** 연장근무를 시간 단위로 - 화면(JSP)이 분을 60으로 나누는 계산을 하지 않게 한다 */
+    public double getOvertimeHours() {
+        return overtimeMinutes / 60.0;
     }
 }
