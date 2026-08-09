@@ -36,6 +36,18 @@
             <pre class="doc-content__body"><c:out value="${doc.content}"/></pre>
         </section>
 
+        <%--
+          AI 요약(계획서 5 Task 3). 본문과 분리된 영역이라 요약이 실패해도
+          본문 표시에는 영향이 없다(D8) - 실패 시 이 영역 안에서만 안내 문구로
+          바뀐다. data-approval-id 는 아래 스크립트가 AJAX 요청을 만드는 데 쓴다.
+        --%>
+        <section class="ai-summary-box">
+            <h3 class="page-title">AI 요약</h3>
+            <div id="aiSummaryArea" class="ai-summary" data-approval-id="${doc.approvalId}">
+                <p class="ai-summary__loading">요약을 불러오는 중입니다...</p>
+            </div>
+        </section>
+
         <section class="attach-section">
             <h3 class="page-title">첨부파일</h3>
             <c:choose>
@@ -140,5 +152,64 @@
     </main>
 </div>
 <jsp:include page="../common/footer.jsp"/>
+<script>
+    /*
+     * AI 요약을 비동기로 불러온다(계획서 5 Task 3). jQuery $.ajax 를 쓴다 -
+     * common.js 의 $.ajaxSetup 이 이미 모든 jQuery AJAX 요청에 CSRF 헤더를
+     * 붙이므로 이 화면에서 따로 배선할 것이 없다(계획서 5 D5 는 fetch() 전용
+     * 래퍼를 다루는데, 사전점검 모달처럼 fetch 가 필요한 화면이 생기기 전까지는
+     * 아직 없다).
+     *
+     * 실패(네트워크 오류·403·404·503 등 무엇이든)는 전부 같은 안내 문구로
+     * 처리한다 - 문서 본문은 이미 서버 렌더링으로 표시돼 있으므로 이 영역만
+     * 바뀌고 나머지 화면은 전혀 영향받지 않는다(D8).
+     */
+    $(function () {
+        var $area = $('#aiSummaryArea');
+        var approvalId = $area.data('approval-id');
+
+        $.ajax({
+            url: '${pageContext.request.contextPath}/api/ai/approvals/' + approvalId + '/summary',
+            method: 'POST',
+            dataType: 'json'
+        }).done(function (result) {
+            renderSummary(result);
+        }).fail(function () {
+            $area.html('<p class="ai-summary__unavailable">AI 요약을 일시적으로 사용할 수 없습니다.</p>');
+        });
+
+        function renderSummary(result) {
+            var html = '';
+            if (result.summary && result.summary.length > 0) {
+                html += '<ul class="ai-summary__lines">';
+                $.each(result.summary, function (i, line) {
+                    html += '<li class="ai-summary__line">' + escapeHtml(line) + '</li>';
+                });
+                html += '</ul>';
+            }
+            if (result.keyFacts) {
+                var factHtml = '';
+                $.each(result.keyFacts, function (key, value) {
+                    if (!value) {
+                        return;
+                    }
+                    factHtml += '<dt class="ai-summary__fact-key">' + escapeHtml(key) + '</dt>';
+                    factHtml += '<dd class="ai-summary__fact-value">' + escapeHtml(value) + '</dd>';
+                });
+                if (factHtml) {
+                    html += '<dl class="ai-summary__facts">' + factHtml + '</dl>';
+                }
+            }
+            if (!html) {
+                html = '<p class="ai-summary__unavailable">AI 요약을 일시적으로 사용할 수 없습니다.</p>';
+            }
+            $area.html(html);
+        }
+
+        function escapeHtml(text) {
+            return $('<div>').text(text).html();
+        }
+    });
+</script>
 </body>
 </html>
