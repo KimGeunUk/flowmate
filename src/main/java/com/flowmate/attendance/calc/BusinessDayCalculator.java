@@ -3,7 +3,9 @@ package com.flowmate.attendance.calc;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.stereotype.Component;
@@ -42,6 +44,17 @@ public class BusinessDayCalculator {
      * @throws IllegalArgumentException 종료일이 시작일보다 앞설 때
      */
     public BigDecimal countBusinessDays(LocalDate start, LocalDate end) {
+        return BigDecimal.valueOf(businessDaysBetween(start, end).size());
+    }
+
+    /**
+     * [start, end] 구간(양끝 포함)에서 주말·공휴일을 뺀 날짜 목록 그대로.
+     *
+     * DefaultLeaveApplyService(Task 6)가 연차 반영 시 근태를 UPSERT 할 날짜를
+     * 정할 때 쓴다 — countBusinessDays 는 개수만 주므로 이 반영 루프에는
+     * 쓸 수 없다.
+     */
+    public List<LocalDate> businessDaysBetween(LocalDate start, LocalDate end) {
         if (end.isBefore(start)) {
             throw new IllegalArgumentException(
                     "종료일이 시작일보다 앞설 수 없습니다: start=" + start + " end=" + end);
@@ -49,13 +62,13 @@ public class BusinessDayCalculator {
 
         Set<LocalDate> holidays = new HashSet<>(holidayMapper.findDatesBetween(start, end));
 
-        long businessDays = 0;
+        List<LocalDate> businessDays = new ArrayList<>();
         for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
             if (!isWeekend(day) && !holidays.contains(day)) {
-                businessDays++;
+                businessDays.add(day);
             }
         }
-        return BigDecimal.valueOf(businessDays);
+        return businessDays;
     }
 
     /**

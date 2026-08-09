@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.attendance.mapper.AttendanceMapper">
+
+    <!--
+      연차 반영 UPSERT (계획서 4 D6). ON CONFLICT 가 DB 안에서 해결하므로
+      INSERT 실패를 잡아 판단하지 않는다(D2 와 같은 이유) — 트랜잭션을
+      중단시키지 않는다. check_in/check_out/work_minutes/overtime_minutes 는
+      건드리지 않는다 — 오전 출근을 찍고 오후에 반차를 낸 경우 그 값을
+      지우면 안 된다.
+    -->
+    <insert id="upsertForLeave">
+        INSERT INTO attendance (emp_id, work_date, status, note)
+        VALUES (#{empId}, #{workDate}, #{status}, #{note})
+        ON CONFLICT (emp_id, work_date)
+        DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note
+    </insert>
+
+    <select id="findByEmpIdAndWorkDate" resultType="Attendance">
+        SELECT att_id, emp_id, work_date, check_in, check_out, work_minutes, overtime_minutes, status, note
+          FROM attendance
+         WHERE emp_id = #{empId} AND work_date = #{workDate}
+    </select>
+
+</mapper>

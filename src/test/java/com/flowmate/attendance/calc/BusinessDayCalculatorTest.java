@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -110,6 +111,35 @@ class BusinessDayCalculatorTest {
         BusinessDayCalculator calculator = calculatorWithHolidays();
 
         assertThat(calculator.calculateLeaveDays(LeaveType.ANNUAL, FRI, NEXT_MON)).isEqualByComparingTo("2");
+    }
+
+    @Test
+    @DisplayName("★ 금~월 구간의 영업일 목록은 금요일과 다음 월요일뿐이다 — 토·일은 포함되지 않는다")
+    void businessDaysBetweenExcludesWeekendFromFridayToMonday() {
+        BusinessDayCalculator calculator = calculatorWithHolidays();
+
+        List<LocalDate> days = calculator.businessDaysBetween(FRI, NEXT_MON);
+
+        assertThat(days).containsExactly(FRI, NEXT_MON);
+    }
+
+    @Test
+    @DisplayName("영업일 목록에서도 평일 공휴일은 빠진다")
+    void businessDaysBetweenExcludesWeekdayHoliday() {
+        BusinessDayCalculator calculator = calculatorWithHolidays(TUE);
+
+        List<LocalDate> days = calculator.businessDaysBetween(MON, WED);
+
+        assertThat(days).containsExactly(MON, WED);
+    }
+
+    @Test
+    @DisplayName("영업일 목록도 종료일이 시작일보다 앞서면 예외다")
+    void businessDaysBetweenEndBeforeStartThrows() {
+        BusinessDayCalculator calculator = calculatorWithHolidays();
+
+        assertThatThrownBy(() -> calculator.businessDaysBetween(WED, MON))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private BusinessDayCalculator calculatorWithHolidays(LocalDate... holidays) {
