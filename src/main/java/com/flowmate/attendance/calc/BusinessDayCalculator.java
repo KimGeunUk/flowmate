@@ -75,6 +75,15 @@ public class BusinessDayCalculator {
      * 연차 신청서의 일수. 반차(HALF_AM/HALF_PM)는 하루짜리만 허용하고 0.5일로
      * 고정한다 — 반차가 며칠에 걸치는 것은 기능이 아니라 데이터 오류다.
      * 그 외 유형은 영업일 계산에 그대로 위임한다.
+     *
+     * ★ 반차도 그날이 영업일인지 확인한다. 확인하지 않으면 이런 일이 벌어진다:
+     *   토요일에 반차를 내면 여기서는 0.5 를 돌려주므로 기안 검사(days > 0)를
+     *   통과하고, 승인 시점에는 businessDaysBetween 이 빈 목록을 주므로
+     *   **잔여 연차만 0.5 깎이고 근태 행은 하나도 만들어지지 않는다.**
+     *   어느 쪽에서도 예외가 나지 않아 조용히 틀린다.
+     *
+     *   0 을 돌려주면 기안 단계의 "영업일이 없는 기간" 검사가 그대로 잡아낸다 —
+     *   한 곳만 고쳐도 기안과 승인 두 경로가 같이 막힌다.
      */
     public BigDecimal calculateLeaveDays(String leaveType, LocalDate start, LocalDate end) {
         if (LeaveType.isHalfDay(leaveType)) {
@@ -82,7 +91,7 @@ public class BusinessDayCalculator {
                 throw new IllegalArgumentException(
                         "반차는 시작일과 종료일이 같아야 합니다: start=" + start + " end=" + end);
             }
-            return HALF_DAY;
+            return businessDaysBetween(start, end).isEmpty() ? BigDecimal.ZERO : HALF_DAY;
         }
         return countBusinessDays(start, end);
     }

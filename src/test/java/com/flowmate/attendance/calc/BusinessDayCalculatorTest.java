@@ -38,6 +38,38 @@ class BusinessDayCalculatorTest {
     }
 
     @Test
+    @DisplayName("★ 주말에 낸 반차는 0일이다 — 잔여만 깎이고 근태가 안 생기는 조용한 오류를 막는다")
+    void halfDayOnWeekendIsZero() {
+        BusinessDayCalculator calculator = calculatorWithHolidays();
+
+        // 0.5 를 돌려주면 기안 검사(days > 0)를 통과해버리고,
+        // 승인 시점에는 반영할 영업일이 없어 잔여만 0.5 줄고 근태 행은 안 생긴다.
+        // 어느 쪽에서도 예외가 나지 않으므로 조용히 틀린다.
+        assertThat(calculator.calculateLeaveDays(LeaveType.HALF_AM, SAT, SAT))
+                .isEqualByComparingTo("0");
+        assertThat(calculator.calculateLeaveDays(LeaveType.HALF_PM, SUN, SUN))
+                .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("★ 공휴일에 낸 반차도 0일이다")
+    void halfDayOnHolidayIsZero() {
+        BusinessDayCalculator calculator = calculatorWithHolidays(WED);
+
+        assertThat(calculator.calculateLeaveDays(LeaveType.HALF_AM, WED, WED))
+                .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("평일 반차는 그대로 0.5일이다")
+    void halfDayOnWeekdayStaysHalf() {
+        BusinessDayCalculator calculator = calculatorWithHolidays();
+
+        assertThat(calculator.calculateLeaveDays(LeaveType.HALF_AM, TUE, TUE))
+                .isEqualByComparingTo("0.5");
+    }
+
+    @Test
     @DisplayName("★ 금요일~월요일은 주말을 빼면 2일이다 — 사람이 세면 4일로 착각하기 쉬운 경계")
     void fridayToMondayIsTwoBusinessDays() {
         BusinessDayCalculator calculator = calculatorWithHolidays();
