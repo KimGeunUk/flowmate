@@ -38,6 +38,41 @@ class ApprovalServiceLeaveDraftIT {
     private LeaveRequestMapper leaveRequestMapper;
 
     @Test
+    @DisplayName("★ 금액을 비운 채로도 기안된다 — 실제 화면에서 500 이 나던 결함의 회귀 테스트")
+    void draftWithoutAmountSucceeds() {
+        // 이 결함이 오래 숨어 있던 이유가 바로 이것이다: 다른 테스트들이 전부
+        // form.setAmount(ZERO) 를 호출해 null 경로를 한 번도 타지 않았다.
+        // 그래서 이 테스트는 setAmount 를 **의도적으로 부르지 않는다**.
+        //
+        // approval_doc.amount 는 NOT NULL DEFAULT 0 이지만 매퍼가 NULL 을 명시적으로
+        // 넣으면 DEFAULT 가 적용되지 않는다. 금액 칸이 없는 유형(LEAVE·GENERAL·
+        // CONTRACT)을 화면에서 기안하면 그대로 500 이 났다.
+        ApprovalForm form = new ApprovalForm();
+        form.setDocType(DocType.LEAVE);
+        form.setTitle("금액 없는 연차 신청");
+        form.setContent("금액 칸이 없는 유형이다");
+        form.setLeaveType(LeaveType.ANNUAL);
+        form.setStartDate(LocalDate.of(2026, 7, 3));
+        form.setEndDate(LocalDate.of(2026, 7, 6));
+
+        Long approvalId = approvalService.saveDraft(form, DRAFTER_ID);
+
+        assertThat(approvalId).isNotNull();
+        assertThat(leaveRequestMapper.findByApprovalId(approvalId)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("금액 없는 일반 문서도 기안된다 — LEAVE 만의 문제가 아니었다")
+    void generalDraftWithoutAmountSucceeds() {
+        ApprovalForm form = new ApprovalForm();
+        form.setDocType(DocType.GENERAL);
+        form.setTitle("금액 없는 일반 문서");
+        form.setContent("Phase 2 부터 있던 결함이다");
+
+        assertThat(approvalService.saveDraft(form, DRAFTER_ID)).isNotNull();
+    }
+
+    @Test
     @DisplayName("★ 완료 기준: LEAVE 기안은 서버가 계산한 영업일수로 leave_request 가 만들어진다")
     void leaveDraftComputesBusinessDaysAndPersistsLeaveRequest() {
         ApprovalForm form = leaveForm(LeaveType.ANNUAL, LocalDate.of(2026, 7, 3), LocalDate.of(2026, 7, 6));

@@ -94,6 +94,25 @@ public class ApprovalService {
         return updateDraft(form, actorId);
     }
 
+    /**
+     * 금액이 비어 있으면 0 으로 채운다.
+     *
+     * ★ approval_doc.amount 는 NOT NULL DEFAULT 0 인데, 매퍼가 NULL 을 명시적으로
+     *   넣으면 DEFAULT 가 적용되지 않고 제약 위반으로 죽는다. 금액 칸이 없는
+     *   유형(LEAVE·GENERAL·CONTRACT)을 화면에서 기안하면 그대로 500 이 났다.
+     *
+     *   통합 테스트가 이걸 못 잡은 이유: 테스트들이 전부 form.setAmount(ZERO) 를
+     *   호출해서 null 경로를 한 번도 타지 않았다. 실제 HTTP 로 연차를 기안해 보고서야
+     *   드러났다.
+     *
+     *   0 이 의미상으로도 맞다 — 결재선 정책이 금액으로 임원 결재를 붙일지 판단하는데
+     *   (DefaultApprovalLinePolicy 의 300만원 규칙), 금액 없는 문서는 그 규칙에
+     *   걸리지 않아야 한다.
+     */
+    private BigDecimal amountOrZero(ApprovalForm form) {
+        return form.getAmount() == null ? BigDecimal.ZERO : form.getAmount();
+    }
+
     private Long createDraft(ApprovalForm form, Long actorId) {
         Employee drafter = requireEmployee(actorId);
 
@@ -101,7 +120,7 @@ public class ApprovalService {
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
         doc.setContent(form.getContent());
-        doc.setAmount(form.getAmount());
+        doc.setAmount(amountOrZero(form));
         doc.setDrafterId(actorId);
         doc.setDeptId(drafter.getDeptId());
         doc.setStatus(ApprovalStatus.DRAFT);
@@ -127,7 +146,7 @@ public class ApprovalService {
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
         doc.setContent(form.getContent());
-        doc.setAmount(form.getAmount());
+        doc.setAmount(amountOrZero(form));
         docMapper.update(doc);
 
         // docType 이 LEAVE 에서 다른 유형으로 바뀌면 이전에 만든 확장 행을 지운다 —
