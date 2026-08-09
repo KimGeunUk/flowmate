@@ -99,7 +99,7 @@ docker compose up -d postgres
 - [x] Phase 1 — 조직 · 사용자 (로그인, 사원 목록, 조직도, 공통 레이아웃)
 - [x] Phase 2 — 전자결재 코어
 - [x] Phase 3 — AI 게이트웨이 (화면 없음 - `LlmClient` 데코레이터 체인, 마스킹, 캐싱, 폴백)
-- [ ] Phase 4 — 근태 + 연동
+- [x] Phase 4 — 근태 + 연동 (출퇴근 등록, 근태 조회, 연차 승인 → 근태 반영)
 - [ ] Phase 5 — AI 기능
 - [ ] Phase 6 — 마감 (CSS · Docker 배포 · README)
 
@@ -110,7 +110,7 @@ docker compose up -d postgres
 | 단위 | `*Test.java` | `mvnw.cmd test` | 불필요 |
 | 통합 | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
-Phase 3 종료 시점: 단위 81건 · 통합 61건 (Phase 2 종료 시점 단위 52건 · 통합 55건에서 증가).
+Phase 4 종료 시점: 단위 136건 · 통합 98건 (Phase 3 종료 시점 단위 81건 · 통합 61건에서 증가).
 
 `ai.enabled` 는 기본값이 `false` 라 `ANTHROPIC_API_KEY` 없이도 빌드·기동·테스트가 전부
 통과한다 — AI 게이트웨이는 화면이 없고 `FakeLlmClient` 로 마스킹·캐싱·폴백 전 과정이
@@ -121,4 +121,29 @@ Phase 3 종료 시점: 단위 81건 · 통합 61건 (Phase 2 종료 시점 단�
 
 ## 설계 판단 기록
 
-작성 예정 (Phase 6)
+### 연차 승인 → 근태 반영: Spring 이벤트 대신 같은 트랜잭션의 직접 호출을 선택했다 (Phase 4)
+
+연차 신청서가 최종 승인되면 잔여 연차를 줄이고 해당 일자의 근태를 '연차'로 바꿔야 한다.
+`ApprovalService.approve()` 가 `attendance` 모듈의 `LeaveApplyService.apply(...)` 를
+**Spring `ApplicationEvent` 가 아니라 같은 트랜잭션 안에서 직접 호출**한다.
+
+- **이벤트의 트랜잭션 경계가 불명확한 것이 문제다.** 기본 `ApplicationEventPublisher` 는
+  발행 즉시 동기 호출되므로 얼핏 안전해 보이지만, 리스너가 `@TransactionalEventListener`
+  로 바뀌거나 비동기(`@Async`)로 바뀌는 순간 승인 트랜잭션과 근태 반영 트랜잭션이
+  분리된다. 그 경계는 코드를 눈으로 봐서는 드러나지 않고, 리스너 쪽 애노테이션 하나로
+  조용히 달라진다 — "승인은 됐는데 연차가 안 깎였다"는 실제 그룹웨어에서 흔한 사고가
+  정확히 이 지점에서 생긴다.
+- **같은 트랜잭션 안의 직접 호출은 실패를 한데 묶는다.** 결재선 갱신·문서 상태 갱신처럼
+  이미 실행된 쓰기가 있어도, 근태 반영이 실패하면 그 트랜잭션 전체가 롤백되어 문서는
+  `PENDING` 으로, 잔여 연차는 원래 값으로 되돌아간다. 부분 성공이라는 상태 자체가
+  나오지 않는다. `ApprovalServiceLeaveApplyRollbackIT#attendanceFailureRollsBackTheApproval`
+  이 근태 반영을 일부러 실패시켜 이 롤백을 실측으로 증명한다.
+- **결합도는 인터페이스로 완화한다.** `approval` 이 아는 것은 `attendance.service.LeaveApplyService`
+  인터페이스 하나뿐이고, 구현(`DefaultLeaveApplyService`)이나 매퍼는 모른다. 값도
+  `approvalId` 하나가 아니라 `LeaveApplyCommand`(empId·leaveType·기간·일수)로 넘긴다 —
+  `attendance` 가 `approval` 소유 테이블(`leave_request`)을 읽을 필요가 없어져 의존이
+  `approval → attendance` 한 방향으로 유지된다(순환 없음). 이벤트가 주는 이점(느슨한
+  결합) 중 트랜잭션 안전성과 무관한 부분은 인터페이스 분리만으로 이미 얻은 셈이다.
+
+대안(이벤트로 비동기 반영)이 데이터 정합성보다 결합도를 우선한 선택이었다면, 이 프로젝트가
+증명하려는 것("두 모듈이 하나의 트랜잭션 안에서 정확히 맞물린다")과 정면으로 어긋난다.
