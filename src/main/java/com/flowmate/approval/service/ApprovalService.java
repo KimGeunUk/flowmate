@@ -1,5 +1,6 @@
 package com.flowmate.approval.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
@@ -15,15 +16,18 @@ import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.HistoryAction;
+import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.approval.domain.LineStatus;
 import com.flowmate.approval.domain.RejectHistory;
 import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
+import com.flowmate.approval.mapper.LeaveRequestMapper;
 import com.flowmate.approval.mapper.RejectHistoryMapper;
 import com.flowmate.approval.policy.ApprovalLinePolicy;
 import com.flowmate.approval.policy.ApproverCandidate;
+import com.flowmate.attendance.service.LeaveInquiryService;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
 import com.flowmate.org.domain.Employee;
@@ -46,6 +50,8 @@ public class ApprovalService {
     private final ApprovalLinePolicy linePolicy;
     private final DepartmentService departmentService;
     private final EmployeeMapper employeeMapper;
+    private final LeaveRequestMapper leaveRequestMapper;
+    private final LeaveInquiryService leaveInquiryService;
 
     public ApprovalService(ApprovalDocMapper docMapper,
                            ApprovalLineMapper lineMapper,
@@ -53,7 +59,9 @@ public class ApprovalService {
                            RejectHistoryMapper rejectHistoryMapper,
                            ApprovalLinePolicy linePolicy,
                            DepartmentService departmentService,
-                           EmployeeMapper employeeMapper) {
+                           EmployeeMapper employeeMapper,
+                           LeaveRequestMapper leaveRequestMapper,
+                           LeaveInquiryService leaveInquiryService) {
         this.docMapper = docMapper;
         this.lineMapper = lineMapper;
         this.historyMapper = historyMapper;
@@ -61,6 +69,8 @@ public class ApprovalService {
         this.linePolicy = linePolicy;
         this.departmentService = departmentService;
         this.employeeMapper = employeeMapper;
+        this.leaveRequestMapper = leaveRequestMapper;
+        this.leaveInquiryService = leaveInquiryService;
     }
 
     /**
@@ -94,6 +104,7 @@ public class ApprovalService {
         doc.setDraftedAt(LocalDateTime.now());
 
         insertWithGeneratedDocNo(doc);
+        saveLeaveRequestIfNeeded(doc, form);
         rebuildLines(doc, drafter);
         historyMapper.insert(HistoryFactory.of(doc.getApprovalId(), actorId, HistoryAction.DRAFT, null));
         return doc.getApprovalId();
@@ -107,14 +118,56 @@ public class ApprovalService {
         if (!doc.isEditable()) {
             throw new ApprovalAccessDeniedException("임시저장 상태만 수정할 수 있습니다: " + doc.getStatus());
         }
+        String previousDocType = doc.getDocType();
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
         doc.setContent(form.getContent());
         doc.setAmount(form.getAmount());
         docMapper.update(doc);
 
+        // docType 이 LEAVE 에서 다른 유형으로 바뀌면 이전에 만든 확장 행을 지운다 —
+        // 그대로 두면 EXPENSE 문서인데 leave_request 가 남는 유령 데이터가 된다.
+        if (DocType.LEAVE.equals(previousDocType) && !DocType.LEAVE.equals(doc.getDocType())) {
+            leaveRequestMapper.deleteByApprovalId(doc.getApprovalId());
+        }
+        saveLeaveRequestIfNeeded(doc, form);
+
         rebuildLines(doc, requireEmployee(actorId));
         return doc.getApprovalId();
+    }
+
+    /**
+     * docType=LEAVE 일 때만 leave_request 를 채운다. 일수는 화면 입력이 아니라
+     * LeaveInquiryService(attendance 의 영업일 계산)가 계산한다 (계획서 4 D5).
+     *
+     * ★ 영업일이 0일이면 기안 자체를 거부한다 — 의미 없는 신청이 문서로 남는 것을
+     * 막는다. 이 메서드는 saveDraft() 의 @Transactional 안에서 불리므로, 여기서
+     * 던진 예외는 방금 만든 approval_doc 행까지 통째로 롤백시킨다.
+     */
+    private void saveLeaveRequestIfNeeded(ApprovalDoc doc, ApprovalForm form) {
+        if (!DocType.LEAVE.equals(doc.getDocType())) {
+            return;
+        }
+        if (form.getLeaveType() == null || form.getStartDate() == null || form.getEndDate() == null) {
+            throw new IllegalArgumentException("연차 신청서는 유형과 기간을 모두 입력해야 합니다");
+        }
+
+        BigDecimal days = leaveInquiryService.calculateDays(
+                form.getLeaveType(), form.getStartDate(), form.getEndDate());
+        if (days.signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "선택한 기간에는 영업일이 없어 신청할 수 없습니다: "
+                            + form.getStartDate() + " ~ " + form.getEndDate());
+        }
+
+        LeaveRequest leaveRequest = new LeaveRequest();
+        leaveRequest.setApprovalId(doc.getApprovalId());
+        leaveRequest.setLeaveType(form.getLeaveType());
+        leaveRequest.setStartDate(form.getStartDate());
+        leaveRequest.setEndDate(form.getEndDate());
+        leaveRequest.setDays(days);
+        leaveRequest.setReason(form.getReason());
+        leaveRequestMapper.upsert(leaveRequest);
     }
 
     /**

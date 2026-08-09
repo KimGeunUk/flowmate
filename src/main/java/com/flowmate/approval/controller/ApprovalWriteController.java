@@ -1,5 +1,7 @@
 package com.flowmate.approval.controller;
 
+import java.time.Year;
+
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,9 +14,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalForm;
 import com.flowmate.approval.domain.DocType;
+import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.approval.mapper.ApprovalAttachmentMapper;
+import com.flowmate.approval.mapper.LeaveRequestMapper;
 import com.flowmate.approval.service.ApprovalQueryService;
 import com.flowmate.approval.service.ApprovalService;
+import com.flowmate.attendance.domain.LeaveBalance;
+import com.flowmate.attendance.domain.LeaveType;
+import com.flowmate.attendance.service.LeaveInquiryService;
 import com.flowmate.org.security.LoginEmployee;
 
 @Controller
@@ -24,12 +31,18 @@ public class ApprovalWriteController {
     private final ApprovalService approvalService;
     private final ApprovalQueryService queryService;
     private final ApprovalAttachmentMapper attachmentMapper;
+    private final LeaveRequestMapper leaveRequestMapper;
+    private final LeaveInquiryService leaveInquiryService;
 
     public ApprovalWriteController(ApprovalService approvalService, ApprovalQueryService queryService,
-                                   ApprovalAttachmentMapper attachmentMapper) {
+                                   ApprovalAttachmentMapper attachmentMapper,
+                                   LeaveRequestMapper leaveRequestMapper,
+                                   LeaveInquiryService leaveInquiryService) {
         this.approvalService = approvalService;
         this.queryService = queryService;
         this.attachmentMapper = attachmentMapper;
+        this.leaveRequestMapper = leaveRequestMapper;
+        this.leaveInquiryService = leaveInquiryService;
     }
 
     /** 새 기안 또는 임시저장 문서 수정 */
@@ -38,6 +51,12 @@ public class ApprovalWriteController {
                             @AuthenticationPrincipal LoginEmployee loginEmployee,
                             Model model) {
         ApprovalForm form = new ApprovalForm();
+        int year = Year.now().getValue();
+        // 잔여는 docType 을 아직 고르지 않았어도 미리 보여준다 - 화면에서 LEAVE 를
+        // 고르는 순간 바로 참고할 수 있어야 한다 (D4의 안내 계층).
+        LeaveBalance leaveBalance = leaveInquiryService.findBalance(loginEmployee.getEmpId(), year);
+        model.addAttribute("leaveBalance", leaveBalance);
+
         if (approvalId != null) {
             // var 를 쓰지 않는다 — 설계서 §3 이 Java 8 에 없는 문법을 최소화하라고 했다
             ApprovalDoc doc = queryService.findDoc(approvalId, loginEmployee.getEmpId());
@@ -49,9 +68,22 @@ public class ApprovalWriteController {
             model.addAttribute("doc", doc);
             model.addAttribute("lines", queryService.findLines(approvalId));
             model.addAttribute("attachments", attachmentMapper.findByApprovalId(approvalId));
+
+            if (DocType.LEAVE.equals(doc.getDocType())) {
+                LeaveRequest leaveRequest = leaveRequestMapper.findByApprovalId(approvalId);
+                if (leaveRequest != null) {
+                    form.setLeaveType(leaveRequest.getLeaveType());
+                    form.setStartDate(leaveRequest.getStartDate());
+                    form.setEndDate(leaveRequest.getEndDate());
+                    form.setReason(leaveRequest.getReason());
+                    model.addAttribute("leaveRequest", leaveRequest);
+                    model.addAttribute("exceedsBalance", queryService.exceedsBalance(leaveRequest, leaveBalance));
+                }
+            }
         }
         model.addAttribute("form", form);
         model.addAttribute("docTypes", DocType.ALL);
+        model.addAttribute("leaveTypes", LeaveType.ALL);
         return "approval/write";
     }
 

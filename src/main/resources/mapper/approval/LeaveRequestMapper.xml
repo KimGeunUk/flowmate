@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.approval.mapper.LeaveRequestMapper">
+
+    <!--
+      임시저장을 반복 수정하면 최초 저장(행 없음)과 수정(행 있음)이 섞인다.
+      분기 대신 ON CONFLICT 로 DB 안에서 해결한다. approval_id 가 PK 이므로
+      그 자체가 충돌 대상이다.
+    -->
+    <insert id="upsert">
+        INSERT INTO leave_request (approval_id, leave_type, start_date, end_date, days, reason)
+        VALUES (#{approvalId}, #{leaveType}, #{startDate}, #{endDate}, #{days}, #{reason})
+        ON CONFLICT (approval_id) DO UPDATE
+           SET leave_type = EXCLUDED.leave_type,
+               start_date = EXCLUDED.start_date,
+               end_date   = EXCLUDED.end_date,
+               days       = EXCLUDED.days,
+               reason     = EXCLUDED.reason
+    </insert>
+
+    <select id="findByApprovalId" resultType="LeaveRequest">
+        SELECT approval_id, leave_type, start_date, end_date, days, reason
+          FROM leave_request
+         WHERE approval_id = #{approvalId}
+    </select>
+
+    <delete id="deleteByApprovalId">
+        DELETE FROM leave_request WHERE approval_id = #{approvalId}
+    </delete>
+
+</mapper>
