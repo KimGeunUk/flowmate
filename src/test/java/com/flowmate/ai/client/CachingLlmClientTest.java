@@ -71,6 +71,33 @@ class CachingLlmClientTest {
     }
 
     @Test
+    @DisplayName("★ outputType 이 다르면 입력이 같아도 캐시가 미스한다 (Phase 3 부채 A2)")
+    void differentOutputTypeMisses() {
+        // 계획서 5 D3: 구조화 출력이 생기면 입력이 같아도 스키마(outputType)가 다르면
+        // 결과 모양이 달라진다. 캐시 키에 outputType 이 없으면 옛 모양의 캐시를 그대로
+        // 돌려줘서, 화면이 새 필드를 읽다가 조용히 null 을 받는다. 이 테스트가 그 부채를
+        // 갚았다는 증거다 - 같은 feature·같은 promptVersion·같은 input 인데 outputType
+        // 만 다르면 반드시 캐시 미스여야 한다.
+        FakeLlmClient fake = new FakeLlmClient();
+        FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+
+        LlmRequest withoutType = request(AiFeature.SUMMARY, "v1", "같은 입력");
+        LlmRequest withSampleType = request(AiFeature.SUMMARY, "v1", "같은 입력");
+        withSampleType.setOutputType(SampleAiResult.class);
+        LlmRequest withAnotherType = request(AiFeature.SUMMARY, "v1", "같은 입력");
+        withAnotherType.setOutputType(AnotherAiResult.class);
+
+        caching.complete(withoutType);
+        caching.complete(withSampleType);
+        caching.complete(withAnotherType);
+
+        // 세 요청 모두 서로 다른 캐시 키를 가져야 하므로 매번 위임하고 매번 저장한다.
+        assertThat(fake.getReceived()).hasSize(3);
+        assertThat(cacheMapper.getInsertCount()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("PREFLIGHT 는 캐시하지 않는다 - 수정 후 재실행이 정상 동작이다")
     void preflightNotCached() {
         FakeLlmClient fake = new FakeLlmClient();

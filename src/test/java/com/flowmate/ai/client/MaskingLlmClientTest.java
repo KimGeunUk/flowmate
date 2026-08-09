@@ -60,6 +60,20 @@ class MaskingLlmClientTest {
     }
 
     @Test
+    @DisplayName("★ outputType 도 그대로 전달한다 - 이걸 놓치면 구조화 출력이 마스킹 단계에서 조용히 사라진다")
+    void preservesOutputTypeUnchanged() {
+        FakeLlmClient fake = new FakeLlmClient();
+        MaskingLlmClient masking = new MaskingLlmClient(fake, masker);
+        LlmRequest req = request("평범한 본문");
+        req.setOutputType(SampleAiResult.class);
+
+        masking.complete(req);
+
+        LlmRequest received = fake.lastRequest();
+        assertThat(received.getOutputType()).isEqualTo(SampleAiResult.class);
+    }
+
+    @Test
     @DisplayName("응답은 복원하지 않고 원본 그대로 돌려준다 - 정책 1")
     void returnsDelegateResponseUnchanged() {
         FakeLlmClient fake = new FakeLlmClient();

@@ -1,9 +1,13 @@
 package com.flowmate.ai.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -20,6 +24,8 @@ import java.util.Optional;
 public class FakeLlmClient implements LlmClient {
 
     private final List<LlmRequest> received = new ArrayList<>();
+    private final Map<Class<?>, Object> fixedResultsByType = new HashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private LlmResponse fixedResponse = defaultResponse();
     private long delayMillis;
@@ -52,7 +58,50 @@ public class FakeLlmClient implements LlmClient {
             return Optional.of(echoed);
         }
 
+        if (request.getOutputType() != null) {
+            return Optional.of(typedResponse(request.getOutputType()));
+        }
+
         return Optional.of(fixedResponse);
+    }
+
+    /**
+     * outputType 이 있는 요청(계획서 5 Task 2, 구조화 출력 배선)을 위한 고정 응답.
+     * 실제 Claude 호출 없이도 타입 경로를 테스트로 훈련시킬 수 있어야 하므로, 등록된
+     * 고정값이 없으면 그 타입의 기본 생성자로 빈 인스턴스를 만들어 직렬화한다 - 필드가
+     * 전부 null 이라도 그 타입의 JSON 스키마는 지키는 "그럴듯한" 응답이다.
+     */
+    private LlmResponse typedResponse(Class<?> outputType) {
+        Object value = fixedResultsByType.get(outputType);
+        if (value == null) {
+            value = instantiateDefault(outputType);
+        }
+
+        LlmResponse response = new LlmResponse();
+        response.setText(toJson(value));
+        response.setModel(fixedResponse.getModel());
+        response.setInputTokens(fixedResponse.getInputTokens());
+        response.setOutputTokens(fixedResponse.getOutputTokens());
+        return response;
+    }
+
+    private Object instantiateDefault(Class<?> outputType) {
+        try {
+            return outputType.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(
+                    "FakeLlmClient 가 outputType 의 기본 인스턴스를 만들 수 없습니다 - "
+                    + "기본 생성자가 있는 POJO 여야 하거나, setFixedResult(type, value) 로 "
+                    + "직접 값을 등록해야 합니다: " + outputType, e);
+        }
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("FakeLlmClient 가 구조화 응답을 JSON 으로 만들 수 없습니다", e);
+        }
     }
 
     /** 지금까지 받은 요청 전부. 마스킹 검증(계획서 3 D8)에 쓴다 — 받은 순서대로 쌓인다 */
@@ -71,6 +120,15 @@ public class FakeLlmClient implements LlmClient {
     /** 고정 응답을 바꾼다 — 두 번째 구현 교체 증명(계획서 3 D4)에서 Claude 와 다른 값을 주는 데 쓴다 */
     public void setFixedResponse(LlmResponse fixedResponse) {
         this.fixedResponse = fixedResponse;
+    }
+
+    /**
+     * outputType 별 고정값을 등록한다(계획서 5 Task 2). 요청에 그 outputType 이 실려 오면
+     * 이 값을 JSON 으로 직렬화해 돌려준다 - 기본 생성자로 만든 빈 인스턴스로는 검증할 수
+     * 없는 구체적인 필드 값을 단정해야 하는 테스트(예: Task 3 이후의 기능별 IT)를 위한 것이다.
+     */
+    public void setFixedResult(Class<?> outputType, Object value) {
+        fixedResultsByType.put(outputType, value);
     }
 
     /** ResilientLlmClient 타임아웃 테스트용 — 응답하기 전에 이만큼 잠든다 */
