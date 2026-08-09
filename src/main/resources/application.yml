@@ -35,6 +35,11 @@ flowmate:
     # 결재선 정책 교체 지점. default | simple-two-step
     # 고객사별 납품에서 코드를 고치지 않고 이 값만 바꾼다.
     line-policy: default
+  attendance:
+    # 근태 판정 정책 교체 지점 (계획서 4 D7). default | flex
+    work-time-policy: default
+    # 연차 부여 정책 교체 지점. flat | tenure
+    leave-grant-policy: flat
   upload:
     # 첨부파일 저장 위치. 저장 경로는 {base-dir}/approval/{yyyy}/{MM}/{UUID}.{ext}
     # .gitignore 의 /upload/ 와 짝이다 — 기본값을 바꾸면 그쪽도 함께 바꾼다.

@@ -195,3 +195,55 @@ Oracle 에는 `pg_advisory_xact_lock` 이 없다. 두 가지 대안이 있다.
 평범한 `CREATE INDEX` 뿐이다. 재귀 쿼리·자문 잠금·`LIMIT`/`FETCH` 같은 PostgreSQL 전용
 문법을 전혀 쓰지 않으므로 Oracle 이식 시 `BIGSERIAL → NUMBER + SEQUENCE` 치환 외에는
 손댈 곳이 없다.
+
+### 2.8 근태 UPSERT — `mapper/attendance/AttendanceMapper.xml#upsertForLeave`
+
+연차를 근태에 반영할 때 그날 `attendance` 행이 이미 있을 수 있다(계획서 4 D6 — 오전에
+출근을 찍고 오후에 반차를 낸 경우). PostgreSQL:
+
+```sql
+INSERT INTO attendance (emp_id, work_date, status, note)
+VALUES (#{empId}, #{workDate}, #{status}, #{note})
+ON CONFLICT (emp_id, work_date)
+DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note
+```
+
+Oracle 은 `ON CONFLICT` 가 없다 → `MERGE INTO`.
+
+```sql
+MERGE INTO attendance a
+USING (SELECT #{empId} AS emp_id, #{workDate} AS work_date FROM dual) src
+   ON (a.emp_id = src.emp_id AND a.work_date = src.work_date)
+ WHEN MATCHED THEN
+      UPDATE SET a.status = #{status}, a.note = #{note}
+ WHEN NOT MATCHED THEN
+      INSERT (emp_id, work_date, status, note)
+      VALUES (#{empId}, #{workDate}, #{status}, #{note})
+```
+
+**차이가 나는 지점 두 가지:**
+
+1. PostgreSQL 은 `UNIQUE(emp_id, work_date)` 제약을 직접 대상으로 지정한다
+   (`ON CONFLICT (emp_id, work_date)`). Oracle 의 `MERGE INTO` 는 제약이 아니라
+   `ON` 절의 조건식으로 매칭한다 — 두 컬럼이 그 제약과 일치해야 의미가 같아진다.
+2. `EXCLUDED.status` (PostgreSQL 이 "이번에 넣으려던 값"을 가리키는 가상 테이블)에
+   대응하는 것이 Oracle 에는 없다. 대신 `USING` 절의 소스 별칭(`src`)이나, 여기처럼
+   바인드 변수를 `WHEN MATCHED`/`WHEN NOT MATCHED` 양쪽에 그대로 반복해 적는다.
+
+여기서도 D2·D6 이 말한 원칙이 그대로 적용된다: 두 문법 모두 충돌을 예외로 만들지
+않고 DB 안에서 해결하므로, 애플리케이션 쪽에서 제약 위반을 잡아 재시도하는 코드가
+필요 없다 — PostgreSQL 트랜잭션이 이런 재시도를 어떻게 망가뜨리는지는 §2.6 참조.
+
+**`SELECT ... FOR UPDATE` 는 두 DB 에서 동일하게 동작한다.** `leave_balance` 잠금
+(`LeaveBalanceMapper.xml#findForUpdate`, 계획서 4 D3):
+
+```sql
+SELECT granted_days, used_days FROM leave_balance
+ WHERE emp_id = #{empId} AND year = #{year}
+   FOR UPDATE
+```
+
+이 문장은 PostgreSQL·Oracle 모두 같은 의미로 행 잠금을 건다 — §2.5(`approval_doc`
+잠금)에서 이미 확인한 것과 같은 결론이다. 대기 정책의 세부(무한 대기 vs `WAIT n`)만
+다를 뿐 기본 동작(잠금을 잡고 해제될 때까지 대기)은 동일하므로, 이 문장은 변환 없이
+그대로 이식된다.

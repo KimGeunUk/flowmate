@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.attendance.mapper.HolidayMapper">
+
+    <!-- BusinessDayCalculator 가 [start, end] 구간의 공휴일을 뺄 때 쓴다 (계획서 4 D5) -->
+    <select id="findDatesBetween" resultType="java.time.LocalDate">
+        SELECT holiday_date
+          FROM holiday
+         WHERE holiday_date BETWEEN #{start} AND #{end}
+    </select>
+
+</mapper>

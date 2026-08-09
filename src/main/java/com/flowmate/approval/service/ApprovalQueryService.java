@@ -11,9 +11,11 @@ import com.flowmate.approval.domain.ApprovalHistory;
 import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalSearchCond;
 import com.flowmate.approval.domain.ApprovalStatus;
+import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
+import com.flowmate.attendance.domain.LeaveBalance;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
 import com.flowmate.common.web.Page;
@@ -107,6 +109,22 @@ public class ApprovalQueryService {
             }
         }
         return false;
+    }
+
+    /**
+     * 신청 일수가 잔여를 넘는지 — 기안 화면의 안내용 경고 판정이다.
+     *
+     * ★ 이 판정은 우회 가능한 안내일 뿐이다 (계획서 D4). 상신과 승인 사이에 다른
+     * 문서가 승인되어 잔여가 줄 수 있으므로, 권위 있는 검사는 승인 시점에
+     * leave_balance 를 잠근 뒤 다시 한다 (Task 6). 여기서 true 가 나와도 저장을
+     * 막지 않는다 — 막으면 기안자가 정당한 사유로 잔여를 초과 신청하는 것(무급
+     * 처리 등 후속 처리가 있는 경우)까지 원천 차단하게 된다.
+     */
+    public boolean exceedsBalance(LeaveRequest leaveRequest, LeaveBalance balance) {
+        if (leaveRequest == null || leaveRequest.getDays() == null || balance == null) {
+            return false;
+        }
+        return leaveRequest.getDays().compareTo(balance.getRemainingDays()) > 0;
     }
 
     /** 회수 버튼을 보여줄지. 판정 규칙은 도메인 객체와 같아야 하므로 그대로 옮긴다 */

@@ -52,6 +52,18 @@
  * 오류       (error/business.jsp 는 기존 .alert--error 재사용)
  * 첨부       .attach-section  .attach-list  .attach-list__item
  *            .attach-list__link  .attach-list__size  .attach-form
+ *
+ * ── 클래스 목록 (Phase 4) ────────────────────────────────────────
+ * 연차기안   .leave-fields  .leave-fields__balance  .leave-fields__days
+ * 알림추가   .alert--warning  (기존 .alert--error/--info 와 같은 자리의 새 변형)
+ * 출퇴근     .attendance-status  .attendance-actions
+ * 근태조회   .attendance-month-nav  .attendance-month-nav__current
+ *            .attendance-summary  .attendance-summary__item
+ *            .attendance-list  .attendance-list__empty
+ * 상태추가   .status--normal  .status--late  .status--early_leave  .status--absent
+ *            .status--leave  .status--half_leave  .status--holiday
+ *            (기존 .status 뼈대에 근태 전용 값을 추가한 것 — box.jsp 의
+ *            status--${fn:toLowerCase(...)} 패턴을 그대로 재사용한다)
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */

@@ -1,5 +1,6 @@
 package com.flowmate.approval.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
@@ -15,15 +16,20 @@ import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.HistoryAction;
+import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.approval.domain.LineStatus;
 import com.flowmate.approval.domain.RejectHistory;
 import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
+import com.flowmate.approval.mapper.LeaveRequestMapper;
 import com.flowmate.approval.mapper.RejectHistoryMapper;
 import com.flowmate.approval.policy.ApprovalLinePolicy;
 import com.flowmate.approval.policy.ApproverCandidate;
+import com.flowmate.attendance.domain.LeaveApplyCommand;
+import com.flowmate.attendance.service.LeaveApplyService;
+import com.flowmate.attendance.service.LeaveInquiryService;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
 import com.flowmate.org.domain.Employee;
@@ -46,6 +52,9 @@ public class ApprovalService {
     private final ApprovalLinePolicy linePolicy;
     private final DepartmentService departmentService;
     private final EmployeeMapper employeeMapper;
+    private final LeaveRequestMapper leaveRequestMapper;
+    private final LeaveInquiryService leaveInquiryService;
+    private final LeaveApplyService leaveApplyService;
 
     public ApprovalService(ApprovalDocMapper docMapper,
                            ApprovalLineMapper lineMapper,
@@ -53,7 +62,10 @@ public class ApprovalService {
                            RejectHistoryMapper rejectHistoryMapper,
                            ApprovalLinePolicy linePolicy,
                            DepartmentService departmentService,
-                           EmployeeMapper employeeMapper) {
+                           EmployeeMapper employeeMapper,
+                           LeaveRequestMapper leaveRequestMapper,
+                           LeaveInquiryService leaveInquiryService,
+                           LeaveApplyService leaveApplyService) {
         this.docMapper = docMapper;
         this.lineMapper = lineMapper;
         this.historyMapper = historyMapper;
@@ -61,6 +73,9 @@ public class ApprovalService {
         this.linePolicy = linePolicy;
         this.departmentService = departmentService;
         this.employeeMapper = employeeMapper;
+        this.leaveRequestMapper = leaveRequestMapper;
+        this.leaveInquiryService = leaveInquiryService;
+        this.leaveApplyService = leaveApplyService;
     }
 
     /**
@@ -79,6 +94,25 @@ public class ApprovalService {
         return updateDraft(form, actorId);
     }
 
+    /**
+     * 금액이 비어 있으면 0 으로 채운다.
+     *
+     * ★ approval_doc.amount 는 NOT NULL DEFAULT 0 인데, 매퍼가 NULL 을 명시적으로
+     *   넣으면 DEFAULT 가 적용되지 않고 제약 위반으로 죽는다. 금액 칸이 없는
+     *   유형(LEAVE·GENERAL·CONTRACT)을 화면에서 기안하면 그대로 500 이 났다.
+     *
+     *   통합 테스트가 이걸 못 잡은 이유: 테스트들이 전부 form.setAmount(ZERO) 를
+     *   호출해서 null 경로를 한 번도 타지 않았다. 실제 HTTP 로 연차를 기안해 보고서야
+     *   드러났다.
+     *
+     *   0 이 의미상으로도 맞다 — 결재선 정책이 금액으로 임원 결재를 붙일지 판단하는데
+     *   (DefaultApprovalLinePolicy 의 300만원 규칙), 금액 없는 문서는 그 규칙에
+     *   걸리지 않아야 한다.
+     */
+    private BigDecimal amountOrZero(ApprovalForm form) {
+        return form.getAmount() == null ? BigDecimal.ZERO : form.getAmount();
+    }
+
     private Long createDraft(ApprovalForm form, Long actorId) {
         Employee drafter = requireEmployee(actorId);
 
@@ -86,7 +120,7 @@ public class ApprovalService {
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
         doc.setContent(form.getContent());
-        doc.setAmount(form.getAmount());
+        doc.setAmount(amountOrZero(form));
         doc.setDrafterId(actorId);
         doc.setDeptId(drafter.getDeptId());
         doc.setStatus(ApprovalStatus.DRAFT);
@@ -94,6 +128,7 @@ public class ApprovalService {
         doc.setDraftedAt(LocalDateTime.now());
 
         insertWithGeneratedDocNo(doc);
+        saveLeaveRequestIfNeeded(doc, form);
         rebuildLines(doc, drafter);
         historyMapper.insert(HistoryFactory.of(doc.getApprovalId(), actorId, HistoryAction.DRAFT, null));
         return doc.getApprovalId();
@@ -107,14 +142,56 @@ public class ApprovalService {
         if (!doc.isEditable()) {
             throw new ApprovalAccessDeniedException("임시저장 상태만 수정할 수 있습니다: " + doc.getStatus());
         }
+        String previousDocType = doc.getDocType();
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
         doc.setContent(form.getContent());
-        doc.setAmount(form.getAmount());
+        doc.setAmount(amountOrZero(form));
         docMapper.update(doc);
+
+        // docType 이 LEAVE 에서 다른 유형으로 바뀌면 이전에 만든 확장 행을 지운다 —
+        // 그대로 두면 EXPENSE 문서인데 leave_request 가 남는 유령 데이터가 된다.
+        if (DocType.LEAVE.equals(previousDocType) && !DocType.LEAVE.equals(doc.getDocType())) {
+            leaveRequestMapper.deleteByApprovalId(doc.getApprovalId());
+        }
+        saveLeaveRequestIfNeeded(doc, form);
 
         rebuildLines(doc, requireEmployee(actorId));
         return doc.getApprovalId();
+    }
+
+    /**
+     * docType=LEAVE 일 때만 leave_request 를 채운다. 일수는 화면 입력이 아니라
+     * LeaveInquiryService(attendance 의 영업일 계산)가 계산한다 (계획서 4 D5).
+     *
+     * ★ 영업일이 0일이면 기안 자체를 거부한다 — 의미 없는 신청이 문서로 남는 것을
+     * 막는다. 이 메서드는 saveDraft() 의 @Transactional 안에서 불리므로, 여기서
+     * 던진 예외는 방금 만든 approval_doc 행까지 통째로 롤백시킨다.
+     */
+    private void saveLeaveRequestIfNeeded(ApprovalDoc doc, ApprovalForm form) {
+        if (!DocType.LEAVE.equals(doc.getDocType())) {
+            return;
+        }
+        if (form.getLeaveType() == null || form.getStartDate() == null || form.getEndDate() == null) {
+            throw new IllegalArgumentException("연차 신청서는 유형과 기간을 모두 입력해야 합니다");
+        }
+
+        BigDecimal days = leaveInquiryService.calculateDays(
+                form.getLeaveType(), form.getStartDate(), form.getEndDate());
+        if (days.signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "선택한 기간에는 영업일이 없어 신청할 수 없습니다: "
+                            + form.getStartDate() + " ~ " + form.getEndDate());
+        }
+
+        LeaveRequest leaveRequest = new LeaveRequest();
+        leaveRequest.setApprovalId(doc.getApprovalId());
+        leaveRequest.setLeaveType(form.getLeaveType());
+        leaveRequest.setStartDate(form.getStartDate());
+        leaveRequest.setEndDate(form.getEndDate());
+        leaveRequest.setDays(days);
+        leaveRequest.setReason(form.getReason());
+        leaveRequestMapper.upsert(leaveRequest);
     }
 
     /**
@@ -162,9 +239,29 @@ public class ApprovalService {
         }
         historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.APPROVE, comment));
 
-        // Phase 4 훅 자리 — 연차 신청서가 최종 승인되면 근태에 반영한다.
-        // Spring 이벤트가 아니라 직접 호출로 붙인다. 같은 트랜잭션에서 어느 한쪽이
-        // 실패하면 전부 롤백되어야 하기 때문이다 (설계서 §6.3).
+        // ★★ 이 Phase의 척추 (설계서 §6.3, 계획서 4 D9). 연차 신청서가 최종
+        // 승인되면 근태에 반영한다. Spring 이벤트가 아니라 직접 호출로 붙인다 —
+        // 같은 트랜잭션 안에서 어느 한쪽이 실패하면 전부 롤백되어야
+        // "승인은 됐는데 연차가 안 깎였다" 같은 부분 실패를 막을 수 있기 때문이다.
+        if (doc.isCompleted() && DocType.LEAVE.equals(doc.getDocType())) {
+            leaveApplyService.apply(buildLeaveCommand(doc));
+        }
+    }
+
+    /**
+     * leave_request(approval 소유)를 읽어 LeaveApplyCommand 값을 조립한다
+     * (계획서 4 D1). attendance 는 이 값만 받고, 자신의 소유가 아닌
+     * leave_request 를 직접 읽지 않는다 — 그래야 의존이 approval → attendance
+     * 한 방향으로 유지된다.
+     */
+    private LeaveApplyCommand buildLeaveCommand(ApprovalDoc doc) {
+        LeaveRequest request = leaveRequestMapper.findByApprovalId(doc.getApprovalId());
+        if (request == null) {
+            throw new IllegalStateException(
+                    "LEAVE 문서인데 연차 신청서가 없습니다: approvalId=" + doc.getApprovalId());
+        }
+        return new LeaveApplyCommand(doc.getApprovalId(), doc.getDrafterId(), request.getLeaveType(),
+                request.getStartDate(), request.getEndDate(), request.getDays());
     }
 
     /**
