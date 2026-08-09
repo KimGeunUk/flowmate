@@ -8,8 +8,8 @@ import org.apache.ibatis.annotations.Param;
 import com.flowmate.attendance.domain.Attendance;
 
 /**
- * 일별 근태. Task 6(연차 반영)은 upsertForLeave 만 쓴다 — 출퇴근 등록(Task 3)의
- * 메서드는 이 매퍼가 아니라 이후 Task에서 추가한다.
+ * 일별 근태. Task 6(연차 반영)은 upsertForLeave 만 썼다. 출퇴근 등록(Task 3)의
+ * insertCheckIn/updateCheckOut 을 여기에 추가한다.
  */
 @Mapper
 public interface AttendanceMapper {
@@ -26,4 +26,19 @@ public interface AttendanceMapper {
 
     /** 테스트 검증·화면 조회용 */
     Attendance findByEmpIdAndWorkDate(@Param("empId") Long empId, @Param("workDate") LocalDate workDate);
+
+    /**
+     * 출근 등록 — 그날 행이 아직 없을 때만 부른다. 중복 여부는
+     * AttendanceService 가 findByEmpIdAndWorkDate 로 먼저 확인해 막으므로
+     * 여기서는 순수 INSERT 다(UPSERT 가 아니다) — upsertForLeave 와 달리
+     * "이미 있으면 조용히 덮어쓰기"가 출근 등록에는 맞지 않는다(계획서 4 Task 3).
+     */
+    void insertCheckIn(Attendance attendance);
+
+    /**
+     * 퇴근 등록. WorkTimePolicy 가 판정한 workMinutes/overtimeMinutes/status 를
+     * 함께 반영한다. attId 로 갱신한다 — 그날 행은 findByEmpIdAndWorkDate 로
+     * 이미 조회된 상태(attId 확보됨)에서만 이 메서드가 불린다.
+     */
+    void updateCheckOut(Attendance attendance);
 }

@@ -56,6 +56,7 @@
  * ── 클래스 목록 (Phase 4) ────────────────────────────────────────
  * 연차기안   .leave-fields  .leave-fields__balance  .leave-fields__days
  * 알림추가   .alert--warning  (기존 .alert--error/--info 와 같은 자리의 새 변형)
+ * 출퇴근     .attendance-status  .attendance-actions
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
