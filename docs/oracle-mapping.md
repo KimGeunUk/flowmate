@@ -247,3 +247,73 @@ SELECT granted_days, used_days FROM leave_balance
 잠금)에서 이미 확인한 것과 같은 결론이다. 대기 정책의 세부(무한 대기 vs `WAIT n`)만
 다를 뿐 기본 동작(잠금을 잡고 해제될 때까지 대기)은 동일하므로, 이 문장은 변환 없이
 그대로 이식된다.
+
+### 2.9 대량 데모 시드의 행 생성 — `docker/postgres/init/50-seed-demo.sql`
+
+계획서 5 D6 이 정한 대로 문서 200건·반려 40건(유형별 편중)·근태 3개월을 애플리케이션
+코드가 아니라 SQL 안에서 만든다. 두 가지 형태의 `generate_series` 를 쓴다.
+
+**(a) 정수 범위 — 합성 행 개수만큼 반복.** 반려 이력을 부서·문서유형별로 편중시키는
+부분(`rejected_dev_purchase` 등 CTE):
+
+```sql
+SELECT
+    gs AS ord,
+    (ARRAY[15,16,19,20]::bigint[])[1 + ((gs - 1) % 4)] AS drafter_id,
+    (CASE WHEN gs <= 8 THEN 'MISSING_EVIDENCE' ELSE 'PROCEDURE_ERROR' END) AS reason_category
+FROM generate_series(1, 12) AS gs
+```
+
+Oracle:
+
+```sql
+SELECT
+    LEVEL AS ord,
+    CASE MOD(LEVEL - 1, 4)
+        WHEN 0 THEN 15 WHEN 1 THEN 16 WHEN 2 THEN 19 ELSE 20
+    END AS drafter_id,
+    CASE WHEN LEVEL <= 8 THEN 'MISSING_EVIDENCE' ELSE 'PROCEDURE_ERROR' END AS reason_category
+  FROM dual
+CONNECT BY LEVEL <= 12
+```
+
+**(b) 날짜 범위 + 간격 — 근태 3개월(영업일) 시드.** `attendance` 대량 삽입이 캘린더를
+만드는 부분:
+
+```sql
+SELECT gs::date AS work_date
+  FROM generate_series(date '2026-02-01', date '2026-04-30', interval '1 day') AS gs
+ WHERE extract(dow FROM gs) NOT IN (0, 6)         -- 주말 제외
+   AND gs::date NOT IN (SELECT holiday_date FROM holiday)
+```
+
+Oracle:
+
+```sql
+SELECT work_date FROM (
+    SELECT DATE '2026-02-01' + (LEVEL - 1) AS work_date
+      FROM dual
+    CONNECT BY LEVEL <= (DATE '2026-04-30' - DATE '2026-02-01' + 1)
+) d
+ WHERE TO_CHAR(work_date, 'D') NOT IN ('1', '7')   -- NLS_TERRITORY 에 따라 요일 번호가 다르다 - 실제 이식 시 확인
+   AND work_date NOT IN (SELECT holiday_date FROM holiday)
+```
+
+**차이가 나는 지점 세 가지:**
+
+1. **행 소스 자체가 없다.** PostgreSQL 의 `generate_series` 는 함수 하나가 곧 테이블(행
+   집합)이다. Oracle 에는 대응하는 테이블 함수가 없으므로 `FROM dual` + `CONNECT BY LEVEL`
+   로 우회한다 - `dual` 은 그 자체로 1행이므로 `CONNECT BY` 가 그 1행을 `LEVEL` 번 복제하는
+   식으로 동작한다.
+2. **날짜 간격 계산 방식이 다르다.** PostgreSQL 은 `generate_series(시작, 끝, interval)`
+   가 간격을 인자로 직접 받는다. Oracle 은 반복 횟수(`LEVEL`)만 셀 수 있으므로 "끝 - 시작"
+   일수를 먼저 계산해 그 값을 `CONNECT BY LEVEL <=` 의 상한으로 넣고, 각 행의 날짜는
+   `시작 + (LEVEL - 1)` 로 역산한다.
+3. **요일 판정 함수가 다르다.** PostgreSQL 의 `extract(dow FROM x)` 는 항상 0(일)~6(토)의
+   고정된 숫자를 돌려준다. Oracle 의 `TO_CHAR(x, 'D')` 는 세션의 `NLS_TERRITORY` 설정에
+   따라 무엇을 1로 볼지 달라진다 - 이식할 때 그 자리에서 실제 값을 확인해야 한다(고정된
+   상수로 가정하면 안 된다).
+
+**`ON CONFLICT (emp_id, work_date) DO NOTHING`** (근태 삽입 마지막 줄)은 §2.8 이 이미
+다룬 것과 같은 `MERGE INTO ... WHEN NOT MATCHED THEN INSERT`(이 경우 `WHEN MATCHED` 절은
+아예 쓰지 않는다) 로 옮긴다.

@@ -100,7 +100,9 @@ docker compose up -d postgres
 - [x] Phase 2 — 전자결재 코어
 - [x] Phase 3 — AI 게이트웨이 (화면 없음 - `LlmClient` 데코레이터 체인, 마스킹, 캐싱, 폴백)
 - [x] Phase 4 — 근태 + 연동 (출퇴근 등록, 근태 조회, 연차 승인 → 근태 반영)
-- [ ] Phase 5 — AI 기능
+- [ ] Phase 5 — AI 기능 (Task 1~8 완료 — 문서 요약 · 사전점검 · 연차 맥락 · 캐시 TTL · 기능 플래그 ·
+      `DatabasePromptRepository`. Task 9 평가셋은 실제 API 키가 필요해 기본 빌드에서 제외, 수동 실행 대상.
+      Task 10 마감은 미실행)
 - [ ] Phase 6 — 마감 (CSS · Docker 배포 · README)
 
 ## 테스트
@@ -110,14 +112,34 @@ docker compose up -d postgres
 | 단위 | `*Test.java` | `mvnw.cmd test` | 불필요 |
 | 통합 | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
-Phase 4 종료 시점: 단위 136건 · 통합 98건 (Phase 3 종료 시점 단위 81건 · 통합 61건에서 증가).
+Phase 4 종료 시점: 단위 136건 · 통합 100건 (Phase 3 종료 시점 단위 81건 · 통합 61건에서 증가).
+Phase 5 Task 1~8 종료 시점(현재): **단위 150건 · 통합 130건.**
 
 `ai.enabled` 는 기본값이 `false` 라 `ANTHROPIC_API_KEY` 없이도 빌드·기동·테스트가 전부
-통과한다 — AI 게이트웨이는 화면이 없고 `FakeLlmClient` 로 마스킹·캐싱·폴백 전 과정이
-체인 수준에서 검증된다.
+통과한다 — `mvnw clean verify` 가 그 기본값 그대로 통과하는 것이 확인된 계약이다.
+AI 기능 3종(요약·사전점검·연차 맥락)은 화면까지 있지만 `FakeLlmClient` 로 마스킹·캐싱·
+폴백·기능 플래그까지 체인 수준에서 검증된다. 실제 LLM 응답 품질을 보는 평가셋(Task 9)만
+`ANTHROPIC_API_KEY` 가 있어야 수동으로 돌릴 수 있고, 기본 빌드에는 포함되지 않는다.
 
 단위 테스트가 DB 없이 도는 경계를 의도적으로 유지한다. 이 경계가 무너지면
 순수 로직 테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃는다.
+
+## 커스터마이징 지점
+
+공고의 "커스터마이징" 요구에 대한 답. **다섯 지점 모두 구현체 2개를 만들어 설정값
+하나로 교체되는 것을 통합 테스트로 증명한다** (같은 입력, 다른 설정 → 다른 결과).
+
+| # | 인터페이스 | 구현체 | 설정 키 | 교체 증명 |
+|---|---|---|---|---|
+| 1 | `ApprovalLinePolicy` | Default(부서 트리 + 임원) / SimpleTwoStep(부서장 1명) | `flowmate.approval.line-policy` | `DefaultApprovalLinePolicyTest` / `SimpleTwoStepLinePolicyTest` |
+| 2 | `LeaveGrantPolicy` | Flat(전원 15일) / TenureBased(근속 비례) | `flowmate.attendance.leave-grant-policy` | `FlatLeaveGrantPolicyTest` / `TenureBasedLeaveGrantPolicyTest` |
+| 3 | `WorkTimePolicy` | Default(09-18 고정) / Flexible(코어타임) | `flowmate.attendance.work-time-policy` | `DefaultWorkTimePolicyTest` / `FlexWorkTimePolicyTest` |
+| 4 | `PromptRepository` | File(classpath) / Database(`ai_prompt` 테이블, 5분 TTL 캐시) | `ai.prompt-repository` | `DatabasePromptRepositoryIT` — 같은 `(feature, version)` 에 File·DB 가 다른 문구를 갖게 하고 설정에 따라 다른 문구가 나오는 것을 단정 |
+| 5 | `ai.features.*` 플래그 | 기능별 on/off (summary/preflight/leave-context) | `ai.features.summary` 등 | `AiFeatureFlagsDisabledIT` — 플래그를 끄면 해당 기능이 `LlmClient` 를 전혀 부르지 않는 것을 단정 |
+
+**덤(다섯 지점에 안 들어간다):** `LlmClient` 의 두 구현(Claude 실호출 / Fake)도 `ai.enabled`
+로 교체되지만, 이건 "AI 제공자를 바꾸는 것"이지 "고객사별 업무 규칙을 바꾸는 것"이
+아니라서 위 표의 다섯 지점과 성격이 다르다 — 별도로 취급한다(`LlmChainIT`).
 
 ## 설계 판단 기록
 

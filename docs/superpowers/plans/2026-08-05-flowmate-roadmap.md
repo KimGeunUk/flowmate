@@ -67,7 +67,7 @@ Phase 1 은 Critical/Important 없이 마감됐다. 아래는 **"지금 틀린 �
 |---|---|---|---|---|
 | C1 | `LoginEmployee.eraseCredentials()` 가 감싼 `Employee` 인스턴스를 직접 `null` 처리한다 | **`EmployeeMapper.findByEmpNo` 앞에 캐시가 붙는 순간.** 현재는 매 호출이 새 객체를 돌려주므로 안전하지만 그건 *암묵적* 불변식이다. `@Cacheable` 이나 결재선 조회용 공유 맵이 들어가면 캐시된 인스턴스의 해시가 지워져 **그 사원의 이후 모든 로그인이 조용히 실패한다** | `LoginEmployee` 안에 해시 사본을 두고 그걸 지우거나, `EmployeeUserDetailsService` 가 방어적 복사본을 넘긴다 | **이월 (미해결).** 계획서 2 D4 가 미리 정한 대로 `EmployeeMapper` 에 캐시를 붙이지 않았다 — 붙이지 않는 것 자체가 이 Phase 의 조치다. `DefaultApprovalLinePolicy`·부서장 체인 조회도 캐시 없이 매번 새로 조회한다. **여전히 서 있는 제약**: 이후 Phase 에서 이 매퍼에 캐시를 붙이는 순간 이 항목이 다시 유효해진다 |
 | C2 | CSRF hidden input 이 JSP 파일마다 손으로 복사되는 규약이다 (공유 조각 없음) | **Phase 2 가 POST 폼을 추가할 때.** 출퇴근 등록, 승인/반려 액션마다 같은 줄을 붙여야 하고, 빠뜨리면 컴파일·템플릿 단계에서 아무 신호가 없다가 **제출 시점에 403** 이 난다 | `common/csrf-input.jsp` 조각을 만들어 include 한다. 의존성 추가 없이 복붙 위험만 제거된다 | **해결 (`a8064c7`).** `common/csrf-input.jsp` 를 만들어 기안·상신·승인·반려·회수·첨부 폼 전부가 include 한다 |
-| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 | 이월 (미해결). Phase 2 는 AJAX/`fetch` 를 쓰지 않아 해당 없음. Phase 5 설계 착수 전에 다시 확인한다 |
+| C3 | AJAX CSRF 배선이 jQuery `$.ajaxSetup` 전용이다 | **Phase 5 의 LLM 호출이 `fetch()` 를 쓸 때.** 스트리밍에는 `$.ajax` 가 잘 맞지 않아 `fetch` 를 쓰게 되는데, 그 경로는 `ajaxSetup` 을 타지 않아 헤더가 안 붙고 **조용히 403** 이 된다 | 해당 호출에 헤더를 직접 넣거나, `fetch` 래퍼를 `common.js` 에 둔다 | **해결 (`bc29f0b`, 계획서 5 Task 6, D5).** 정확히 이 현상이 발생했다 - 사전점검 모달이 상신 버튼 클릭을 가로채 `fetch()` 로 `/api/ai/approvals/{id}/preflight` 를 부르는데, `$.ajaxSetup` 경로를 타지 않아 헤더 없이는 403 이 났다. `common.js` 에 `flowmateFetch(url, options)` 래퍼를 추가해 `$.ajaxSetup` 과 같은 출처(layout 의 meta 태그)에서 CSRF 토큰을 읽어 자동으로 붙인다 - 호출부(`write.jsp`)는 헤더를 손으로 붙이지 않는다. `AiControllerIT#preflightWithoutCsrfHeaderIsForbidden`/`#preflightWithCsrfHeaderSucceeds` 가 실제 Spring Security 필터 체인으로 "헤더 없으면 403, `flowmateFetch` 와 같은 이름·값의 헤더를 붙이면 통과"를 고정한다 |
 | C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 | 이월 (미해결). Phase 2 는 `SecurityConfig` 의 `permitAll` 목록을 손대지 않았다 |
 | C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 | **해결 (`6fce0f6`).** 내 결재함 Task 에서 `defaultSuccessUrl("/", false)` 로 바꿔 저장된 요청(딥링크)을 보존한다 |
 
@@ -313,7 +313,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | 2. Phase 2 전자결재 코어 | **완료** — Task 11개 실행 완료, 머지 대기(Task 11 Step 6은 코디네이터가 수행). 단위 52 · 통합 55 (목표 단위 50 · 통합 40 초과 달성) |
 | 3. Phase 3 AI 게이트웨이 | **완료** — Task 6개 실행 완료, 머지 대기(코디네이터가 수행). 단위 81 · 통합 61 (계획 단위 81 · 통합 61 그대로 달성) |
 | 4. Phase 4 근태 + 연동 | **완료** — Task 8개 실행 완료, 머지 대기(코디네이터가 수행). 단위 136 · 통합 98 (계획서 예상 단위 약 111 · 통합 약 78 을 상회 달성) |
-| 5. Phase 5 AI 기능 | 미작성 |
+| 5. Phase 5 AI 기능 | **Task 1~8 완료**, 머지 대기. 단위 150 · 통합 130. 구조화 출력 배선(스키마 2종)·기능 3종(요약·사전점검·연차 맥락)·캐시 TTL·기능 플래그·`DatabasePromptRepository` 까지 마쳐 설계서 §7 의 커스터마이징 지점 5개가 전부 구현 2개씩을 갖췄다. **남은 것:** Task 9(평가셋 5건 - 실제 `ANTHROPIC_API_KEY` 필요, 기본 빌드 제외 대상이라 수동 실행), Task 10(마감 - 머지·태그·push) |
 | 6. Phase 6 마감 | 미작성 |
 
 ### 6.1 사전점검 결과 (2026-08-06)
