@@ -7,16 +7,20 @@ import org.springframework.stereotype.Component;
  * {@code ai.*} 설정 묶음 (application.yml). {@link LlmConfig} 가 체인을 조립할 때
  * 함께 주입받는다.
  *
- * {@code ai.enabled} 이 false(기본값)면 FakeLlmClient, true 면 ClaudeLlmClient 로
- * 배선이 바뀐다 (계획서 3 D3) - 이 값 자체는 {@code @ConditionalOnProperty} 가 직접 읽고,
- * 이 클래스는 나머지(모델명·타임아웃·기능 플래그)를 하나로 묶어 전달하는 역할이다.
+ * {@code ai.enabled} 이 false(기본값)면 FakeLlmClient, true 면 {@code ai.provider} 값에
+ * 따라 ClaudeLlmClient 또는 GeminiLlmClient 로 배선이 바뀐다 (계획서 3 D3, Gemini 추가로
+ * 확장) - {@code enabled}·{@code provider} 두 값 자체는 {@code @ConditionalOnProperty} 가
+ * 직접 읽고, 이 클래스는 나머지(모델명·타임아웃·기능 플래그)를 하나로 묶어 전달하는
+ * 역할이다.
  */
 @Component
 @ConfigurationProperties(prefix = "ai")
 public class AiProperties {
 
     private boolean enabled = false;
-    private String model = "claude-opus-5";
+    private String provider = "gemini";
+    /** claude-opus-5 로 되돌리려면 ai.provider 를 claude 로 함께 바꿔야 한다 (모델명만 바꾸면 안 된다). */
+    private String model = "gemini-2.0-flash";
     private int timeoutSeconds = 30;
     private Features features = new Features();
 
@@ -26,6 +30,14 @@ public class AiProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
     }
 
     public String getModel() {

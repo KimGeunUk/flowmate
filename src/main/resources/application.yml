@@ -48,7 +48,10 @@ flowmate:
 
 ai:
   enabled: false          # 기본값 - API 키 없이 빌드·실행된다 (계획서 3 D3)
-  model: claude-opus-5
+  # AI 제공자 교체 지점(LlmConfig 참고). claude | gemini - ai.enabled=true 일 때만 의미가 있다.
+  # gemini 가 기본값인 이유: 무료 등급이 있다(Claude 는 유료뿐이다).
+  provider: gemini
+  model: gemini-2.0-flash  # claude 로 되돌리려면 provider: claude 와 model: claude-opus-5 를 함께 바꾼다
   timeout-seconds: 30
   # 프롬프트 저장소 교체 지점(커스터마이징 지점 4, 계획서 5 Task 8). file | database
   # database 는 ai_prompt 테이블에서 읽는다 - PromptRepositoryConfig 참고.

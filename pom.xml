@@ -90,6 +90,16 @@
             <version>2.34.0</version>
         </dependency>
 
+        <!-- Gemini 호출 (커스터마이징 지점 4의 세 번째 구현). 키는 코드에 없다 -
+             Client.builder().apiKey(...) 에 환경변수 GEMINI_API_KEY 를 직접 읽어 넣는다
+             (SDK 는 GOOGLE_API_KEY/GEMINI_API_KEY 를 스스로 읽지만, ClaudeLlmClient 와 같은
+             "키 없으면 기동 실패" 검사를 우리 쪽에서 하려면 값을 먼저 우리가 읽어야 한다). -->
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.57.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
