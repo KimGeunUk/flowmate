@@ -399,6 +399,48 @@ ai:
 
 ---
 
+## 계획 이후 변경 — `LlmClient` 세 번째 구현으로 Gemini 추가 (계획 외)
+
+이 계획서 어디에도 없던 작업이다. Task 10 마감 이후, `feat/phase-5-ai-features` 브랜치 위에서
+별도로 진행했다. 왜 계획에 없던 일을 했는지, 계획서의 원칙과 어떻게 맞물리는지 여기 적는다.
+
+**무엇을 왜:**
+
+- `LlmClient` 구현을 `ClaudeLlmClient`/`FakeLlmClient` 둘에서 `GeminiLlmClient` 를 더해 셋으로
+  늘렸다. `LlmConfig` 의 `ai.provider`(claude|gemini) 설정으로 고른다 — `ai.enabled=true` 일 때만
+  의미가 있다는 점은 그대로다.
+- **비용.** Claude(Anthropic)는 유료뿐이다. Gemini 는 무료 등급이 있어 API 키 없이도 가입만으로
+  실제 호출을 시연할 수 있다 — 포트폴리오로 재현해 보려는 사람에게 진입 장벽이 사라진다.
+  그래서 `application.yml` 의 기본 provider 를 `gemini` 로 뒀다(모델은 `gemini-2.0-flash`).
+  `claude-opus-5` 로 되돌리는 방법은 주석으로 남겨 뒀다(`AiProperties`/`application.yml`).
+- **교체 증명이 더 세진다.** ★ 이 문서 위쪽 "먼저 정정한다" 절이 이미 짚었듯, `LlmClient` 의
+  두 구현(Claude/Fake)은 설계서 §7의 5개 지점에 안 들어가는 **덤**이다 — 하나가 테스트 대역이라
+  "제공자를 갈아 끼울 수 있다"는 주장의 증거로는 약하다. 서로 다른 두 회사(Anthropic/Google)의
+  실제 API 를 같은 인터페이스 뒤에 세우면 그 주장이 실제로 증명된다.
+
+**설계서와의 관계 — 게이트웨이는 그대로다:**
+
+설계서 §6.4.1 이 정한 데코레이터 체인(Caching → Masking → Logging → Resilient)은 Anthropic 을
+전제로 쓰였지만, 코드 자체는 `LlmClient` 인터페이스에만 의존하고 어느 공급자인지 모른다.
+Gemini 를 추가하면서 그 체인 코드는 한 줄도 바꾸지 않았다 — 늘어난 것은 `GeminiLlmClient`
+구현 파일 하나와 `LlmConfig` 의 `@ConditionalOnProperty` 가지 하나뿐이다. "설계서가 전제한
+제공자를 실제로 바꿔 봐도 게이트웨이가 무사하다"는 것 자체가 이 프로젝트가 원래 증명하려던
+것(§6.4.1 의 데코레이터 경계)의 연장선이다.
+
+**D3(claudeLlmClient 의 키 부재 기동 실패)를 Gemini 에도 그대로 적용한다.** `GeminiLlmClient`
+를 감싸는 `Client` 도 `GEMINI_API_KEY` 가 없다고 예외를 던지지 않고 만들어지므로, 검사 없이
+두면 키 없는 배포가 정상 기동하고 첫 호출의 인증 실패가 `ResilientLlmClient` 에 흡수돼
+"AI 를 일시적으로 쓸 수 없습니다"로 보인다 — 설정 실수와 일시적 장애가 구별되지 않는
+바로 그 문제다. `LlmConfig.geminiLlmClient()` 가 기동 시점에 크게 실패시킨다.
+
+**D1(키 없이 `mvnw clean verify` 통과)도 그대로 지킨다.** Gemini 실제 호출 테스트는 추가하지
+않았다 — Task 9 평가셋과 같은 이유로, 실제 API 를 부르는 검증은 별도의 수동 실행 대상이다.
+새 테스트(`LlmConfigTest`)는 `ApplicationContextRunner` 로 조건부 배선만 확인하고, 두 공급자
+모두 "키가 없으면 의도한 메시지로 기동 실패"를 실제 Spring 컨텍스트로 단정한다 - 키를
+쓰지 않고도 배선이 옳다는 것을 증명한다.
+
+---
+
 ## 부록 — 설계서 §9 Phase 5 대응 확인
 
 | 설계서 요구 | 이 계획서 | Task |

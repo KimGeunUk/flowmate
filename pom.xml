@@ -28,6 +28,16 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jstl-api.version>3.0.0</jstl-api.version>
         <jstl-impl.version>3.0.1</jstl-impl.version>
+        <!--
+          계획서 5 D1: 평가셋(PreflightEvalSetIT, @Tag("llm"))은 기본 빌드에서 제외한다.
+          ★ 이 값을 Failsafe <configuration> 에 리터럴로 박으면 -D 로 덮어쓸 수 없다 -
+          Maven 은 <configuration> 에 이미 값이 있는 파라미터는 그 리터럴을 그대로 쓰고
+          @Parameter(property=...) 의 커맨드라인 폴백을 타지 않는다(실측: -DexcludedGroups=
+          를 줘도 무시됐다). 그래서 값을 프로퍼티로 빼고 ${...} 로 참조해야 -D 로
+          재정의할 수 있다. 수동 실행: -Dflowmate.eval.excludedGroups= (빈 값으로 비움) +
+          -Dgroups=llm (llm 태그만 켠다).
+        -->
+        <flowmate.eval.excludedGroups>llm</flowmate.eval.excludedGroups>
     </properties>
 
     <dependencies>
@@ -90,6 +100,16 @@
             <version>2.34.0</version>
         </dependency>
 
+        <!-- Gemini 호출 (커스터마이징 지점 4의 세 번째 구현). 키는 코드에 없다 -
+             Client.builder().apiKey(...) 에 환경변수 GEMINI_API_KEY 를 직접 읽어 넣는다
+             (SDK 는 GOOGLE_API_KEY/GEMINI_API_KEY 를 스스로 읽지만, ClaudeLlmClient 와 같은
+             "키 없으면 기동 실패" 검사를 우리 쪽에서 하려면 값을 먼저 우리가 읽어야 한다). -->
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.57.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -139,6 +159,15 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <!--
+                      계획서 5 D1: 평가셋(PreflightEvalSetIT, @Tag("llm"))은 실제 Gemini API 를
+                      쓰므로 기본 빌드(mvnw clean verify, 키 없음)에서 제외한다. 저장소를
+                      클론한 사람이 키 없이 빌드할 수 있어야 한다는 Phase 3 D3 를 깨지 않기
+                      위한 것이다. ${flowmate.eval.excludedGroups} 의 기본값은 위 <properties>
+                      에서 "llm" - 수동 실행은 -Dflowmate.eval.excludedGroups= (빈 값) 과
+                      -Dgroups=llm 을 함께 줘서 반대로 켠다(properties 주석 참고).
+                    -->
+                    <excludedGroups>${flowmate.eval.excludedGroups}</excludedGroups>
                 </configuration>
                 <executions>
                     <execution>

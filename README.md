@@ -9,7 +9,7 @@ AI가 결재 반려를 미리 막아주는 사내 그룹웨어.
 
 ## 기술 스택
 
-Java 17 · Spring Boot 3.5.16 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreSQL 16 · Spring Security 6 · Anthropic Java SDK · Maven · Docker
+Java 17 · Spring Boot 3.5.16 (WAR) · JSP + JSTL + jQuery · MyBatis 3 · PostgreSQL 16 · Spring Security 6 · Anthropic Java SDK · Google Gen AI Java SDK · Maven · Docker
 
 ## 실행 방법
 
@@ -102,7 +102,8 @@ docker compose up -d postgres
 - [x] Phase 4 — 근태 + 연동 (출퇴근 등록, 근태 조회, 연차 승인 → 근태 반영)
 - [ ] Phase 5 — AI 기능 (Task 1~8 완료 — 문서 요약 · 사전점검 · 연차 맥락 · 캐시 TTL · 기능 플래그 ·
       `DatabasePromptRepository`. Task 9 평가셋은 실제 API 키가 필요해 기본 빌드에서 제외, 수동 실행 대상.
-      Task 10 마감은 미실행)
+      Task 10 마감은 미실행. 계획 외 추가: `LlmClient` 세 번째 구현 `GeminiLlmClient` — 아래
+      "설계 판단 기록" 참고)
 - [ ] Phase 6 — 마감 (CSS · Docker 배포 · README)
 
 ## 테스트
@@ -113,13 +114,16 @@ docker compose up -d postgres
 | 통합 | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
 Phase 4 종료 시점: 단위 136건 · 통합 100건 (Phase 3 종료 시점 단위 81건 · 통합 61건에서 증가).
-Phase 5 Task 1~8 종료 시점(현재): **단위 150건 · 통합 130건.**
+Phase 5 Task 1~8 종료 시점: 단위 150건 · 통합 130건. Gemini 구현 추가(계획 외, 아래 판단
+기록 참고) 이후(현재): **단위 154건 · 통합 130건.**
 
-`ai.enabled` 는 기본값이 `false` 라 `ANTHROPIC_API_KEY` 없이도 빌드·기동·테스트가 전부
-통과한다 — `mvnw clean verify` 가 그 기본값 그대로 통과하는 것이 확인된 계약이다.
-AI 기능 3종(요약·사전점검·연차 맥락)은 화면까지 있지만 `FakeLlmClient` 로 마스킹·캐싱·
-폴백·기능 플래그까지 체인 수준에서 검증된다. 실제 LLM 응답 품질을 보는 평가셋(Task 9)만
-`ANTHROPIC_API_KEY` 가 있어야 수동으로 돌릴 수 있고, 기본 빌드에는 포함되지 않는다.
+`ai.enabled` 는 기본값이 `false` 라 `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` 둘 다 없어도
+빌드·기동·테스트가 전부 통과한다 — `mvnw clean verify` 가 그 기본값 그대로 통과하는 것이
+확인된 계약이다. AI 기능 3종(요약·사전점검·연차 맥락)은 화면까지 있지만 `FakeLlmClient` 로
+마스킹·캐싱·폴백·기능 플래그까지 체인 수준에서 검증된다. 실제 LLM 응답 품질을 보는
+평가셋(Task 9)만 API 키가 있어야 수동으로 돌릴 수 있고, 기본 빌드에는 포함되지 않는다 -
+Gemini 도 같은 원칙이다: `LlmConfigTest` 는 조건부 배선과 "키 없으면 기동 실패"만
+실제 Spring 컨텍스트로 검증하고, 실제 Gemini 호출은 하지 않는다.
 
 단위 테스트가 DB 없이 도는 경계를 의도적으로 유지한다. 이 경계가 무너지면
 순수 로직 테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃는다.
@@ -137,9 +141,11 @@ AI 기능 3종(요약·사전점검·연차 맥락)은 화면까지 있지만 `F
 | 4 | `PromptRepository` | File(classpath) / Database(`ai_prompt` 테이블, 5분 TTL 캐시) | `ai.prompt-repository` | `DatabasePromptRepositoryIT` — 같은 `(feature, version)` 에 File·DB 가 다른 문구를 갖게 하고 설정에 따라 다른 문구가 나오는 것을 단정 |
 | 5 | `ai.features.*` 플래그 | 기능별 on/off (summary/preflight/leave-context) | `ai.features.summary` 등 | `AiFeatureFlagsDisabledIT` — 플래그를 끄면 해당 기능이 `LlmClient` 를 전혀 부르지 않는 것을 단정 |
 
-**덤(다섯 지점에 안 들어간다):** `LlmClient` 의 두 구현(Claude 실호출 / Fake)도 `ai.enabled`
-로 교체되지만, 이건 "AI 제공자를 바꾸는 것"이지 "고객사별 업무 규칙을 바꾸는 것"이
-아니라서 위 표의 다섯 지점과 성격이 다르다 — 별도로 취급한다(`LlmChainIT`).
+**덤(다섯 지점에 안 들어간다):** `LlmClient` 의 세 구현(Claude 실호출 / Gemini 실호출 / Fake)이
+`ai.enabled` + `ai.provider` 로 교체되지만, 이건 "AI 제공자를 바꾸는 것"이지 "고객사별 업무
+규칙을 바꾸는 것"이 아니라서 위 표의 다섯 지점과 성격이 다르다 — 별도로 취급한다
+(`LlmChainIT`, `LlmConfigTest`). 자세한 내용과 스위치 방법은 아래 "설계 판단 기록"의
+"세 번째 LlmClient 구현으로 Gemini 를 추가했다" 절 참고.
 
 ## 설계 판단 기록
 
@@ -169,3 +175,71 @@ AI 기능 3종(요약·사전점검·연차 맥락)은 화면까지 있지만 `F
 
 대안(이벤트로 비동기 반영)이 데이터 정합성보다 결합도를 우선한 선택이었다면, 이 프로젝트가
 증명하려는 것("두 모듈이 하나의 트랜잭션 안에서 정확히 맞물린다")과 정면으로 어긋난다.
+
+### 세 번째 `LlmClient` 구현으로 Gemini 를 추가했다 (계획 외, Phase 5 이후)
+
+`docs/superpowers/plans/2026-08-09-phase-5-ai-features.md` 의 Task 10 마감 이후에 진행한,
+그 계획서에는 없던 작업이다. `LlmClient` 구현이 `ClaudeLlmClient`/`FakeLlmClient` 둘에서
+`GeminiLlmClient` 를 더해 셋이 됐다.
+
+**왜:** Claude(Anthropic)는 유료뿐이라 이 저장소를 그대로 클론해서 실제 AI 호출을 만져 보려면
+결제 수단이 있어야 한다. Gemini 는 무료 등급이 있다. 그리고 이 프로젝트의 핵심 주장 —
+"`LlmClient` 뒤에서는 제공자를 갈아 끼워도 게이트웨이가 무사하다" — 은 원래 Claude 실호출과
+Fake 두 구현으로 지탱하고 있었는데, 그중 하나가 테스트 대역이라 증거로는 약했다. 서로 다른
+두 회사(Anthropic/Google)의 실제 API 를 같은 인터페이스 뒤에 세우고 나서야 그 주장이 실제로
+증명됐다고 본다.
+
+**어떻게 켜는가 — `application.yml`:**
+
+```yaml
+ai:
+  enabled: false        # false → FakeLlmClient(키 없이 뜬다, 기본값). 이 계약은 안 바뀌었다.
+  provider: gemini      # claude | gemini — enabled=true 일 때만 의미가 있다. 기본값 gemini.
+  model: gemini-2.0-flash
+```
+
+`claude-opus-5` 로 되돌리려면 `provider: claude` 와 `model: claude-opus-5` 를 함께 바꾼다
+(모델명만 바꾸면 provider 가 여전히 gemini 라서 아무 효과가 없다 — `AiProperties` 주석 참고).
+`ClaudeLlmClient` 가 `ANTHROPIC_API_KEY` 없이 `ai.enabled=true` 로 뜨는 것을 막듯,
+`GeminiLlmClient` 도 `GEMINI_API_KEY` 없이는 기동 자체가 실패한다(`LlmConfig` 참고) — 설정
+실수를 일시적 장애로 착각하게 두지 않는다는 같은 원칙을 그대로 적용했다.
+
+**설계서와의 관계:** 설계서(§6.4.1)는 Anthropic 을 전제로 데코레이터 체인(Caching → Masking →
+Logging → Resilient)을 정의했지만, 그 코드 자체는 `LlmClient` 인터페이스에만 의존하고 어느
+회사의 API 인지 모른다. Gemini 를 추가하면서 그 체인 코드는 한 줄도 건드리지 않았다 — 늘어난
+것은 `GeminiLlmClient` 구현 파일 하나와 `LlmConfig` 의 `@ConditionalOnProperty` 조건 하나뿐이다.
+"설계서가 전제한 제공자를 실제로 바꿔 봐도 게이트웨이가 무사하다"는 것이 곧 이 추가가
+증명하려는 것이다.
+
+**테스트는 여전히 키 없이 돈다:** `LlmConfigTest`(Surefire, DB 불필요)가 `ai.enabled` ×
+`ai.provider` 세 조합 모두 `ApplicationContextRunner` 로 검증한다 - `enabled=false` 는
+`FakeLlmClient` 가 정상 선택되는 것을, `enabled=true`(provider=claude 또는 gemini, 또는
+provider 생략 시 기본값 gemini)는 API 키가 없어 **의도한 메시지로 기동 자체가 실패하는 것**을
+단정한다. 실제 Gemini 호출을 부르는 테스트는 추가하지 않았다 — Task 9 평가셋과 같은 이유로,
+실제 API 호출 검증은 기본 빌드가 아니라 수동 실행 대상이다.
+
+### 무료 등급과 민감정보 마스킹 — 왜 이 프로젝트에서는 상관이 적은가, 그래도 왜 중요한가
+
+일반적으로 LLM 제공자의 **무료 등급은 제출한 데이터를 서비스 개선(모델 학습 등)에 쓸 수 있고,
+유료 등급은 쓰지 않는 경우가 많다** — 정확한 조건은 제공자·시점마다 다르므로 실제로 쓸 때는
+그 제공자의 최신 약관을 확인해야 한다. `ai.provider: gemini` 를 기본값으로 둔 이 프로젝트는
+그 축에서 보면 Claude(유료뿐)보다 데이터가 나갈 여지가 이론적으로는 더 크다.
+
+그런데 두 가지가 이미 이 문제를 크게 줄여 놓았다:
+
+- **마스킹 계층이 이미 있다.** `MaskingLlmClient`/`SensitiveDataMasker` 가 실제 호출 직전에
+  주민등록번호·계좌번호·전화번호·사업자번호·카드번호·이메일을 토큰으로 치환한다 — 어느
+  제공자로 나가든 원문이 나가지 않는다(`LlmChainIT#originalTextNeverReachesTheInnerClient`).
+  사전 점검(`PreflightService`)은 한 걸음 더 나아가 반려 사유 **원문 자체를 프롬프트에 아예
+  넣지 않는다** — `reason_category` 와 빈도만 넣는다(계획서 Task 5 참고). 사람 이름·금액이
+  들어있는 텍스트가 애초에 프롬프트에 오르지 않는다.
+- **이 프로젝트의 모든 데이터가 데모 시드다.** 실제 사원·실제 결재 문서가 아니라
+  `docker/postgres/init` 이 만든 가상의 이름·부서·금액이다.
+
+즉 이 프로젝트에서는 무료 등급을 써도 잃을 실제 개인정보가 없다. 그렇다고 마스킹 계층이
+덜 중요해지는 것은 아니다 — 오히려 **무료 등급에서는 마스킹이 더 중요해진다.** 이 저장소를
+그대로 가져다 실제 조직의 데이터로 돌리는 사람이 있다면(포트폴리오 코드가 실제로 재사용되는
+흔한 경로다), 그 순간부터 마스킹은 "혹시 모를 대비"가 아니라 "무료 등급이 그 데이터를 학습에
+쓸 수도 있다"는 실제 위험을 막는 유일한 장치가 된다. 이 프로젝트가 처음부터 마스킹을
+데코레이터 체인의 가장 안쪽(실제 호출 바로 바깥)에 둔 이유(`LlmConfig` 클래스 주석 참고)가
+바로 이것이다 — 어떤 공급자를 선택하든, 어떤 등급을 쓰든 그 위치가 방어선이 되도록.
