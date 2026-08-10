@@ -20,7 +20,7 @@ public class AiProperties {
     private boolean enabled = false;
     private String provider = "gemini";
     /** claude-opus-5 로 되돌리려면 ai.provider 를 claude 로 함께 바꿔야 한다 (모델명만 바꾸면 안 된다). */
-    private String model = "gemini-2.0-flash";
+    private String model = "gemini-3.5-flash-lite";
     private int timeoutSeconds = 30;
     private Features features = new Features();
 
