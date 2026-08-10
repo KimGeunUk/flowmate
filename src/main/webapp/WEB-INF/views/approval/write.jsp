@@ -136,7 +136,8 @@
                     </li>
                 </c:forEach>
             </ul>
-            <form method="post" action="${pageContext.request.contextPath}/approval/${form.approvalId}/submit">
+            <form id="submitForm" class="submit-form" method="post" data-approval-id="${form.approvalId}"
+                  action="${pageContext.request.contextPath}/approval/${form.approvalId}/submit">
                 <jsp:include page="../common/csrf-input.jsp"/>
                 <button class="btn btn--primary" type="submit">상신</button>
             </form>
@@ -144,10 +145,21 @@
 
         <c:if test="${form.approvalId != null and empty lines}">
             <p class="alert alert--info">결재할 상위자가 없어 상신하면 즉시 완료됩니다.</p>
-            <form method="post" action="${pageContext.request.contextPath}/approval/${form.approvalId}/submit">
+            <form id="submitForm" class="submit-form" method="post" data-approval-id="${form.approvalId}"
+                  action="${pageContext.request.contextPath}/approval/${form.approvalId}/submit">
                 <jsp:include page="../common/csrf-input.jsp"/>
                 <button class="btn btn--primary" type="submit">상신</button>
             </form>
+        </c:if>
+
+        <%--
+          사전점검 모달(계획서 5 Task 5·6) - 상신 폼이 있을 때만 필요하다.
+          aiPreflightEnabled(계획서 5 Task 7, 커스터마이징 지점 5)가 꺼져 있으면
+          이 모달의 빈 뼈대조차 렌더링하지 않는다 - 꺼진 기능은 화면에 아무 흔적도
+          남기지 않는다(오류가 아니라 부재).
+        --%>
+        <c:if test="${form.approvalId != null and aiPreflightEnabled}">
+            <jsp:include page="preflight-modal.jsp"/>
         </c:if>
 
         <%-- 첨부는 임시저장 상태에서만 다룬다 (기안자 + DRAFT). doc.editable 이 그 판정이다 --%>
@@ -205,5 +217,140 @@
         $('#docType').on('change', toggleLeaveFields);
     });
 </script>
+
+<%--
+  상신 전 사전 점검(설계서 §6.4.6, 계획서 5 Task 5·6).
+
+  상신 폼의 기본 제출을 가로채 먼저 /api/ai/approvals/{id}/preflight 를 부른다.
+  그 응답에 따라 분기한다:
+    - PASS(또는 findings 가 비어 있음) → 모달 없이 바로 상신
+    - WARN                              → 모달 표시, 사용자가 [수정하러 가기]
+                                           또는 [무시하고 상신]을 고른다
+
+  ★ D8(계획서 5): 이 호출이 실패하는 경우 - 서버가 503 을 주거나, 네트워크
+  오류가 나거나, 응답이 오지 않아 타임아웃되거나 - 전부 "모달 없이 바로 상신"과
+  같은 경로로 합류한다. 사전 점검은 보조 장치이므로 그것이 죽어도 상신은
+  100% 동작해야 한다(설계서 §6.4.3 폴백 원칙).
+
+  flowmateFetch(common.js)를 쓴다 - 이 호출은 fetch() 라서 $.ajaxSetup 이 붙이는
+  CSRF 헤더 경로를 타지 않는다. 개별 호출부에서 헤더를 손으로 붙이지 않고 래퍼에
+  맡긴다(계획서 5 D5) - 다음 사람이 새 fetch 호출을 추가할 때 또 빠뜨리지 않도록.
+
+  ★ 이 스크립트 블록 전체가 <c:if test="${aiPreflightEnabled}"> 로 감싸여 있다
+  (계획서 5 Task 7, 커스터마이징 지점 5) - 꺼져 있으면 상신 폼의 기본 제출을
+  아예 가로채지 않으므로 /api/ai/.../preflight 호출 자체가 나가지 않는다.
+  D8 의 "실패 시 모달 없이 상신"과 결과는 같지만(둘 다 모달이 안 뜬다), 이
+  경로는 네트워크 호출조차 시도하지 않는다는 점이 다르다 - "부재"가 "실패한
+  시도"보다 한 단계 더 확실하다.
+--%>
+<c:if test="${aiPreflightEnabled}">
+<script>
+    $(function () {
+        var $submitForm = $('#submitForm');
+        if ($submitForm.length === 0) {
+            return;
+        }
+
+        var $modal = $('#preflightModal');
+        var $findings = $('#preflightFindings');
+        var contextPath = '${pageContext.request.contextPath}';
+        var PREFLIGHT_TIMEOUT_MS = 15000;
+
+        $submitForm.on('submit', function (event) {
+            event.preventDefault();
+            // ★ 동기 예외까지 잡아야 D8 이 지켜진다.
+            //   runPreflight() 안의 실패(응답 오류·타임아웃·JSON 파싱)는 promise 체인이
+            //   전부 submitNow() 로 합류시킨다. 그러나 첫 .then() 에 닿기 전에 나는
+            //   동기 예외 - 예를 들어 common.js 가 로드되지 않아 flowmateFetch 가
+            //   undefined 인 경우 - 는 그 체인에 들어가지도 못한다.
+            //   그러면 preventDefault() 는 이미 실행됐고 submitNow() 에는 도달하지 못해
+            //   **상신 버튼이 영구히 먹통이 된다.** 스크립트 하나가 못 떠서 결재를
+            //   못 올리는 것은 "AI 실패가 업무 실패가 되어서는 안 된다"의 정반대다.
+            try {
+                runPreflight();
+            } catch (e) {
+                submitNow();
+            }
+        });
+
+        function runPreflight() {
+            var approvalId = $submitForm.data('approval-id');
+            var hasAbort = ('AbortController' in window);
+            var controller = hasAbort ? new AbortController() : null;
+            var timeoutId = hasAbort
+                ? setTimeout(function () { controller.abort(); }, PREFLIGHT_TIMEOUT_MS)
+                : null;
+
+            flowmateFetch(contextPath + '/api/ai/approvals/' + approvalId + '/preflight', {
+                method: 'POST',
+                signal: controller ? controller.signal : undefined
+            }).then(function (response) {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    submitNow();
+                    return null;
+                }
+                return response.json();
+            }).then(function (result) {
+                if (!result) {
+                    return; // 위에서 이미 상신을 진행했다(실패 경로) - 이중 상신 방지
+                }
+                if (result.verdict !== 'WARN' || !result.findings || result.findings.length === 0) {
+                    submitNow();
+                    return;
+                }
+                showModal(result);
+            }).catch(function () {
+                clearTimeout(timeoutId);
+                submitNow();
+            });
+        }
+
+        function showModal(result) {
+            $findings.empty();
+            $.each(result.findings, function (i, f) {
+                var $item = $('<li>').addClass('preflight-modal__finding');
+                $('<span>').addClass('preflight-modal__severity').text(f.severity).appendTo($item);
+                $('<span>').addClass('preflight-modal__category').text(f.category).appendTo($item);
+                $('<p>').addClass('preflight-modal__message').text(f.message).appendTo($item);
+                $('<p>').addClass('preflight-modal__suggestion').text(f.suggestion).appendTo($item);
+                $('<p>').addClass('preflight-modal__basis')
+                    .text('과거 반려 ' + f.basedOnRejectCount + '건에 근거').appendTo($item);
+                $findings.append($item);
+            });
+            $modal.data('result-id', result.resultId);
+            $modal.prop('hidden', false);
+        }
+
+        function submitNow() {
+            $modal.prop('hidden', true);
+            // 네이티브 submit() 은 'submit' 이벤트를 다시 일으키지 않는다(스펙으로
+            // 보장된 동작) - 위 핸들러가 다시 가로채 무한 루프가 되는 것을 막는다.
+            $submitForm.get(0).submit();
+        }
+
+        $(document).on('click', '#preflightFix', function () {
+            // 이미 이 화면(작성/수정 화면)에 본문이 있다 - 모달만 닫는다.
+            $modal.prop('hidden', true);
+        });
+
+        $(document).on('click', '#preflightIgnore', function () {
+            var resultId = $modal.data('result-id');
+            if (!resultId) {
+                submitNow();
+                return;
+            }
+            flowmateFetch(contextPath + '/api/ai/preflight/' + resultId + '/ignore', {
+                method: 'POST'
+            }).then(function () {
+                submitNow();
+            }).catch(function () {
+                // ignore 기록이 실패해도 상신은 진행한다 - 부가 기록이 상신을 막지 않는다(D8과 같은 정신).
+                submitNow();
+            });
+        });
+    });
+</script>
+</c:if>
 </body>
 </html>

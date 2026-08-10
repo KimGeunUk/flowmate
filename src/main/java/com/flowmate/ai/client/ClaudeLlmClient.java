@@ -5,6 +5,11 @@ import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.OutputConfig;
+import com.anthropic.models.messages.StructuredContentBlock;
+import com.anthropic.models.messages.StructuredMessage;
+import com.anthropic.models.messages.StructuredMessageCreateParams;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
 import java.util.Optional;
@@ -31,11 +36,23 @@ import java.util.Optional;
  *   Phase 5로 미룬 결정). PromptRepository 가 불러온 시스템 프롬프트 템플릿과 실제 문서
  *   본문을 합치는 것은 이 게이트웨이가 아니라 Phase 5 기능 쪽의 책임이므로, 여기서는
  *   request.getPrompt() 하나만 사용자 메시지로 보낸다.
+ *
+ * ★ 구조화 출력 (계획서 5 D2, Phase 3 부채 A1): request.getOutputType() 이 있으면
+ *   SDK 의 클래스 기반 오버로드(outputConfig(Class))를 쓴다. 스키마를 손으로 쓰지 않고
+ *   POJO 에서 자동으로 뽑아내고, 결과도 문자열이 아니라 그 타입으로 돌아온다
+ *   (StructuredTextBlock.text() 가 T 를 준다). 이 클래스는 LlmResponse.text 에 항상
+ *   문자열을 담아야 하므로(데코레이터·캐시가 그 계약에 맞춰져 있다), 받은 타입 값을
+ *   다시 JSON 문자열로 직렬화해 넣는다 - 그래서 인터페이스도 데코레이터도 바뀔 필요가 없다.
+ *
+ *   구조화 출력과 인용(citations)은 함께 쓸 수 없고, 거절(refusal) 시에는 스키마를
+ *   지키지 않는다(설계서 §6.4 인용 - 계획서 5 D2). 그래서 거절 검사(Phase 3 D6)는
+ *   구조화 출력 경로에서도 content 를 읽기 전에 그대로 먼저 돈다.
  */
 public class ClaudeLlmClient implements LlmClient {
 
     private final AnthropicClient client;
     private final String model;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ClaudeLlmClient(String model) {
         this.client = AnthropicOkHttpClient.fromEnv();
@@ -44,6 +61,10 @@ public class ClaudeLlmClient implements LlmClient {
 
     @Override
     public Optional<LlmResponse> complete(LlmRequest request) {
+        if (request.getOutputType() != null) {
+            return completeStructured(request);
+        }
+
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(4096L)
@@ -58,7 +79,7 @@ public class ClaudeLlmClient implements LlmClient {
         // ★ content 를 읽기 전에 거절부터 검사한다.
         //   Opus 5 의 안전 분류기가 요청을 거절하면 HTTP 200 에 빈 content 가 온다.
         //   content.get(0) 을 먼저 하는 코드는 그 자리에서 IndexOutOfBounds 로 깨진다.
-        if (isRefusal(response)) {
+        if (isRefusal(response.stopReason())) {
             return Optional.empty();
         }
 
@@ -79,7 +100,48 @@ public class ClaudeLlmClient implements LlmClient {
         return Optional.of(result);
     }
 
-    private boolean isRefusal(Message response) {
-        return String.valueOf(response.stopReason()).toLowerCase().contains("refusal");
+    private Optional<LlmResponse> completeStructured(LlmRequest request) {
+        StructuredMessageCreateParams<?> params = MessageCreateParams.builder()
+                .model(model)
+                .maxTokens(4096L)
+                .outputConfig(request.getOutputType())
+                .addUserMessage(request.getPrompt())
+                .build();
+
+        StructuredMessage<?> response = client.messages().create(params);
+
+        // 구조화 출력도 거절될 수 있고, 거절되면 스키마를 지키지 않는다 - 평문 경로와
+        // 같은 이유로 content 를 읽기 전에 먼저 검사한다.
+        if (isRefusal(response.stopReason())) {
+            return Optional.empty();
+        }
+
+        Optional<?> value = response.content().stream()
+                .filter(StructuredContentBlock::isText)
+                .map(block -> block.asText().text())
+                .findFirst();
+
+        if (value.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LlmResponse result = new LlmResponse();
+        result.setText(toJson(value.get()));
+        result.setModel(response.model().toString());
+        result.setInputTokens((int) response.usage().inputTokens());
+        result.setOutputTokens((int) response.usage().outputTokens());
+        return Optional.of(result);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("구조화 출력 결과를 JSON 으로 직렬화할 수 없습니다", e);
+        }
+    }
+
+    private boolean isRefusal(Object stopReason) {
+        return String.valueOf(stopReason).toLowerCase().contains("refusal");
     }
 }

@@ -5,7 +5,6 @@
 
     <!--
       Phase 5 AI 사전점검의 학습 원천에 한 줄을 쌓는다.
-      유형별 빈도 집계 쿼리는 Phase 5 에서 이 파일에 추가한다 — 지금 만들면 쓰는 곳이 없다.
     -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO approval_reject_history
@@ -14,5 +13,26 @@
             (#{approvalId}, #{docType}, #{deptId}, #{rejectorId},
              #{reasonCategory}, #{reasonText}, #{rejectedAt})
     </insert>
+
+    <!--
+      ★ reason_text 를 SELECT 목록에 넣지 않는다 - 계획서 5 Task 5 (개인정보 유입 방지).
+      idx_reject_type_dept(doc_type, dept_id, rejected_at DESC) 인덱스를 그대로 탄다.
+    -->
+    <select id="findRecentReasonCategories" resultType="string">
+        SELECT reason_category
+          FROM approval_reject_history
+         WHERE doc_type = #{docType}
+           AND dept_id = #{deptId}
+         ORDER BY rejected_at DESC
+         LIMIT #{limit}
+    </select>
+
+    <select id="findRecentReasonCategoriesCompanyWide" resultType="string">
+        SELECT reason_category
+          FROM approval_reject_history
+         WHERE doc_type = #{docType}
+         ORDER BY rejected_at DESC
+         LIMIT #{limit}
+    </select>
 
 </mapper>

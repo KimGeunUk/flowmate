@@ -15,6 +15,7 @@ import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.ApprovalHistoryMapper;
 import com.flowmate.approval.mapper.ApprovalLineMapper;
+import com.flowmate.approval.mapper.LeaveRequestMapper;
 import com.flowmate.attendance.domain.LeaveBalance;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
 import com.flowmate.common.exception.ApprovalNotFoundException;
@@ -30,13 +31,16 @@ public class ApprovalQueryService {
     private final ApprovalDocMapper docMapper;
     private final ApprovalLineMapper lineMapper;
     private final ApprovalHistoryMapper historyMapper;
+    private final LeaveRequestMapper leaveRequestMapper;
 
     public ApprovalQueryService(ApprovalDocMapper docMapper,
                                ApprovalLineMapper lineMapper,
-                               ApprovalHistoryMapper historyMapper) {
+                               ApprovalHistoryMapper historyMapper,
+                               LeaveRequestMapper leaveRequestMapper) {
         this.docMapper = docMapper;
         this.lineMapper = lineMapper;
         this.historyMapper = historyMapper;
+        this.leaveRequestMapper = leaveRequestMapper;
     }
 
     /**
@@ -64,6 +68,18 @@ public class ApprovalQueryService {
     @Transactional(readOnly = true)
     public List<ApprovalHistory> findHistories(Long approvalId) {
         return historyMapper.findByApprovalId(approvalId);
+    }
+
+    /**
+     * LEAVE 문서의 연차 신청 확장 정보 (계획서 5 Task 4 - 연차 맥락 패널).
+     * LEAVE 가 아니거나 정합성이 깨져 확장 행이 없으면 null - 호출자(LeaveContextService)
+     * 가 null 을 패널 자체를 감추라는 신호로 쓴다. 권한 검사는 이 메서드 앞에서
+     * findDoc 이 이미 했다고 가정한다(approval 모듈 밖의 ai 모듈이 이 메서드만
+     * 단독으로 부르지 않도록, LeaveContextService 가 항상 findDoc 뒤에만 호출한다).
+     */
+    @Transactional(readOnly = true)
+    public LeaveRequest findLeaveRequest(Long approvalId) {
+        return leaveRequestMapper.findByApprovalId(approvalId);
     }
 
     private boolean canView(ApprovalDoc doc, Long approvalId, Long viewerId) {

@@ -37,6 +37,7 @@ public class MaskingLlmClient implements LlmClient {
         maskedRequest.setPrompt(maskResult.getMasked());
         maskedRequest.setEmpId(request.getEmpId());
         maskedRequest.setApprovalId(request.getApprovalId());
+        maskedRequest.setOutputType(request.getOutputType());
 
         // 매핑은 의도적으로 버린다 - 요약·점검 결과에 원문을 복원해 넣지 않는다.
         return delegate.complete(maskedRequest);

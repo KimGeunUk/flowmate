@@ -2,6 +2,7 @@ package com.flowmate.attendance.domain;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
@@ -24,6 +25,21 @@ public class LeaveBalance implements Serializable {
     /** 잔여일수 = 부여일수 - 사용일수. 저장하지 않고 매번 계산한다 */
     public BigDecimal getRemainingDays() {
         return grantedDays.subtract(usedDays);
+    }
+
+    /**
+     * 소진율(%) = 사용일수 / 부여일수 * 100, 반올림 (계획서 5 Task 4 - 연차 맥락
+     * 패널의 "부여/사용/잔여/소진율" 항목). getRemainingDays() 와 같은 자리 -
+     * 저장하지 않고 매번 계산해서 부여·사용과 어긋날 여지를 없앤다.
+     * 부여일수가 0이면 나눗셈을 피해 0으로 둔다.
+     */
+    public int getUsedPercent() {
+        if (grantedDays == null || grantedDays.signum() == 0) {
+            return 0;
+        }
+        return usedDays.multiply(BigDecimal.valueOf(100))
+                .divide(grantedDays, 0, RoundingMode.HALF_UP)
+                .intValue();
     }
 
     public Long getEmpId() {

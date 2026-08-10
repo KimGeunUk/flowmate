@@ -17,7 +17,7 @@ import com.flowmate.attendance.domain.LeaveBalance;
  */
 class ApprovalQueryServiceTest {
 
-    private final ApprovalQueryService queryService = new ApprovalQueryService(null, null, null);
+    private final ApprovalQueryService queryService = new ApprovalQueryService(null, null, null, null);
 
     @Test
     @DisplayName("신청 일수가 잔여보다 많으면 초과다")

@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 
 import com.flowmate.attendance.domain.Attendance;
 import com.flowmate.attendance.domain.DeptAttendanceRow;
+import com.flowmate.attendance.domain.TeamAvailability;
 
 /**
  * 일별 근태. Task 6(연차 반영)은 upsertForLeave 만 썼다. 출퇴근 등록(Task 3)의
@@ -58,4 +59,12 @@ public interface AttendanceMapper {
     List<DeptAttendanceRow> findDeptMonthlySummary(@Param("deptIds") List<Long> deptIds,
                                                     @Param("start") LocalDate start,
                                                     @Param("end") LocalDate end);
+
+    /**
+     * 팀 가동률(계획서 5 Task 4) - deptId 에 속한 재직 사원 수와, 그 중 date 에
+     * 연차·반차로 부재인 인원 수를 한 행으로 집계한다. findDeptMonthlySummary 와
+     * 달리 deptId 하나만 받는다(하위 부서로 확장하지 않는다) - "팀"은 신청자와
+     * 같은 리프 부서를 뜻하기 때문이다(TeamAvailability 클래스 주석 참조).
+     */
+    TeamAvailability findTeamAvailability(@Param("deptId") Long deptId, @Param("date") LocalDate date);
 }

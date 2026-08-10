@@ -22,6 +22,7 @@ import com.flowmate.approval.service.ApprovalService;
 import com.flowmate.attendance.domain.LeaveBalance;
 import com.flowmate.attendance.domain.LeaveType;
 import com.flowmate.attendance.service.LeaveInquiryService;
+import com.flowmate.config.AiProperties;
 import com.flowmate.org.security.LoginEmployee;
 
 @Controller
@@ -33,16 +34,19 @@ public class ApprovalWriteController {
     private final ApprovalAttachmentMapper attachmentMapper;
     private final LeaveRequestMapper leaveRequestMapper;
     private final LeaveInquiryService leaveInquiryService;
+    private final AiProperties aiProperties;
 
     public ApprovalWriteController(ApprovalService approvalService, ApprovalQueryService queryService,
                                    ApprovalAttachmentMapper attachmentMapper,
                                    LeaveRequestMapper leaveRequestMapper,
-                                   LeaveInquiryService leaveInquiryService) {
+                                   LeaveInquiryService leaveInquiryService,
+                                   AiProperties aiProperties) {
         this.approvalService = approvalService;
         this.queryService = queryService;
         this.attachmentMapper = attachmentMapper;
         this.leaveRequestMapper = leaveRequestMapper;
         this.leaveInquiryService = leaveInquiryService;
+        this.aiProperties = aiProperties;
     }
 
     /** 새 기안 또는 임시저장 문서 수정 */
@@ -84,6 +88,12 @@ public class ApprovalWriteController {
         model.addAttribute("form", form);
         model.addAttribute("docTypes", DocType.ALL);
         model.addAttribute("leaveTypes", LeaveType.ALL);
+        // 사전점검 모달·스크립트 노출 여부(계획서 5 Task 7, 커스터마이징 지점 5) -
+        // ApprovalBoxController.detail 의 aiSummaryEnabled 와 같은 목적이다. 꺼져
+        // 있으면 write.jsp 가 모달 include 와 상신 가로채기 스크립트를 아예
+        // 렌더링하지 않는다 - 상신 폼이 원래(사전점검이 아예 없던 시절과 같은)
+        // 평범한 POST 로 동작한다.
+        model.addAttribute("aiPreflightEnabled", aiProperties.getFeatures().isPreflight());
         return "approval/write";
     }
 

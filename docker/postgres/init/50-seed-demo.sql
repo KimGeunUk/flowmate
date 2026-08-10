@@ -1,0 +1,391 @@
+-- 데모용 대량 시드: 결재 문서 200건 + 반려 40건(부서·유형별 편중) + 근태 3개월분.
+-- 설계서 §9 Phase 5-2, 계획서 5(2026-08-09-phase-5-ai-features.md) D6·D7, Task 1.
+--
+-- ★ ON CONFLICT DO NOTHING: 이 파일은 몇 번을 다시 실행해도 안전하다.
+--   approval_doc / approval_line / approval_history / approval_reject_history 는
+--   전부 명시적 PK(10001~ 대역, 기존 21-seed-approval.sql 의 1~6 과 절대 겹치지 않는다)를
+--   쓰고 그 PK 로 충돌을 판정한다. attendance 는 자체 UNIQUE(emp_id, work_date) 로
+--   충돌을 판정한다. 재실행해도 기존 6건이나 이미 들어간 행을 다시 만들거나
+--   중복시키지 않는다. (계획서 5 D7)
+--
+-- ★ 반려 사유를 부서·문서유형별로 편중시키는 것이 이 파일의 핵심이다 (계획서 5 D6).
+--   고르게 뿌리면 Task 5 사전점검이 "이 부서·이 유형에서 자주 나는 반려"를 집계해도
+--   아무 신호가 없다. 그래서 반려 40건 중 4개 조합(부서×유형)에 편중을 명시적으로 심는다:
+--
+--     개발팀(dept 7) + PURCHASE  -> MISSING_EVIDENCE 위주      (12건 중 8건)
+--     마케팅팀(dept 6) + EXPENSE -> INSUFFICIENT_CONTENT 위주  (12건 중 8건)
+--     재무팀(dept 5)   + EXPENSE -> EXCESSIVE_AMOUNT 위주      (8건 중 5건)
+--     인사팀(dept 4)   + GENERAL -> PROCEDURE_ERROR 위주       (8건 중 5건)
+--
+--   검증: SELECT dept_id, doc_type, reason_category, COUNT(*) FROM approval_reject_history
+--         GROUP BY 1,2,3 ORDER BY 4 DESC; 로 편중이 실제로 보이는지 확인한다.
+--
+-- ★ 결재선은 ApprovalLinePolicy 를 호출하지 않고 손으로 고정한다 (계획서 5 D6,
+--   21-seed-approval.sql 과 같은 판단). 부서 관리자(또는 대리 승인자) 1인 -> 상위
+--   본부장 1인의 2단계. 정책 코드를 호출해서 200건을 만들면 느리고, 정책이 바뀌면
+--   시드도 조용히 바뀐다 (Phase 2·4에서 이미 두 번 내린 판단과 같다).
+--
+--   인사팀(4)   1단계 = 4(최민석)   2단계 = 2(김성일, 경영지원본부)
+--   재무팀(5)   1단계 = 7(오세훈)   2단계 = 2(김성일, 경영지원본부)
+--   마케팅팀(6) 1단계 = 10(윤서영)  2단계 = 3(박현주, 사업본부)
+--   개발팀(7)   1단계 = 17(노은지)  2단계 = 3(박현주, 사업본부)
+--
+--   ★ 개발팀 1단계는 실제 부서장(14, 신동혁)이 아니라 17(노은지)을 쓴다 - 의도적이다.
+--   ApprovalQueryServiceIT 가 신동혁(14)의 대기함(id 2)·완료함(id 3,4,5)을 정확한
+--   개수로 단정하고, 곽수빈(18)의 기안함 합계를 정확히 6건으로 단정한다(21-seed-approval.sql
+--   의 기존 6건 전제). 대량 시드가 14 를 승인자로 더 쓰거나 18 을 기안자로 더 쓰면
+--   그 단정이 깨진다 - 이 시드는 "신호"(반려 편중)를 위한 것이지 결재선의 사실성을
+--   위한 것이 아니므로, 겹치지 않는 다른 개발팀 사원으로 대체한다. 같은 이유로
+--   개발팀 기안자 후보에서도 14·17·18 을 제외한다.
+--
+-- ★ LEAVE 문서는 이 시드에 포함하지 않는다. LEAVE 는 leave_request 확장 테이블과
+--   승인 시 leave_balance/attendance 반영까지 얽혀 있어(Phase 4 D1) 대량으로 손으로
+--   찍으면 그 트랜잭션 규약을 우회하게 된다. 반려 편중 데모는 EXPENSE/PURCHASE/
+--   GENERAL 만으로 설계서의 예시(개발팀 PURCHASE, 마케팅팀 EXPENSE)를 충분히 보인다.
+--
+-- ★ CONTRACT 문서유형도 이 시드에 포함하지 않는다 - 의도적이다. ApprovalDocMapperIT
+--   가 "CON 접두사 문서번호가 아직 하나도 없다"(COALESCE 가 NULL 을 0 으로 바꾸는지의
+--   검증)를 단정한다. 대량 시드가 CONTRACT 문서를 만들면 그 단정이 영구히 깨진다.
+--
+-- ★ 근태 3개월: 2026-02-01 ~ 2026-04-30, 평일만, holiday 테이블에 있는 날짜는 제외한다.
+--   5~7월이 아니라 2~4월을 쓰는 이유 - AttendanceQueryServiceIT 가 스스로 "6월은 내가
+--   쓰고 7월은 시드/다른 테스트가 쓴다"고 적어 두었고, 실제로 곽수빈(18)의 근태를
+--   6/1·6/2·6/3·7/1 에 손으로 INSERT 한다(ON CONFLICT 없이). 대량 시드가 그 날짜에
+--   이미 행을 넣어 두면 그 INSERT 가 UNIQUE(emp_id, work_date) 위반으로 깨진다.
+--   충돌 가능성이 있는 달을 아예 피하는 것이 다음 사람이 또 이 함정을 밟지 않는 방법이다.
+
+-- =====================================================================
+-- 1) 결재 문서 200건을 임시 테이블에 먼저 만든다 (idx 1~200 -> approval_id 10001~10200)
+-- =====================================================================
+DROP TABLE IF EXISTS demo_doc;
+
+CREATE TEMP TABLE demo_doc AS
+WITH rejected_dev_purchase AS (
+    SELECT
+        gs                                                              AS ord,
+        7::bigint                                                       AS dept_id,
+        'PURCHASE'::varchar(20)                                         AS doc_type,
+        (ARRAY[15,16,19,20]::bigint[])[1 + ((gs - 1) % 4)]              AS drafter_id,
+        17::bigint                                                      AS approver1_id,
+        3::bigint                                                       AS approver2_id,
+        (CASE
+            WHEN gs <= 8  THEN 'MISSING_EVIDENCE'
+            WHEN gs <= 10 THEN 'PROCEDURE_ERROR'
+            WHEN gs = 11  THEN 'OTHER'
+            ELSE 'INSUFFICIENT_CONTENT'
+         END)::varchar(30)                                              AS reason_category,
+        (800000 + gs * 50000)::numeric(15)                              AS amount
+    FROM generate_series(1, 12) AS gs
+),
+rejected_mkt_expense AS (
+    SELECT
+        gs                                                              AS ord,
+        6::bigint                                                       AS dept_id,
+        'EXPENSE'::varchar(20)                                          AS doc_type,
+        (ARRAY[11,12,13]::bigint[])[1 + ((gs - 1) % 3)]                 AS drafter_id,
+        10::bigint                                                      AS approver1_id,
+        3::bigint                                                       AS approver2_id,
+        (CASE
+            WHEN gs <= 8  THEN 'INSUFFICIENT_CONTENT'
+            WHEN gs <= 10 THEN 'EXCESSIVE_AMOUNT'
+            WHEN gs = 11  THEN 'OTHER'
+            ELSE 'PROCEDURE_ERROR'
+         END)::varchar(30)                                              AS reason_category,
+        (100000 + gs * 20000)::numeric(15)                              AS amount
+    FROM generate_series(1, 12) AS gs
+),
+rejected_fin_expense AS (
+    SELECT
+        gs                                                              AS ord,
+        5::bigint                                                       AS dept_id,
+        'EXPENSE'::varchar(20)                                          AS doc_type,
+        (ARRAY[8,9]::bigint[])[1 + ((gs - 1) % 2)]                      AS drafter_id,
+        7::bigint                                                       AS approver1_id,
+        2::bigint                                                       AS approver2_id,
+        (CASE
+            WHEN gs <= 5 THEN 'EXCESSIVE_AMOUNT'
+            WHEN gs <= 7 THEN 'BUDGET_EXCEEDED'
+            ELSE 'OTHER'
+         END)::varchar(30)                                              AS reason_category,
+        (300000 + gs * 40000)::numeric(15)                              AS amount
+    FROM generate_series(1, 8) AS gs
+),
+rejected_hr_general AS (
+    SELECT
+        gs                                                              AS ord,
+        4::bigint                                                       AS dept_id,
+        'GENERAL'::varchar(20)                                          AS doc_type,
+        (ARRAY[5,6]::bigint[])[1 + ((gs - 1) % 2)]                      AS drafter_id,
+        4::bigint                                                       AS approver1_id,
+        2::bigint                                                       AS approver2_id,
+        (CASE
+            WHEN gs <= 5 THEN 'PROCEDURE_ERROR'
+            WHEN gs <= 7 THEN 'MISSING_EVIDENCE'
+            ELSE 'OTHER'
+         END)::varchar(30)                                              AS reason_category,
+        0::numeric(15)                                                  AS amount
+    FROM generate_series(1, 8) AS gs
+),
+rejected_all AS (
+    SELECT
+        row_number() OVER (ORDER BY dept_id, doc_type, ord) AS idx,
+        dept_id, doc_type, drafter_id, approver1_id, approver2_id,
+        reason_category, amount
+    FROM (
+        SELECT * FROM rejected_dev_purchase
+        UNION ALL SELECT * FROM rejected_mkt_expense
+        UNION ALL SELECT * FROM rejected_fin_expense
+        UNION ALL SELECT * FROM rejected_hr_general
+    ) u
+),
+-- 반려되지 않는 나머지 160건. 부서·유형을 고르게 순환시킨다 - 이 그룹은 신호가 아니라
+-- "고르게 뿌리면 편중이 안 보인다"는 대비군이다. 상태는 APPROVED 130 / PENDING 20 /
+-- DRAFT 5 / CANCELED 5 로 나눈다.
+other_docs AS (
+    SELECT
+        40 + k                                                          AS idx,
+        (ARRAY[4,5,6,7]::bigint[])[1 + ((k - 1) % 4)]                   AS dept_id,
+        (ARRAY['EXPENSE','PURCHASE','GENERAL']::varchar(20)[])
+            [1 + (((k - 1) / 4) % 3)]                                   AS doc_type,
+        CASE
+            WHEN k <= 130 THEN 'APPROVED'
+            WHEN k <= 150 THEN 'PENDING'
+            WHEN k <= 155 THEN 'DRAFT'
+            ELSE 'CANCELED'
+        END::varchar(20)                                                AS status,
+        k                                                                AS k
+    FROM generate_series(1, 160) AS k
+),
+other_docs_full AS (
+    SELECT
+        idx, dept_id, doc_type, status,
+        CASE dept_id
+            WHEN 4 THEN (ARRAY[5,6]::bigint[])[1 + ((k - 1) % 2)]
+            WHEN 5 THEN (ARRAY[8,9]::bigint[])[1 + ((k - 1) % 2)]
+            WHEN 6 THEN (ARRAY[11,12,13]::bigint[])[1 + ((k - 1) % 3)]
+            WHEN 7 THEN (ARRAY[15,16,19,20]::bigint[])[1 + ((k - 1) % 4)]
+        END                                                             AS drafter_id,
+        CASE dept_id WHEN 4 THEN 4 WHEN 5 THEN 7 WHEN 6 THEN 10 WHEN 7 THEN 17 END::bigint
+                                                                         AS approver1_id,
+        CASE WHEN dept_id IN (4, 5) THEN 2 WHEN dept_id IN (6, 7) THEN 3 END::bigint
+                                                                         AS approver2_id,
+        NULL::varchar(30)                                               AS reason_category,
+        (CASE doc_type
+            WHEN 'EXPENSE'  THEN 50000   + (k * 3000)  % 750000
+            WHEN 'PURCHASE' THEN 300000  + (k * 15000) % 2700000
+            ELSE 0
+         END)::numeric(15)                                              AS amount
+    FROM other_docs
+),
+combined AS (
+    SELECT idx, dept_id, doc_type, drafter_id, approver1_id, approver2_id,
+           reason_category, amount, 'REJECTED'::varchar(20) AS status
+    FROM rejected_all
+    UNION ALL
+    SELECT idx, dept_id, doc_type, drafter_id, approver1_id, approver2_id,
+           reason_category, amount, status
+    FROM other_docs_full
+)
+SELECT
+    idx,
+    10000 + idx                                                         AS approval_id,
+    (CASE doc_type
+        WHEN 'EXPENSE'  THEN 'EXP'
+        WHEN 'PURCHASE' THEN 'PUR'
+        ELSE 'GEN'
+     END || '-2026-' || lpad((9000 + idx)::text, 4, '0'))::varchar(30)  AS doc_no,
+    doc_type,
+    (CASE doc_type
+        WHEN 'EXPENSE'  THEN '경비 정산 요청 #'
+        WHEN 'PURCHASE' THEN '구매 요청 #'
+        ELSE '업무 공유 #'
+     END || idx)::varchar(200)                                          AS title,
+    (CASE doc_type
+        WHEN 'EXPENSE'  THEN '업무 관련 경비를 정산합니다 (데모 시드).'
+        WHEN 'PURCHASE' THEN '필요 물품 구매를 요청합니다 (데모 시드).'
+        ELSE '업무 관련 사항을 공유합니다 (데모 시드).'
+     END)                                                                AS content,
+    drafter_id, dept_id, amount, status,
+    CASE status
+        WHEN 'REJECTED' THEN 1
+        WHEN 'APPROVED' THEN 2
+        WHEN 'PENDING'  THEN 1
+        ELSE 0
+    END                                                                  AS current_step,
+    approver1_id, approver2_id, reason_category,
+    (CASE reason_category
+        WHEN 'MISSING_EVIDENCE'     THEN '증빙 자료가 첨부되지 않았습니다.'
+        WHEN 'INSUFFICIENT_CONTENT' THEN '신청 사유가 구체적이지 않습니다.'
+        WHEN 'EXCESSIVE_AMOUNT'     THEN '유사 건 대비 금액이 과다합니다.'
+        WHEN 'BUDGET_EXCEEDED'      THEN '부서 예산 한도를 초과했습니다.'
+        WHEN 'PROCEDURE_ERROR'      THEN '사전 승인 절차가 누락되었습니다.'
+        WHEN 'OTHER'                THEN '추가 확인이 필요합니다.'
+     END)::varchar(500)                                                 AS reason_text,
+    (timestamp '2026-04-01 09:00:00'
+        + ((idx * 37) % 122) * interval '1 day'
+        + (idx % 8) * interval '1 hour'
+        + (idx % 60) * interval '1 minute')                             AS drafted_at
+FROM combined;
+
+-- submitted_at / completed_at 은 drafted_at 기준 파생값이라 별 컬럼으로 갱신한다
+-- (윗 SELECT 안에서 바로 참조하면 같은 SELECT 리스트 안이라 재사용이 안 되므로 분리한다).
+ALTER TABLE demo_doc ADD COLUMN submitted_at TIMESTAMP;
+ALTER TABLE demo_doc ADD COLUMN completed_at TIMESTAMP;
+
+UPDATE demo_doc
+   SET submitted_at = CASE WHEN status <> 'DRAFT' THEN drafted_at + interval '1 hour' END;
+
+UPDATE demo_doc
+   SET completed_at = CASE
+        WHEN status IN ('APPROVED', 'REJECTED') THEN submitted_at + interval '1 day' + (idx % 3) * interval '1 day'
+        WHEN status = 'CANCELED'                THEN drafted_at + interval '20 minutes'
+        ELSE NULL
+   END;
+
+-- =====================================================================
+-- 2) approval_doc
+-- =====================================================================
+INSERT INTO approval_doc
+    (approval_id, doc_no, doc_type, title, content, drafter_id, dept_id, amount,
+     status, current_step, drafted_at, submitted_at, completed_at)
+SELECT approval_id, doc_no, doc_type, title, content, drafter_id, dept_id, amount,
+       status, current_step, drafted_at, submitted_at, completed_at
+FROM demo_doc
+ON CONFLICT (approval_id) DO NOTHING;
+
+-- =====================================================================
+-- 3) approval_line - DRAFT/CANCELED 는 결재선이 없다 (21-seed-approval.sql 과 같은 규약)
+-- =====================================================================
+INSERT INTO approval_line (line_id, approval_id, step_no, approver_id, line_type, status, comment, processed_at)
+SELECT
+    20000 + (idx - 1) * 2 + 1                                            AS line_id,
+    approval_id, 1, approver1_id, 'APPROVAL',
+    CASE status WHEN 'REJECTED' THEN 'REJECTED' WHEN 'PENDING' THEN 'CURRENT' ELSE 'APPROVED' END,
+    CASE status WHEN 'REJECTED' THEN reason_text ELSE NULL END,
+    CASE status WHEN 'PENDING' THEN NULL ELSE submitted_at + interval '2 hours' END
+FROM demo_doc
+WHERE status IN ('REJECTED', 'PENDING', 'APPROVED')
+ON CONFLICT (line_id) DO NOTHING;
+
+INSERT INTO approval_line (line_id, approval_id, step_no, approver_id, line_type, status, comment, processed_at)
+SELECT
+    20000 + (idx - 1) * 2 + 2                                            AS line_id,
+    approval_id, 2, approver2_id, 'APPROVAL',
+    CASE status WHEN 'REJECTED' THEN 'SKIPPED' WHEN 'PENDING' THEN 'WAITING' ELSE 'APPROVED' END,
+    NULL,
+    CASE status WHEN 'APPROVED' THEN completed_at ELSE NULL END
+FROM demo_doc
+WHERE status IN ('REJECTED', 'PENDING', 'APPROVED')
+ON CONFLICT (line_id) DO NOTHING;
+
+-- =====================================================================
+-- 4) approval_history - 슬롯 4개(DRAFT/SUBMIT|CANCEL/REJECT|APPROVE1/APPROVE2)를
+--    문서마다 예약해 둔다. 상태별로 필요한 슬롯만 채운다.
+-- =====================================================================
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 1, approval_id, drafter_id, 'DRAFT', NULL, drafted_at
+FROM demo_doc
+ON CONFLICT (history_id) DO NOTHING;
+
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 2, approval_id, drafter_id, 'SUBMIT', NULL, submitted_at
+FROM demo_doc
+WHERE status IN ('REJECTED', 'PENDING', 'APPROVED')
+ON CONFLICT (history_id) DO NOTHING;
+
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 2, approval_id, drafter_id, 'CANCEL', NULL, completed_at
+FROM demo_doc
+WHERE status = 'CANCELED'
+ON CONFLICT (history_id) DO NOTHING;
+
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 3, approval_id, approver1_id, 'REJECT', reason_text, submitted_at + interval '2 hours'
+FROM demo_doc
+WHERE status = 'REJECTED'
+ON CONFLICT (history_id) DO NOTHING;
+
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 3, approval_id, approver1_id, 'APPROVE', NULL, submitted_at + interval '2 hours'
+FROM demo_doc
+WHERE status = 'APPROVED'
+ON CONFLICT (history_id) DO NOTHING;
+
+INSERT INTO approval_history (history_id, approval_id, actor_id, action, comment, created_at)
+SELECT 30000 + (idx - 1) * 4 + 4, approval_id, approver2_id, 'APPROVE', NULL, completed_at
+FROM demo_doc
+WHERE status = 'APPROVED'
+ON CONFLICT (history_id) DO NOTHING;
+
+-- =====================================================================
+-- 5) approval_reject_history - 반려 40건, 부서·유형별로 편중된 reason_category.
+--    ★ Task 5 사전점검이 읽는 표. reason_text 는 여기 있지만(사람이 볼 화면용),
+--    Task 5 는 reason_text 원문을 프롬프트에 넣지 않고 reason_category 와 빈도만 쓴다
+--    (계획서 5 Task 5 표 - 개인정보 유입 방지).
+-- =====================================================================
+INSERT INTO approval_reject_history (id, approval_id, doc_type, dept_id, rejector_id, reason_category, reason_text, rejected_at)
+SELECT 40000 + idx, approval_id, doc_type, dept_id, approver1_id, reason_category, reason_text, submitted_at + interval '2 hours'
+FROM demo_doc
+WHERE status = 'REJECTED'
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================================
+-- 6) 시퀀스를 시드 최대값으로 밀어 둔다 (11-seed-org.sql / 21-seed-approval.sql 과 같은 관례).
+--    이미 테스트 실행으로 시퀀스가 이 대역을 넘어섰다면 GREATEST 로 뒤로 밀리지 않게 한다.
+-- =====================================================================
+SELECT setval(pg_get_serial_sequence('approval_doc', 'approval_id'),
+              GREATEST((SELECT MAX(approval_id) FROM approval_doc),
+                       (SELECT last_value FROM approval_doc_approval_id_seq)));
+SELECT setval(pg_get_serial_sequence('approval_line', 'line_id'),
+              GREATEST((SELECT MAX(line_id) FROM approval_line),
+                       (SELECT last_value FROM approval_line_line_id_seq)));
+SELECT setval(pg_get_serial_sequence('approval_history', 'history_id'),
+              GREATEST((SELECT MAX(history_id) FROM approval_history),
+                       (SELECT last_value FROM approval_history_history_id_seq)));
+SELECT setval(pg_get_serial_sequence('approval_reject_history', 'id'),
+              GREATEST((SELECT MAX(id) FROM approval_reject_history),
+                       (SELECT last_value FROM approval_reject_history_id_seq)));
+
+DROP TABLE IF EXISTS demo_doc;
+
+-- =====================================================================
+-- 7) 근태 3개월분 (2026-02-01 ~ 2026-04-30), 평일만, 공휴일 제외, 전 직원 20명.
+--    attendance 는 명시적 PK 를 쓰지 않는다 - UNIQUE(emp_id, work_date) 가 이미
+--    자연키라서 그것으로 충돌을 판정하는 편이 더 단순하다.
+--    ★ 5~7월이 아니라 2~4월인 이유는 파일 맨 위 주석 참고 (AttendanceQueryServiceIT
+--    가 6·7월에 손으로 근태 행을 꽂는다 - ON CONFLICT 없이).
+-- =====================================================================
+INSERT INTO attendance (emp_id, work_date, check_in, check_out, work_minutes, overtime_minutes, status, note)
+SELECT
+    e.emp_id,
+    d.work_date,
+    CASE mm.m
+        WHEN 0 THEN NULL
+        WHEN 1 THEN d.work_date + time '09:22:00'
+        WHEN 2 THEN d.work_date + time '09:18:00'
+        ELSE        d.work_date + (time '08:55:00' + ((e.emp_id % 10) || ' minutes')::interval)
+    END                                                                  AS check_in,
+    CASE mm.m
+        WHEN 0 THEN NULL
+        WHEN 3 THEN d.work_date + time '17:00:00'
+        ELSE        d.work_date + (time '18:00:00' + ((e.emp_id % 15) || ' minutes')::interval)
+    END                                                                  AS check_out,
+    CASE mm.m WHEN 0 THEN 0 WHEN 1 THEN 460 WHEN 2 THEN 460 WHEN 3 THEN 420 ELSE 480 END
+                                                                         AS work_minutes,
+    CASE WHEN mm.m = 4 AND (e.emp_id + extract(day FROM d.work_date)::int) % 7 = 0 THEN 60 ELSE 0 END
+                                                                         AS overtime_minutes,
+    CASE mm.m WHEN 0 THEN 'ABSENT' WHEN 1 THEN 'LATE' WHEN 2 THEN 'LATE' WHEN 3 THEN 'EARLY_LEAVE' ELSE 'NORMAL' END
+                                                                         AS status,
+    CASE mm.m WHEN 0 THEN '결근' WHEN 1 THEN '지각' WHEN 2 THEN '지각' WHEN 3 THEN '조퇴' ELSE NULL END
+                                                                         AS note
+FROM employee e
+CROSS JOIN LATERAL (
+    SELECT gs::date AS work_date
+    FROM generate_series(date '2026-02-01', date '2026-04-30', interval '1 day') AS gs
+    WHERE extract(dow FROM gs) NOT IN (0, 6)
+      AND gs::date NOT IN (SELECT holiday_date FROM holiday)
+) d
+CROSS JOIN LATERAL (
+    SELECT (e.emp_id + (d.work_date - date '2026-02-01')) % 20 AS m
+) mm
+ON CONFLICT (emp_id, work_date) DO NOTHING;

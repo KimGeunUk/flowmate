@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.flowmate.ai.mapper.PreflightResultMapper">
+
+    <!--
+      verdict='WARN' 인 결과만 여기 들어온다 - PreflightService 가 PASS 는 저장하지 않는다
+      (PreflightRecord 클래스 주석 참고). ignored_yn/checked_at 은 DB 기본값('N'/NOW())을 쓴다.
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="resultId" keyColumn="result_id">
+        INSERT INTO ai_preflight_result (approval_id, verdict, findings_json)
+        VALUES (#{approvalId}, #{verdict}, #{findingsJson})
+    </insert>
+
+    <update id="markIgnored">
+        UPDATE ai_preflight_result
+           SET ignored_yn = 'Y'
+         WHERE result_id = #{resultId}
+    </update>
+
+    <select id="findById" resultType="PreflightRecord">
+        SELECT result_id, approval_id, verdict, findings_json, ignored_yn, checked_at
+          FROM ai_preflight_result
+         WHERE result_id = #{resultId}
+    </select>
+
+</mapper>

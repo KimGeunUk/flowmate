@@ -10,11 +10,28 @@
          WHERE cache_key = #{cacheKey}
     </select>
 
+    <!--
+      ON CONFLICT DO UPDATE(upsert)인 이유(계획서 5 Task 7, TTL): cache_key 는
+      입력값의 해시라서 "만료된 캐시를 다시 채우는" 경로는 이미 존재하는 cache_key 로
+      다시 이 문장을 호출한다. 평범한 INSERT 였다면 PK 위반으로 죽는다 - TTL 이
+      생기기 전에는 같은 cache_key 로 두 번 insert 될 일이 없었으므로(항상 히트했다)
+      이 문제가 없었다. 갱신 시 hit_count 를 0으로 되돌리는 이유: 새로 저장하는
+      결과는 아직 한 번도 재사용되지 않았다 - 만료 전 hit_count 를 들고 가면
+      "몇 번 재사용됐는가"라는 이 컬럼의 의미(주석 참고, ai_result_cache 스키마)가
+      깨진다.
+    -->
     <insert id="insert">
         INSERT INTO ai_result_cache
             (cache_key, feature, prompt_version, result_json, model, input_tokens, output_tokens)
         VALUES
             (#{cacheKey}, #{feature}, #{promptVersion}, #{resultJson}, #{model}, #{inputTokens}, #{outputTokens})
+        ON CONFLICT (cache_key) DO UPDATE SET
+            result_json = EXCLUDED.result_json,
+            model = EXCLUDED.model,
+            input_tokens = EXCLUDED.input_tokens,
+            output_tokens = EXCLUDED.output_tokens,
+            hit_count = 0,
+            created_at = NOW()
     </insert>
 
     <!-- hit_count 는 캐시가 실제로 재사용될 때만 오른다 - insert 시점의 0 은 DB 기본값이 채운다 -->
