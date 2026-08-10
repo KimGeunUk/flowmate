@@ -2,6 +2,40 @@
  * FlowMate 공용 스크립트.
  * 화면별 스크립트는 각 JSP 하단에 두고, 여기에는 모든 화면에 적용되는 것만 둔다.
  */
+
+/*
+ * ★ flowmateFetch(url, options) — CSRF 헤더를 붙이는 fetch() 래퍼 (계획서 5 D5,
+ * 로드맵 C3, Phase 1부터 이월된 항목).
+ *
+ * 왜 필요한가: 아래 $.ajaxSetup 은 jQuery 의 AJAX 경로에만 적용된다. jQuery 는 매
+ * 요청 전에 beforeSend 훅을 부르므로 헤더를 자동으로 붙일 수 있지만, 전역 fetch()
+ * 는 jQuery 를 전혀 거치지 않는 별개의 브라우저 API 라서 이 훅을 타지 않는다.
+ * 그 결과 fetch 로 보낸 POST 는 CSRF 헤더가 없어 Spring Security 가 조용히 403 을
+ * 돌려준다 - 에러 메시지가 "CSRF" 라고 말해 주지 않으므로 원인을 알아내기 어렵다.
+ *
+ * 사전점검 모달(preflight-modal.jsp)처럼 서버 응답을 기다렸다가 그 결과로 분기해야
+ * 하는 흐름은 <form> 제출보다 fetch 가 자연스러운데, 그 fetch 호출마다 헤더를
+ * 손으로 붙이면 다음 사람이 새 호출부를 추가할 때 반드시 빠뜨린다. 그래서 개별
+ * 호출부가 아니라 이 래퍼 하나에 배선한다 - fetch 를 쓰는 곳은 전부 이것을 거친다.
+ *
+ * 토큰은 $.ajaxSetup 과 같은 출처(head.jsp 의 meta 태그)에서 읽는다 - 값이 어긋날
+ * 여지가 없다.
+ */
+function flowmateFetch(url, options) {
+    var opts = options || {};
+    var csrfToken = $('meta[name="_csrf"]').attr('content');
+    var csrfHeader = $('meta[name="_csrf_header"]').attr('content');
+
+    var headers = {};
+    $.extend(headers, opts.headers || {});
+    if (csrfToken && csrfHeader) {
+        headers[csrfHeader] = csrfToken;
+    }
+    opts.headers = headers;
+
+    return fetch(url, opts);
+}
+
 $(function () {
 
     /*

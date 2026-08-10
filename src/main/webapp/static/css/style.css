@@ -72,6 +72,12 @@
  *            .ai-summary__unavailable
  * 연차맥락   .leave-context  .leave-context__list  .leave-context__term
  *            .leave-context__value
+ * 사전점검   .submit-form  .preflight-modal  .preflight-modal__panel
+ *            .preflight-modal__title  .preflight-modal__intro
+ *            .preflight-modal__findings  .preflight-modal__finding
+ *            .preflight-modal__severity  .preflight-modal__category
+ *            .preflight-modal__message  .preflight-modal__suggestion
+ *            .preflight-modal__basis
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
