@@ -248,6 +248,18 @@ SELECT granted_days, used_days FROM leave_balance
 다를 뿐 기본 동작(잠금을 잡고 해제될 때까지 대기)은 동일하므로, 이 문장은 변환 없이
 그대로 이식된다.
 
+**`ON CONFLICT ... DO UPDATE` 의 다른 사용 위치 — `mapper/approval/LeaveRequestMapper.xml#save`.**
+연차 신청서 상세(`leave_request`)를 임시저장 반복 수정할 때, 최초 저장(행 없음)과 수정(행
+있음)을 분기하지 않고 `approval_id` PK 충돌을 `ON CONFLICT (approval_id) DO UPDATE` 로
+그 자리에서 해결한다. 변환 방식은 §2.8과 완전히 같다(`EXCLUDED` → `USING` 소스 별칭 또는
+바인드 변수 반복) — 대상 컬럼과 테이블만 다를 뿐 새로운 패턴은 아니다.
+
+**`ON CONFLICT (...) DO NOTHING` 의 다른 사용 위치 — `docker/postgres/init/41-seed-attendance.sql`.**
+공휴일 시드(`holiday_date` 충돌)와 연차 잔여 시드(`emp_id, year` 충돌) 양쪽에 붙어, init
+스크립트를 실수로 다시 실행해도 PK 충돌 없이 안전하게 만든다(멱등성 목적이며 §1의 대응
+자체는 §2.8 끝에서 다룬 것과 같다 — `MERGE INTO ... WHEN NOT MATCHED THEN INSERT`, `WHEN
+MATCHED` 절은 두지 않는다).
+
 ### 2.9 대량 데모 시드의 행 생성 — `docker/postgres/init/50-seed-demo.sql`
 
 계획서 5 D6 이 정한 대로 문서 200건·반려 40건(유형별 편중)·근태 3개월을 애플리케이션
@@ -317,3 +329,28 @@ SELECT work_date FROM (
 **`ON CONFLICT (emp_id, work_date) DO NOTHING`** (근태 삽입 마지막 줄)은 §2.8 이 이미
 다룬 것과 같은 `MERGE INTO ... WHEN NOT MATCHED THEN INSERT`(이 경우 `WHEN MATCHED` 절은
 아예 쓰지 않는다) 로 옮긴다.
+
+### 2.10 시드 비밀번호 해시 — `docker/postgres/init/11-seed-org.sql`
+
+전 직원 20명의 초기 비밀번호(`flowmate1!`)를 BCrypt 해시로 만들어 넣는다. `crypt()`/`gen_salt()`
+는 `00-extension.sql` 이 만드는 `pgcrypto` 확장 함수다.
+
+```sql
+INSERT INTO employee (emp_id, emp_no, emp_name, dept_id, position_id, email, hire_date, password, role)
+VALUES
+    ( 1, '2015001', '정도현', 1, 6, 'dohyun.jeong@flowmate.co.kr', '2015-03-02',
+      crypt('flowmate1!', gen_salt('bf', 10)), 'ADMIN'),
+    ...
+```
+
+Oracle 에는 `pgcrypto` 자체가 없다(§1 대응 없음 항목). Oracle 로 옮기면 이 INSERT 문 안에서
+해시를 만드는 방법이 없으므로, **애플리케이션(또는 마이그레이션 스크립트)이 미리
+`BCryptPasswordEncoder` 로 해시를 계산해 리터럴 문자열로 INSERT 해야 한다** — `DBMS_CRYPTO`
+패키지는 해싱·암호화 프리미티브는 제공해도 BCrypt 알고리즘 자체(가변 비용·솔트 포함 단방향
+해시)는 구현하지 않는다.
+
+**왜 SQL 안에서 만드는가(PostgreSQL 한정 선택):** 해시를 손으로 계산해 20명분을 복사·
+붙여넣는 단계를 없앤다. `pgcrypto` 의 `bf`(Blowfish) 방식이 `$2a$` 형식을 만들어
+`BCryptPasswordEncoder` 가 애플리케이션 코드 변경 없이 그대로 검증한다. 시드 비밀번호가
+ASCII 문자만 쓰는 이유도 `pgcrypto` `bf` 구현의 8비트 문자 처리 이슈를 피하기 위해서다 —
+Oracle 이식 시에는 이 우회가 필요 없다(애플리케이션에서 해시를 계산하므로).

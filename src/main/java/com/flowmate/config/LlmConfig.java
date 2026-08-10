@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 /**
  * ★ 커스터마이징 지점 4의 배선 - AI 제공자 교체와 데코레이터 체인 조립을 모두 이 클래스가 한다.
@@ -99,15 +100,33 @@ public class LlmConfig {
     @Qualifier("baseLlmClient")
     @ConditionalOnProperty(name = "ai.enabled", havingValue = "true")
     @ConditionalOnProperty(name = "ai.provider", havingValue = "claude")
-    public LlmClient claudeLlmClient(AiProperties props) {
-        String apiKey = System.getenv("ANTHROPIC_API_KEY");
+    public LlmClient claudeLlmClient(AiProperties props, Environment env) {
+        requireApiKey(env, "ANTHROPIC_API_KEY");
+        return new ClaudeLlmClient(props.getModel());
+    }
+
+    /**
+     * 키 존재를 확인하고 없으면 기동을 막는다.
+     *
+     * ★ System.getenv 가 아니라 Spring Environment 를 통해 읽는다.
+     *   처음에는 System.getenv 를 직접 썼는데, 그러면 이 검사를 확인하는 테스트가
+     *   **그 머신의 환경에 의존한다.** 키가 없는 사람은 통과하고 키를 설정해 둔
+     *   사람은 실패한다 — 실제로 개발 중에 GEMINI_API_KEY 를 설정한 순간
+     *   LlmConfigTest 두 건이 깨졌다. public 저장소에서는 키를 가진 사람이 흔하므로
+     *   그대로 두면 남의 빌드를 깨뜨린다.
+     *
+     *   Environment 는 환경변수를 그대로 읽어주므로(relaxed binding) 운영 동작은
+     *   같고, 테스트는 프로퍼티로 빈 값을 주입해 조건을 스스로 만들 수 있다.
+     *   "테스트가 조건을 통제한다"가 "테스트가 환경을 관찰한다"보다 항상 낫다.
+     */
+    private void requireApiKey(Environment env, String name) {
+        String apiKey = env.getProperty(name);
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException(
-                    "ai.enabled=true 인데 환경변수 ANTHROPIC_API_KEY 가 없습니다. "
+                    "ai.enabled=true 인데 환경변수 " + name + " 가 없습니다. "
                     + "키를 설정하거나 ai.enabled 를 false 로 두십시오. "
                     + "(false 로 두면 FakeLlmClient 가 배선되어 AI 기능만 비활성화되고 나머지는 정상 동작합니다)");
         }
-        return new ClaudeLlmClient(props.getModel());
     }
 
     /**
@@ -135,14 +154,8 @@ public class LlmConfig {
     @Qualifier("baseLlmClient")
     @ConditionalOnProperty(name = "ai.enabled", havingValue = "true")
     @ConditionalOnProperty(name = "ai.provider", havingValue = "gemini", matchIfMissing = true)
-    public LlmClient geminiLlmClient(AiProperties props) {
-        String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException(
-                    "ai.enabled=true (provider=gemini) 인데 환경변수 GEMINI_API_KEY 가 없습니다. "
-                    + "키를 설정하거나 ai.enabled 를 false 로 두십시오. "
-                    + "(false 로 두면 FakeLlmClient 가 배선되어 AI 기능만 비활성화되고 나머지는 정상 동작합니다)");
-        }
+    public LlmClient geminiLlmClient(AiProperties props, Environment env) {
+        requireApiKey(env, "GEMINI_API_KEY");
         return new GeminiLlmClient(props.getModel());
     }
 

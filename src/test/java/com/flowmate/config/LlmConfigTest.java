@@ -49,7 +49,9 @@ class LlmConfigTest {
     @Test
     @DisplayName("★ ai.enabled=true + ai.provider=claude, 키 없음 → ANTHROPIC_API_KEY 를 언급하며 기동 실패한다")
     void claudeProviderFailsFastWithoutAnthropicKey() {
-        runner.withPropertyValues("ai.enabled=true", "ai.provider=claude")
+        // 아래 NO_CLAUDE_KEY 주석 참고 - 실행하는 사람이 ANTHROPIC_API_KEY 를
+        // 설정해 두었더라도 이 테스트는 "키 없음" 조건을 스스로 만든다.
+        runner.withPropertyValues("ai.enabled=true", "ai.provider=claude", "ANTHROPIC_API_KEY=")
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
@@ -60,10 +62,24 @@ class LlmConfigTest {
                 });
     }
 
+    /**
+     * ★ 키를 "없는 상태"로 만드는 것을 테스트가 직접 한다.
+     *
+     *   원래는 아무것도 주입하지 않고 System.getenv 가 비어 있기를 기대했는데,
+     *   그러면 이 테스트가 **실행하는 사람의 환경에 의존한다.** 실제로 개발 중에
+     *   GEMINI_API_KEY 를 설정하자마자 아래 두 건이 깨졌다. public 저장소에서는
+     *   키를 가진 사람이 흔하므로 그대로 두면 남의 빌드를 깨뜨린다.
+     *
+     *   LlmConfig 가 Spring Environment 를 통해 읽으므로, 빈 값을 프로퍼티로
+     *   덮어쓰면 실제 환경변수가 무엇이든 "없음"이 된다.
+     */
+    private static final String NO_KEYS = "GEMINI_API_KEY=";
+    private static final String NO_CLAUDE_KEY = "ANTHROPIC_API_KEY=";
+
     @Test
     @DisplayName("★ ai.enabled=true + ai.provider=gemini, 키 없음 → GEMINI_API_KEY 를 언급하며 기동 실패한다")
     void geminiProviderFailsFastWithoutGeminiKey() {
-        runner.withPropertyValues("ai.enabled=true", "ai.provider=gemini")
+        runner.withPropertyValues("ai.enabled=true", "ai.provider=gemini", NO_KEYS)
                 .run(this::assertFailsWithMissingGeminiKeyMessage);
     }
 
@@ -75,7 +91,7 @@ class LlmConfigTest {
         // 가 지키는 계약이다. 키가 없으므로 여전히 실패하지만, 실패 메시지가
         // GEMINI_API_KEY 를 언급해야 "정확히 gemini 쪽이 선택됐다"가 증명된다
         // (claude 쪽이 잘못 선택됐다면 ANTHROPIC_API_KEY 를 언급했을 것이다).
-        runner.withPropertyValues("ai.enabled=true")
+        runner.withPropertyValues("ai.enabled=true", NO_KEYS)
                 .run(this::assertFailsWithMissingGeminiKeyMessage);
     }
 
