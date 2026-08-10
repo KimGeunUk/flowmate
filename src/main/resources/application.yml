@@ -3,9 +3,19 @@ spring:
     name: flowmate
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/flowmate
-    username: flowmate
-    password: flowmate
+    # ★ 환경변수로 재정의할 수 있게 둔다 (계획서 6 D3, 로드맵 "계획서 6의 필수 항목 ③").
+    #
+    #   여기 커밋된 flowmate/flowmate 는 비밀이 아니다 — 로컬 개발 컨테이너의
+    #   기본값이고 같은 값이 docker-compose.yml 에도 있어야 동작한다.
+    #   그래서 이 변경의 목적은 "비밀을 숨기는 것"이 아니라
+    #   **읽는 사람에게 "이 값은 바꿀 수 있는 자리"라고 알려주는 것**이다.
+    #
+    #   저장소가 public 으로 전환되므로, 클론한 사람이 자기 DB 로 붙일 때
+    #   파일을 고치지 않고 DB_PASSWORD 같은 환경변수만 주면 되게 한다.
+    #   기본값을 그대로 두었으므로 아무것도 설정하지 않아도 지금처럼 동작한다.
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/flowmate}
+    username: ${DB_USERNAME:flowmate}
+    password: ${DB_PASSWORD:flowmate}
   mvc:
     view:
       prefix: /WEB-INF/views/
