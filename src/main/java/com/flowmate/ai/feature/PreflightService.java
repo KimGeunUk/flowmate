@@ -18,6 +18,7 @@ import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.RejectHistoryMapper;
 import com.flowmate.approval.service.ApprovalQueryService;
 import com.flowmate.common.exception.ApprovalNotFoundException;
+import com.flowmate.config.AiProperties;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,18 +63,21 @@ public class PreflightService {
     private final PreflightResultMapper preflightResultMapper;
     private final PromptRepository promptRepository;
     private final LlmClient llmClient;
+    private final AiProperties aiProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public PreflightService(ApprovalQueryService approvalQueryService,
                             RejectHistoryMapper rejectHistoryMapper,
                             PreflightResultMapper preflightResultMapper,
                             PromptRepository promptRepository,
-                            LlmClient llmClient) {
+                            LlmClient llmClient,
+                            AiProperties aiProperties) {
         this.approvalQueryService = approvalQueryService;
         this.rejectHistoryMapper = rejectHistoryMapper;
         this.preflightResultMapper = preflightResultMapper;
         this.promptRepository = promptRepository;
         this.llmClient = llmClient;
+        this.aiProperties = aiProperties;
     }
 
     /**
@@ -89,8 +93,19 @@ public class PreflightService {
      *
      *   묶어서 얻는 것도 없다 - WARN 경로의 INSERT 는 한 문장이라 그 자체로 원자적이다.
      *   같은 모양("조회 후 LLM 호출")인 SummaryService 도 @Transactional 을 쓰지 않는다.
+     *
+     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.preflight}
+     * 가 꺼져 있으면 즉시 빈 결과다 - llmClient 는 물론 반려 이력 집계·문서 조회도
+     * 하지 않는다. 이 empty 는 D8 이 이미 만들어 둔 "AI 실패 → 모달 없이 바로 상신"
+     * 경로를 그대로 탄다 - 즉 플래그를 끄는 것과 AI 가 실패하는 것은 화면 입장에서
+     * 같은 결과(모달이 뜨지 않는다)로 수렴한다. write.jsp 는 별도로 같은 플래그를
+     * 보고 사전점검 스크립트 자체를 등록하지 않으므로, 여기서 empty 를 돌려주는
+     * 것은 API 를 직접 두드리는 경우에 대한 방어선이다.
      */
     public Optional<PreflightRecord> check(Long approvalId, Long viewerId) {
+        if (!aiProperties.getFeatures().isPreflight()) {
+            return Optional.empty();
+        }
         ApprovalDoc doc = approvalQueryService.findDoc(approvalId, viewerId);
 
         List<RejectPattern> patterns = aggregatePatterns(doc.getDocType(), doc.getDeptId());

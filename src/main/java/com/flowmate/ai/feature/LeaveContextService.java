@@ -10,6 +10,7 @@ import com.flowmate.attendance.domain.LeaveBalance;
 import com.flowmate.attendance.domain.TeamAvailability;
 import com.flowmate.attendance.service.AttendanceQueryService;
 import com.flowmate.attendance.service.LeaveInquiryService;
+import com.flowmate.config.AiProperties;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,13 +36,16 @@ public class LeaveContextService {
     private final ApprovalQueryService approvalQueryService;
     private final LeaveInquiryService leaveInquiryService;
     private final AttendanceQueryService attendanceQueryService;
+    private final AiProperties aiProperties;
 
     public LeaveContextService(ApprovalQueryService approvalQueryService,
                                LeaveInquiryService leaveInquiryService,
-                               AttendanceQueryService attendanceQueryService) {
+                               AttendanceQueryService attendanceQueryService,
+                               AiProperties aiProperties) {
         this.approvalQueryService = approvalQueryService;
         this.leaveInquiryService = leaveInquiryService;
         this.attendanceQueryService = attendanceQueryService;
+        this.aiProperties = aiProperties;
     }
 
     /**
@@ -55,9 +59,19 @@ public class LeaveContextService {
      * 시점에 그 신청자가 최근 어땠는가"를 신청일 기준으로 고정해야 언제
      * 조회하든(승인 직후든 한참 뒤든) 같은 값이 나온다 - 계획서가 이 기준을
      * 명시하지 않아 내린 결정이다.
+     *
+     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.leave-context}
+     * 가 꺼져 있으면 즉시 null 이다 - "LEAVE 문서가 아니다"·"확장 데이터가 없다"와
+     * 같은 취급이다. 이 서비스는 애초에 LlmClient 를 부르지 않으므로(클래스 주석)
+     * 이 플래그는 LLM 호출을 막는 것이 아니라 패널의 노출 여부만 결정한다 - 그래도
+     * 세 기능이 같은 {@code ai.features.*} 규약으로 켜고 꺼진다는 일관성을 위해
+     * 여기 둔다.
      */
     @Transactional(readOnly = true)
     public LeaveContext build(Long approvalId, Long viewerId) {
+        if (!aiProperties.getFeatures().isLeaveContext()) {
+            return null;
+        }
         ApprovalDoc doc = approvalQueryService.findDoc(approvalId, viewerId);
         if (!DocType.LEAVE.equals(doc.getDocType())) {
             return null;

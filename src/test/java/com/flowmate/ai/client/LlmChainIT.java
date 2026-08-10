@@ -167,6 +167,55 @@ class LlmChainIT {
         assertThat(resultA.get().getModel()).isNotEqualTo(resultB.get().getModel());
     }
 
+    // ── TTL (계획서 5 D4, Task 7) - 실제 Postgres 에서 ON CONFLICT 갱신까지 확인한다 ──
+
+    @Test
+    @DisplayName("★ LEAVE_CONTEXT 캐시는 1시간이 지나면 실제 DB 에서도 만료돼 다시 위임한다")
+    void leaveContextCacheExpiresAfterOneHourInRealDb() {
+        LlmRequest request = newRequest(AiFeature.LEAVE_CONTEXT, "v-ttl-1", "연차 맥락 캐시 만료 테스트");
+
+        llmClient.complete(request);
+        assertThat(fakeLlmClient.getReceived()).hasSize(1);
+
+        // created_at 을 1시간 10분 전으로 되돌려 만료를 흉내낸다 - CachingLlmClientTest
+        // (단위 테스트, FakeAiResultCacheMapper)와 같은 판정 로직을 실제 DB 값으로 검증한다.
+        jdbcTemplate.update(
+                "UPDATE ai_result_cache SET created_at = created_at - INTERVAL '70 minutes' "
+                        + "WHERE feature = ? AND prompt_version = ?",
+                AiFeature.LEAVE_CONTEXT, "v-ttl-1");
+
+        llmClient.complete(request);
+
+        assertThat(fakeLlmClient.getReceived()).hasSize(2); // 만료 -> 미스 -> 다시 위임
+
+        // ON CONFLICT DO UPDATE 로 갱신된 행 - 같은 cache_key 이므로 행은 여전히 하나다.
+        Integer rowCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ai_result_cache WHERE feature = ? AND prompt_version = ?",
+                Integer.class, AiFeature.LEAVE_CONTEXT, "v-ttl-1");
+        assertThat(rowCount).isEqualTo(1);
+
+        Integer hitCount = jdbcTemplate.queryForObject(
+                "SELECT hit_count FROM ai_result_cache WHERE feature = ? AND prompt_version = ?",
+                Integer.class, AiFeature.LEAVE_CONTEXT, "v-ttl-1");
+        assertThat(hitCount).isEqualTo(0); // 갱신된 행은 아직 재사용된 적이 없다
+    }
+
+    @Test
+    @DisplayName("SUMMARY 캐시는 실제 DB 에서도 무기한이다 - 아무리 오래돼도 만료되지 않는다")
+    void summaryCacheNeverExpiresInRealDb() {
+        LlmRequest request = newRequest(AiFeature.SUMMARY, "v-ttl-2", "요약 캐시는 무기한 유지된다");
+
+        llmClient.complete(request);
+        jdbcTemplate.update(
+                "UPDATE ai_result_cache SET created_at = created_at - INTERVAL '10000 hours' "
+                        + "WHERE feature = ? AND prompt_version = ?",
+                AiFeature.SUMMARY, "v-ttl-2");
+
+        llmClient.complete(request);
+
+        assertThat(fakeLlmClient.getReceived()).hasSize(1); // 여전히 히트 - 위임하지 않았다
+    }
+
     private LlmRequest newRequest(String feature, String promptVersion, String prompt) {
         LlmRequest request = new LlmRequest();
         request.setFeature(feature);

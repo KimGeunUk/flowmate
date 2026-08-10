@@ -10,6 +10,9 @@ import com.flowmate.ai.mapper.AiResultCacheMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -22,8 +25,18 @@ import java.util.Optional;
  * 체인의 가장 바깥이다. 히트하면 마스킹도 실제 API 호출도 일어나지 않으므로
  * 비용이 0이다 - 단, 그러려면 이 데코레이터가 MaskingLlmClient 보다 바깥에 있어야
  * 한다. 뒤집히면 캐시 테이블에 원문이 그대로 저장된다 (LlmChainIT 가 이 순서를 단정한다).
+ *
+ * ★ 기능별 TTL (계획서 5 D4, Task 7): 설계서가 캐시 수명을 기능마다 다르게 준다 -
+ *   요약(SUMMARY)은 완료된 문서가 안 바뀌므로 무기한, 연차 맥락(LEAVE_CONTEXT)은
+ *   팀 부재 현황이 시시각각 바뀌므로 1시간이다. {@link #TTL_BY_FEATURE} 에 없는
+ *   feature 는 무기한으로 취급한다 - SUMMARY 를 굳이 이 맵에 넣지 않는 이유다.
+ *   만료 판정은 {@code ai_result_cache.created_at} 하나로 한다 - 별도 만료 컬럼을
+ *   두지 않는다. 만료된 행은 미스와 완전히 같은 경로(위임 → 재저장)를 탄다.
  */
 public class CachingLlmClient implements LlmClient {
+
+    private static final Map<String, Duration> TTL_BY_FEATURE =
+            Map.of(AiFeature.LEAVE_CONTEXT, Duration.ofHours(1));
 
     private final LlmClient delegate;
     private final AiResultCacheMapper cacheMapper;
@@ -42,14 +55,39 @@ public class CachingLlmClient implements LlmClient {
 
         String cacheKey = computeCacheKey(request);
         AiResultCache cached = cacheMapper.findByCacheKey(cacheKey);
-        if (cached != null) {
+        if (cached != null && !isExpired(cached)) {
             cacheMapper.incrementHitCount(cacheKey);
             return Optional.of(toResponse(cached));
         }
 
         Optional<LlmResponse> result = delegate.complete(request);
+        // ★ cached != null && isExpired 인 경로에서는 이미 존재하는 cache_key 를
+        //   다시 저장한다(같은 입력이므로 해시가 같다) - store() 가 부르는
+        //   AiResultCacheMapper.insert 는 그래서 갱신(upsert)까지 해야 한다
+        //   (AiResultCacheMapper.xml 의 ON CONFLICT 참고). 만료 전 무기한 캐시
+        //   경로(SUMMARY)에서는 cached 가 애초에 null 이 아니면 이 줄까지 오지
+        //   않으므로(위 if 에서 이미 반환) 영향이 없다.
         result.ifPresent(response -> store(cacheKey, request, response));
         return result;
+    }
+
+    /**
+     * TTL 이 없는 feature(예: SUMMARY)는 절대 만료되지 않는다. TTL 이 있는데
+     * created_at 이 없다면(방어적 - 정상 경로에서는 DB 기본값 NOW() 가 항상 채운다)
+     * 만료로 보지 않는다 - 알 수 없는 상태를 캐시 미스가 아닌 히트 쪽으로 두는 것이
+     * "이상하면 사용자에게 옛 답을 준다"보다 안전하다(캐시 미스는 재호출·재과금으로
+     * 이어질 뿐 오답으로 이어지지 않는다는 뜻은 아니지만, 이 경우는 데이터 정합성
+     * 문제이지 TTL 로 고칠 문제가 아니다).
+     */
+    private boolean isExpired(AiResultCache cached) {
+        Duration ttl = TTL_BY_FEATURE.get(cached.getFeature());
+        if (ttl == null) {
+            return false;
+        }
+        if (cached.getCreatedAt() == null) {
+            return false;
+        }
+        return cached.getCreatedAt().plus(ttl).isBefore(LocalDateTime.now());
     }
 
     private void store(String cacheKey, LlmRequest request, LlmResponse response) {

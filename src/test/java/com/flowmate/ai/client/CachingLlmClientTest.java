@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.flowmate.ai.domain.AiFeature;
 import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
+import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -110,5 +111,61 @@ class CachingLlmClientTest {
 
         assertThat(fake.getReceived()).hasSize(2); // 매번 위임한다
         assertThat(cacheMapper.getInsertCount()).isEqualTo(0);
+    }
+
+    // ── TTL (계획서 5 D4, Task 7) ──────────────────────────────────
+
+    @Test
+    @DisplayName("★ SUMMARY 는 무기한 캐시다 - 시간이 아무리 지나도 히트한다")
+    void summaryNeverExpires() {
+        FakeLlmClient fake = new FakeLlmClient();
+        FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        LlmRequest req = request(AiFeature.SUMMARY, "v1", "요약할 문서");
+
+        caching.complete(req);
+        cacheMapper.ageAllEntries(Duration.ofDays(3650)); // 10년 - 무기한임을 극단적으로 보여준다
+        Optional<LlmResponse> second = caching.complete(req);
+
+        assertThat(second).isPresent();
+        assertThat(fake.getReceived()).hasSize(1); // 여전히 히트 - 위임하지 않았다
+        assertThat(cacheMapper.getIncrementHitCountCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("★ LEAVE_CONTEXT 는 1시간이 지나면 만료돼 미스처럼 동작한다")
+    void leaveContextExpiresAfterOneHour() {
+        FakeLlmClient fake = new FakeLlmClient();
+        FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        LlmRequest req = request(AiFeature.LEAVE_CONTEXT, "v1", "연차 맥락 캐시 대상");
+
+        caching.complete(req);
+        cacheMapper.ageAllEntries(Duration.ofHours(1).plusMinutes(1)); // 딱 1시간을 살짝 넘긴다
+        Optional<LlmResponse> second = caching.complete(req);
+
+        assertThat(second).isPresent();
+        assertThat(fake.getReceived()).hasSize(2); // 만료 -> 미스 -> 다시 위임했다
+        // 만료된 항목을 다시 저장한 것 - insert 가 두 번(신규 1 + 갱신 1) 불렸다.
+        assertThat(cacheMapper.getInsertCount()).isEqualTo(2);
+        // 갱신된 행은 아직 재사용된 적이 없다 - hit_count 는 다시 0부터다.
+        assertThat(cacheMapper.getIncrementHitCountCalls()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("LEAVE_CONTEXT 는 1시간 이내면 그대로 히트한다")
+    void leaveContextHitsWithinOneHour() {
+        FakeLlmClient fake = new FakeLlmClient();
+        FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        LlmRequest req = request(AiFeature.LEAVE_CONTEXT, "v1", "연차 맥락 캐시 대상");
+
+        caching.complete(req);
+        cacheMapper.ageAllEntries(Duration.ofMinutes(59));
+        Optional<LlmResponse> second = caching.complete(req);
+
+        assertThat(second).isPresent();
+        assertThat(fake.getReceived()).hasSize(1); // 아직 만료 전이므로 히트
+        assertThat(cacheMapper.getIncrementHitCountCalls()).isEqualTo(1);
     }
 }

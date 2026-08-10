@@ -10,6 +10,7 @@ import com.flowmate.ai.domain.SummaryResult;
 import com.flowmate.ai.prompt.PromptRepository;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.service.ApprovalQueryService;
+import com.flowmate.config.AiProperties;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -43,22 +44,35 @@ public class SummaryService {
     private final ApprovalQueryService approvalQueryService;
     private final PromptRepository promptRepository;
     private final LlmClient llmClient;
+    private final AiProperties aiProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SummaryService(ApprovalQueryService approvalQueryService,
                           PromptRepository promptRepository,
-                          LlmClient llmClient) {
+                          LlmClient llmClient,
+                          AiProperties aiProperties) {
         this.approvalQueryService = approvalQueryService;
         this.promptRepository = promptRepository;
         this.llmClient = llmClient;
+        this.aiProperties = aiProperties;
     }
 
     /**
      * 문서 요약. 완료 기준(설계서 §9 5-1): 같은 문서를 두 번 부르면 두 번째는
      * {@code llmClient}(캐싱 데코레이터가 가장 바깥)가 캐시에서 응답한다 - 이
      * 메서드는 매번 같은 cache_key 가 나오도록 매번 같은 프롬프트를 다시 조립한다.
+     *
+     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.summary}
+     * 가 꺼져 있으면 문서 조회조차 하지 않고 즉시 빈 결과다 - llmClient 는 물론
+     * {@code approvalQueryService} 도 건드리지 않는다. 화면(ApprovalBoxController/
+     * detail.jsp)은 이 메서드의 결과가 아니라 같은 플래그를 별도로 보고 요약
+     * 영역 자체를 렌더링하지 않으므로, 여기서 empty 를 돌려주는 것은 "권한 있는
+     * 사용자가 API 를 직접 두드렸을 때"에 대한 방어선이다.
      */
     public Optional<SummaryResult> summarize(Long approvalId, Long viewerId) {
+        if (!aiProperties.getFeatures().isSummary()) {
+            return Optional.empty();
+        }
         ApprovalDoc doc = approvalQueryService.findDoc(approvalId, viewerId);
 
         LlmRequest request = buildRequest(doc, approvalId, viewerId);

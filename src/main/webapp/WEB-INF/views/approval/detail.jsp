@@ -89,13 +89,20 @@
           AI 요약(계획서 5 Task 3). 본문과 분리된 영역이라 요약이 실패해도
           본문 표시에는 영향이 없다(D8) - 실패 시 이 영역 안에서만 안내 문구로
           바뀐다. data-approval-id 는 아래 스크립트가 AJAX 요청을 만드는 데 쓴다.
+
+          ★ aiSummaryEnabled(계획서 5 Task 7, 커스터마이징 지점 5) - ai.features.summary
+          가 꺼지면 이 <section> 자체를 렌더링하지 않는다. "AI 요약을 일시적으로
+          사용할 수 없습니다"(D8, 실제 실패 시 문구)와 다르다 - 꺼진 기능은 오류가
+          아니라 부재이므로 영역 자체가 없어야 한다(계획서 5 Task 7).
         --%>
-        <section class="ai-summary-box">
-            <h3 class="page-title">AI 요약</h3>
-            <div id="aiSummaryArea" class="ai-summary" data-approval-id="${doc.approvalId}">
-                <p class="ai-summary__loading">요약을 불러오는 중입니다...</p>
-            </div>
-        </section>
+        <c:if test="${aiSummaryEnabled}">
+            <section class="ai-summary-box">
+                <h3 class="page-title">AI 요약</h3>
+                <div id="aiSummaryArea" class="ai-summary" data-approval-id="${doc.approvalId}">
+                    <p class="ai-summary__loading">요약을 불러오는 중입니다...</p>
+                </div>
+            </section>
+        </c:if>
 
         <section class="attach-section">
             <h3 class="page-title">첨부파일</h3>
@@ -201,6 +208,15 @@
     </main>
 </div>
 <jsp:include page="../common/footer.jsp"/>
+<%--
+  ai.features.summary 가 꺼져 있으면 이 스크립트 자체를 렌더링하지 않는다 -
+  위 <section class="ai-summary-box"> 도 없으므로(같은 플래그로 감쌌다) #aiSummaryArea
+  가 애초에 존재하지 않는다. 스크립트를 무조건 내보내고 그 안에서 방어적으로
+  #aiSummaryArea 유무를 검사하는 방법도 있지만, "AJAX 요청 자체를 만들지 않는다"를
+  화면 코드로도 눈에 보이게 하려고 <c:if> 로 스크립트 블록째로 걸러낸다
+  (계획서 5 Task 7, 커스터마이징 지점 5 - 꺼진 기능은 API 를 두드리지 않는다).
+--%>
+<c:if test="${aiSummaryEnabled}">
 <script>
     /*
      * AI 요약을 비동기로 불러온다(계획서 5 Task 3). jQuery $.ajax 를 쓴다 -
@@ -260,5 +276,6 @@
         }
     });
 </script>
+</c:if>
 </body>
 </html>
