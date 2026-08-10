@@ -71,6 +71,17 @@ Phase 1 은 Critical/Important 없이 마감됐다. 아래는 **"지금 틀린 �
 | C4 | `SecurityConfig` 의 `permitAll` 목록에 `/WEB-INF/views/login.jsp` 가 들어 있다 | 지금 정상 동작하고 취약점도 아니다(컨테이너가 외부 직접 요청을 막는다). 다만 **뷰 경로가 외부 라우트로 오해될 수 있다** | 선택 사항: `dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()` 로 바꾸면 특정 뷰 경로를 규칙에 적지 않아도 된다. 뷰 대상이 바뀌어도 안 깨진다 | 이월 (미해결). Phase 2 는 `SecurityConfig` 의 `permitAll` 목록을 손대지 않았다 |
 | C5 | `defaultSuccessUrl("/", true)` 가 저장된 요청을 항상 버린다 | **Phase 2 가 딥링크를 만들 때.** "결재 대기 문서가 있습니다" 알림이 `/approvals/123` 을 가리키면, 로그인 후 항상 `/` 로 가버려 사용자가 링크를 다시 눌러야 한다. 오픈 리다이렉트 위험은 없다(저장된 요청은 서버가 만든 값이다) | `alwaysUse` 를 `false` 로 바꾼다 | **해결 (`6fce0f6`).** 내 결재함 Task 에서 `defaultSuccessUrl("/", false)` 로 바꿔 저장된 요청(딥링크)을 보존한다 |
 
+**Phase 6 최종 처리 (2026-08-11, 계획서 6 D6).** 프로젝트 마감 시점에 이 표를 다시 확인한 결과:
+
+- **C3 은 이미 해결됐다** (위 표, `bc29f0b`) — `flowmateFetch` 래퍼가 그 시점에 정확히 이 항목을
+  닫았고, Phase 6은 재확인만 한다. 추가 조치 없음.
+- **C1·C4 는 의도적으로 열어 둔 채로 마감한다.** 둘 다 "지금 틀린 것"이 아니라 "특정 변경을
+  하면 그때 문제가 되는 것"이었고, 그 특정 변경(C1: `EmployeeMapper` 에 캐시를 붙임, C4:
+  `permitAll` 목록을 손댐)이 이 저장소가 public 으로 전환되는 시점까지 일어나지 않았다.
+  **닫지 못하는 것을 조용히 지우지 않는다** — 두 항목 모두 `README.md` 의 "알려진 제약" 절에
+  옮겨 적었다. 이후 이 프로젝트를 포크해 계속 개발하는 사람은 이 로드맵 대신 README를 먼저
+  읽을 가능성이 높으므로, 최종 참조 지점을 README로 옮기는 것이 맞다.
+
 ### 2.1 축소 순서 (일정이 밀렸을 때)
 
 설계서 §9.1이 확정한 순서를 그대로 따른다. **계획을 세울 때가 아니라 밀렸을 때 꺼내 쓴다.**
@@ -313,8 +324,8 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | 2. Phase 2 전자결재 코어 | **완료** — Task 11개 실행 완료, 머지 대기(Task 11 Step 6은 코디네이터가 수행). 단위 52 · 통합 55 (목표 단위 50 · 통합 40 초과 달성) |
 | 3. Phase 3 AI 게이트웨이 | **완료** — Task 6개 실행 완료, 머지 대기(코디네이터가 수행). 단위 81 · 통합 61 (계획 단위 81 · 통합 61 그대로 달성) |
 | 4. Phase 4 근태 + 연동 | **완료** — Task 8개 실행 완료, 머지 대기(코디네이터가 수행). 단위 136 · 통합 98 (계획서 예상 단위 약 111 · 통합 약 78 을 상회 달성) |
-| 5. Phase 5 AI 기능 | **Task 1~8 완료**, 머지 대기. 단위 150 · 통합 130. 구조화 출력 배선(스키마 2종)·기능 3종(요약·사전점검·연차 맥락)·캐시 TTL·기능 플래그·`DatabasePromptRepository` 까지 마쳐 설계서 §7 의 커스터마이징 지점 5개가 전부 구현 2개씩을 갖췄다. **남은 것:** Task 9(평가셋 5건 - 실제 `ANTHROPIC_API_KEY` 필요, 기본 빌드 제외 대상이라 수동 실행), Task 10(마감 - 머지·태그·push) |
-| 6. Phase 6 마감 | 미작성 |
+| 5. Phase 5 AI 기능 | **완료** — Task 1~9 전부 실행 완료, `main` 에 머지, 태그 `phase-5-ai-features`. 단위 150 · 통합 130. 구조화 출력 배선(스키마 2종)·기능 3종(요약·사전점검·연차 맥락)·캐시 TTL·기능 플래그·`DatabasePromptRepository` 까지 마쳐 설계서 §7 의 커스터마이징 지점 5개가 전부 구현 2개씩을 갖췄다. Task 9 평가셋(실제 Gemini API, 수동 실행) **5/5 통과** — `docs/ai-eval-results.md`. 계획 외 추가: `LlmClient` 세 번째 구현 `GeminiLlmClient`(§6.1 이하 참고 대신 README "설계 판단 기록" 참고) |
+| 6. Phase 6 마감 | **완료** — Task 1~6 실행 완료. CSS `style.css` 단일 파일 마감(JSP diff 0), 컨테이너 빈 볼륨 기동 검증, DB 자격증명 환경변수화, README·`oracle-mapping.md`·본 로드맵 최종화, 비밀값 재검(§6.4). 단위 154 · 통합 130, `mvnw clean verify` BUILD SUCCESS(키 없이). **Task 7(public 전환)만 사용자가 직접 수행** — 계획서 6이 그렇게 못박았다 |
 
 ### 6.1 사전점검 결과 (2026-08-06)
 
@@ -403,3 +414,34 @@ Phase 2 착수 전에 다섯 가지를 확인했다. **두 가지가 특히 값�
    기동을 막는 방어 코드를 추가해 고쳤다(fail-fast). **다음 Phase가 지킬 규칙:** SDK의
    "느슨한" 초기화(생성 시점에 필수 자격증명을 검증하지 않는 것)를 가정하지 않는다 —
    문서화된 동작이 아니라 실측으로 확인하고, 필요하면 우리 쪽에서 기동 시점 검사를 추가한다.
+
+### 6.4 Phase 6 마감 처리 (2026-08-11)
+
+계획서 6(`2026-08-09-phase-6-finish.md`) Task 1~6을 전부 실행했다. 요약:
+
+1. **CSS 마감 (Task 1·2).** 사전 대조 후 `style.css` 한 파일만 편집. `git diff --stat` 253
+   insertions·3 deletions, **JSP 변경 0줄** — §6.1·6.2에 이미 두 번 있었던 결과가 세 번째로
+   재현됐다(가장 큰 규모로). 시각 기반 클래스 이름은 사전 대조에서도 없었다.
+2. **컨테이너 문자셋·전체 기동 (Task 3, D2·D5).** `docker compose down -v` 로 빈 볼륨을 만들고
+   `docker compose up -d` 로 재기동 — init 스크립트 6개 전부 실행, 행 수 일치, 컨테이너 안
+   JVM `file.encoding=UTF-8` 확인, 브라우저로 로그인→기안→상신→승인→근태 흐름에서 한글
+   정상 렌더링 확인. DB 자격증명은 `${DB_URL:...}`/`${DB_USERNAME:...}`/`${DB_PASSWORD:...}`
+   로 전환(D3) — 커밋된 기본값은 그대로 두어 재정의 지점만 남겼다.
+3. **README·문서 최종화 (Task 4·5).** `README.md` 전면 재작성(무엇/누구를 위한 것인지,
+   실행법, 아키텍처 스케치, 설계 판단 기록 8건, 알려진 제약, 데모 시나리오, 테스트 카운트).
+   `docs/oracle-mapping.md` 에 §2.10(pgcrypto `crypt`/`gen_salt` 시드 해시)과 `ON CONFLICT`
+   의 추가 사용 위치(`LeaveRequestMapper`, `41-seed-attendance.sql`)를 보강 — 계획서 6이
+   요구한 여섯 구문(양방향 재귀 CTE·`FOR UPDATE`·`ON CONFLICT...DO UPDATE`→`MERGE INTO`·
+   `pg_advisory_xact_lock`·`generate_series`→`CONNECT BY LEVEL`·`crypt`/`gen_salt`)이 전부
+   실제 사용 위치와 함께 문서화된 것을 확인했다. 이월 항목 C1·C4는 §2.0 표 아래에 "Phase 6
+   최종 처리"로 기록하고 README "알려진 제약" 절로 참조를 옮겼다; C3은 이미 해결됨을 재확인.
+   태그 6개(`phase-0-bootstrap` … `phase-5-ai-features`) 전부 올바른 "Phase N 완료" 머지
+   커밋을 가리키는 것을 `git log --first-parent` 로 재확인했다.
+4. **비밀값 재검 (Task 6, D4, ★★).** public 전환 직전의 마지막 확인. `git log --all -p -S
+   "sk-ant"`, `-S "AIza"`, `src/main/resources/` 전체 이력, `.env`/`application-local`/`secret`
+   이름으로 추가된 파일 이력, 추적 파일 중 `.env`/`upload/`/`.log`/`application-local` 패턴을
+   전부 확인했다 — **결과는 이 계획서가 아니라 실행 로그(에이전트 최종 보고)에 그대로 남긴다.**
+   전부 0건이 아니면 이 항목이 여기서 "완료"로 표시되어 있지 않을 것이다.
+
+**Task 7(public 전환)은 계획서 6이 못박은 대로 사용자가 직접 한다.** 전환 후 `v1.0.0` 태그를
+붙이는 것도 사용자 몫이다.
