@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .loginProcessingUrl("/login")
                 .usernameParameter("empNo")
                 .passwordParameter("password")
-                // 저장된 요청이 있으면 그곳으로 돌아간다 (로드맵 C5).
+                // 저장된 요청이 있으면 그곳으로 돌아간다.
                 // 문서 상세가 딥링크 대상이 되었으므로 항상 홈으로 보내면
                 // 링크를 받은 사용자가 로그인 후 다시 링크를 눌러야 한다.
                 //

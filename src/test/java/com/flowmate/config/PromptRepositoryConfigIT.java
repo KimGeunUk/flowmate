@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * ★ 커스터마이징 지점 4의 기본값 배선 확인(계획서 5 Task 8) - application.yml 의
+ * ★ 커스터마이징 지점 4의 기본값 배선 확인 - application.yml 의
  * {@code ai.prompt-repository: file}(기본값)이면 {@link FilePromptRepository} 가
  * 선택된다. {@code PromptRepositoryConfig} 의 {@code matchIfMissing=true} 가 file
  * 쪽에만 있다는 것을 실제 컨텍스트 기동으로 확인한다 - 그 클래스 주석이 경고하는

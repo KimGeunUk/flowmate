@@ -8,7 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 잔여일수는 컬럼으로 저장하지 않고 (granted - used) 로 계산한다 (설계서 §5.4).
+ * 잔여일수는 컬럼으로 저장하지 않고 (granted - used) 로 계산한다.
  */
 class LeaveBalanceTest {
 

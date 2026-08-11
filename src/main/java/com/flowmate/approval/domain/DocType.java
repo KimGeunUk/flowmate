@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 문서 유형 5종 (설계서 §12 확정).
+ * 문서 유형 5종.
  *
  * prefixOf 가 문서번호 접두사를 준다. 문서번호는 {접두사}-{연도}-{4자리 일련번호} 형식이다.
  */

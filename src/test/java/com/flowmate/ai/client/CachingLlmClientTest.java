@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 가장 바깥 데코레이터. cache_key = SHA256(feature:promptVersion:modelKey:outputType:prompt)
- * 로 조회/저장한다 (설계서 §6.4.3, 계획서 3 D8).
+ * 로 조회/저장한다.
  *
  * promptVersion·modelKey 가 캐시 키에 들어가는 이유와 PREFLIGHT 를 캐시하지 않는
  * 이유는 CachingLlmClient 클래스 주석 참고.
@@ -99,9 +99,9 @@ class CachingLlmClientTest {
     }
 
     @Test
-    @DisplayName("★ outputType 이 다르면 입력이 같아도 캐시가 미스한다 (Phase 3 부채 A2)")
+    @DisplayName("★ outputType 이 다르면 입력이 같아도 캐시가 미스한다")
     void differentOutputTypeMisses() {
-        // 계획서 5 D3: 구조화 출력이 생기면 입력이 같아도 스키마(outputType)가 다르면
+        // 구조화 출력이 생기면 입력이 같아도 스키마(outputType)가 다르면
         // 결과 모양이 달라진다. 캐시 키에 outputType 이 없으면 옛 모양의 캐시를 그대로
         // 돌려줘서, 화면이 새 필드를 읽다가 조용히 null 을 받는다. 이 테스트가 그 부채를
         // 갚았다는 증거다 - 같은 feature·같은 promptVersion·같은 input 인데 outputType
@@ -140,7 +140,7 @@ class CachingLlmClientTest {
         assertThat(cacheMapper.getInsertCount()).isEqualTo(0);
     }
 
-    // ── TTL (계획서 5 D4, Task 7) ──────────────────────────────────
+    // ── TTL ──────────────────────────────────
 
     @Test
     @DisplayName("★ SUMMARY 는 무기한 캐시다 - 시간이 아무리 지나도 히트한다")

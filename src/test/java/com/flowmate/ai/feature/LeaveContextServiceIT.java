@@ -23,11 +23,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기능 3a(연차 맥락 표시, LLM 없음) 배선 검증 (설계서 §6.4.7, 계획서 5 Task 4).
+ * 기능 3a(연차 맥락 표시, LLM 없음) 배선 검증.
  *
  * 사원 18(곽수빈, 개발팀=dept 7)로 LEAVE 를 임시저장한다 - 상신·승인까지 갈 필요는
  * 없다(패널은 문서를 볼 수 있는 사람이면 상태와 무관하게 보인다). 곽수빈의 2026년
- * 잔여는 부여 17.0/사용 5.0(잔여 12.0) - Task 1 시드, LeaveInquiryServiceIT 로
+ * 잔여는 부여 17.0/사용 5.0(잔여 12.0) - 시드 값이고, LeaveInquiryServiceIT 로
  * 이미 확인된 값이다. 개발팀(dept 7)은 7명(14~20) - 11-seed-org.sql.
  *
  * 신청일을 2026-09-01(화, 평일)로 고정한다 - "최근 3개월" 창은

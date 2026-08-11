@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.flowmate.attendance.domain.LeaveType;
 
 /**
- * 영업일 계산 — 주말과 holiday 를 뺀다 (계획서 4 D5).
+ * 영업일 계산 — 주말과 holiday 를 뺀다.
  *
  * 사람이 일수를 입력하게 하면 금요일~월요일을 4일로 적는 실수가 반드시 난다는
  * 것이 이 클래스가 존재하는 이유다. 아래 경계값들이 그 실수를 막는다.

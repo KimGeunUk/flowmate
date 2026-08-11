@@ -11,7 +11,7 @@ import com.flowmate.org.domain.Employee;
  *
  * ★ 기준일: 부여 연도의 1월 1일로 고정한다. grantDays(employee, year) 는 특정
  * 시각이 아니라 연도만 받으므로, "그 해가 시작되는 시점까지 채운 근속"을
- * 기준으로 삼는 것이 자연스럽다 (계획서가 정하지 않은 것을 이 구현이 확정한다 —
+ * 기준으로 삼는 것이 자연스럽다 (정해진 바가 없어 이 구현이 확정한다 —
  * 테스트 클래스 주석 참조).
  */
 public class TenureBasedLeaveGrantPolicy implements LeaveGrantPolicy {

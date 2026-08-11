@@ -14,7 +14,7 @@ import java.util.Optional;
  * 고정 응답을 돌려주는 구현. 두 가지 역할을 겸한다.
  *
  *   1) 테스트 대역 — 받은 요청을 기록하므로 "무엇이 바깥으로 나갔는지" 단정할 수 있다
- *   2) ai.enabled=false 일 때의 실제 구현 — API 키 없이 앱이 뜬다 (계획서 3 D3)
+ * 2) ai.enabled=false 일 때의 실제 구현 — API 키 없이 앱이 뜬다
  *
  * 2번이 중요하다. 이것 덕분에 저장소를 클론한 사람이 키 없이 빌드하고 실행할 수 있다.
  *
@@ -66,7 +66,7 @@ public class FakeLlmClient implements LlmClient {
     }
 
     /**
-     * outputType 이 있는 요청(계획서 5 Task 2, 구조화 출력 배선)을 위한 고정 응답.
+     * outputType 이 있는 요청(구조화 출력 배선)을 위한 고정 응답.
      * 실제 Claude 호출 없이도 타입 경로를 테스트로 훈련시킬 수 있어야 하므로, 등록된
      * 고정값이 없으면 그 타입의 기본 생성자로 빈 인스턴스를 만들어 직렬화한다 - 필드가
      * 전부 null 이라도 그 타입의 JSON 스키마는 지키는 "그럴듯한" 응답이다.
@@ -104,7 +104,7 @@ public class FakeLlmClient implements LlmClient {
         }
     }
 
-    /** 지금까지 받은 요청 전부. 마스킹 검증(계획서 3 D8)에 쓴다 — 받은 순서대로 쌓인다 */
+    /** 지금까지 받은 요청 전부. 마스킹 검증에 쓴다 — 받은 순서대로 쌓인다 */
     public List<LlmRequest> getReceived() {
         return received;
     }
@@ -117,15 +117,15 @@ public class FakeLlmClient implements LlmClient {
         return received.get(received.size() - 1);
     }
 
-    /** 고정 응답을 바꾼다 — 두 번째 구현 교체 증명(계획서 3 D4)에서 Claude 와 다른 값을 주는 데 쓴다 */
+    /** 고정 응답을 바꾼다 — 두 번째 구현 교체 증명에서 Claude 와 다른 값을 주는 데 쓴다 */
     public void setFixedResponse(LlmResponse fixedResponse) {
         this.fixedResponse = fixedResponse;
     }
 
     /**
-     * outputType 별 고정값을 등록한다(계획서 5 Task 2). 요청에 그 outputType 이 실려 오면
+     * outputType 별 고정값을 등록한다. 요청에 그 outputType 이 실려 오면
      * 이 값을 JSON 으로 직렬화해 돌려준다 - 기본 생성자로 만든 빈 인스턴스로는 검증할 수
-     * 없는 구체적인 필드 값을 단정해야 하는 테스트(예: Task 3 이후의 기능별 IT)를 위한 것이다.
+     * 없는 구체적인 필드 값을 단정해야 하는 테스트(기능별 통합 테스트)를 위한 것이다.
      */
     public void setFixedResult(Class<?> outputType, Object value) {
         fixedResultsByType.put(outputType, value);
@@ -142,7 +142,7 @@ public class FakeLlmClient implements LlmClient {
     }
 
     /**
-     * 캐싱 데코레이터 순서 검증용(계획서 3 D8) — 받은 프롬프트를 그대로 응답 텍스트로 돌려준다.
+     * 캐싱 데코레이터 순서 검증용 — 받은 프롬프트를 그대로 응답 텍스트로 돌려준다.
      *
      * 고정 응답만 쓰면 그 응답은 입력과 무관한 상수라서, "캐시에 저장된 결과에 원문이 없다"는
      * 단정이 항상 참이 되어 아무것도 증명하지 못한다. 실제 Claude 가 요약 중 입력 내용을

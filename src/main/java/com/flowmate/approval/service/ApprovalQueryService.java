@@ -47,7 +47,7 @@ public class ApprovalQueryService {
     /**
      * 문서 하나. **기안자이거나 결재선에 있는 사람만** 볼 수 있다.
      *
-     * URL 인가로는 막을 수 없는 권한이다 — 문서마다 볼 수 있는 사람이 다르다 (설계서 §6.1).
+     * URL 인가로는 막을 수 없는 권한이다 — 문서마다 볼 수 있는 사람이 다르다.
      */
     @Transactional(readOnly = true)
     public ApprovalDoc findDoc(Long approvalId, Long viewerId) {
@@ -72,7 +72,7 @@ public class ApprovalQueryService {
     }
 
     /**
-     * LEAVE 문서의 연차 신청 확장 정보 (계획서 5 Task 4 - 연차 맥락 패널).
+     * LEAVE 문서의 연차 신청 확장 정보 (연차 맥락 패널).
      * LEAVE 가 아니거나 정합성이 깨져 확장 행이 없으면 null - 호출자(LeaveContextService)
      * 가 null 을 패널 자체를 감추라는 신호로 쓴다. 권한 검사는 이 메서드 앞에서
      * findDoc 이 이미 했다고 가정한다(approval 모듈 밖의 ai 모듈이 이 메서드만
@@ -140,9 +140,9 @@ public class ApprovalQueryService {
     /**
      * 신청 일수가 잔여를 넘는지 — 기안 화면의 안내용 경고 판정이다.
      *
-     * ★ 이 판정은 우회 가능한 안내일 뿐이다 (계획서 D4). 상신과 승인 사이에 다른
+     * ★ 이 판정은 우회 가능한 안내일 뿐이다. 상신과 승인 사이에 다른
      * 문서가 승인되어 잔여가 줄 수 있으므로, 권위 있는 검사는 승인 시점에
-     * leave_balance 를 잠근 뒤 다시 한다 (Task 6). 여기서 true 가 나와도 저장을
+     * leave_balance 를 잠근 뒤 다시 한다. 여기서 true 가 나와도 저장을
      * 막지 않는다 — 막으면 기안자가 정당한 사유로 잔여를 초과 신청하는 것(무급
      * 처리 등 후속 처리가 있는 경우)까지 원천 차단하게 된다.
      */

@@ -25,7 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 설계서 §6.4.6 고정 평가셋 5건 (계획서 5 Task 9 · D1).
+ * 고정 평가셋 5건.
  *
  * ★ {@code @Tag("llm")} - 실제 Gemini API 를 부른다. {@code pom.xml} 의 Failsafe
  * {@code excludedGroups=llm} 이 기본 빌드(mvnw clean verify, 키 없음)에서 이 클래스
@@ -242,7 +242,7 @@ class PreflightEvalSetIT {
     /**
      * finding.category 가 기대한 반려 유형을 가리키는지 검사한다.
      *
-     * ★ 설계서 §6.4.6 의 출력 스키마 예시 자체가 category 를 코드(INSUFFICIENT_CONTENT)가
+     * ★ 출력 스키마 예시 자체가 category 를 코드(INSUFFICIENT_CONTENT)가
      * 아니라 자유 텍스트("목적불명확")로 보여준다 - 이 필드가 반드시 {@link RejectReason}
      * 상수 문자열 그대로 나온다는 보장은 스키마 어디에도 없다. 실제로 case2 실행에서
      * 모델이 "증빙 누락"(RejectReason.labelOf(MISSING_EVIDENCE) 와 동일한 한글 라벨)을

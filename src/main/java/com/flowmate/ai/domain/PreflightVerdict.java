@@ -1,7 +1,7 @@
 package com.flowmate.ai.domain;
 
 /**
- * 사전 점검 판정 2종 (설계서 §6.4.6). {@code PreflightResult.verdict} /
+ * 사전 점검 판정 2종. {@code PreflightResult.verdict} /
  * {@code ai_preflight_result.verdict} 컬럼에 그대로 저장되는 값이다.
  *
  * DocType/RejectReason/AiFeature 와 같은 상수 클래스 관례를 따른다 - 매직 문자열을

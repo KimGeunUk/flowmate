@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 /**
  * 반려 이력. ★ Phase 5 AI 사전점검이 읽는 표다.
  *
- * docType / deptId 가 approval_doc 과 중복이지만 의도한 비정규화다 (설계서 §5.2).
+ * docType / deptId 가 approval_doc 과 중복이지만 의도한 비정규화다.
  * 사전점검은 상신할 때마다 도는 조회이므로 매번 조인하지 않는다.
  */
 public class RejectHistory implements Serializable {

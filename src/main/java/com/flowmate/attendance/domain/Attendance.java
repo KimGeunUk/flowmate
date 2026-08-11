@@ -5,12 +5,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 일별 근태 (설계서 §5.4). UNIQUE(emp_id, work_date) — 하루에 한 행이다.
+ * 일별 근태. UNIQUE(emp_id, work_date) — 하루에 한 행이다.
  *
- * 출퇴근 등록(Task 3)과 연차 반영(Task 6, DefaultLeaveApplyService)이 같은
+ * 출퇴근 등록과 연차 반영(DefaultLeaveApplyService)이 같은
  * 테이블을 UPSERT 로 함께 쓴다. 오전에 출근을 찍고 오후에 반차를 내는 경우처럼
  * 연차 반영이 이미 있는 행을 만날 수 있다 — 그때는 check_in/check_out/
- * work_minutes 는 그대로 두고 status/note 만 바꾼다 (계획서 4 D6).
+ * work_minutes 는 그대로 두고 status/note 만 바꾼다.
  */
 public class Attendance implements Serializable {
 
@@ -98,7 +98,7 @@ public class Attendance implements Serializable {
         this.note = note;
     }
 
-    // ── 판정 (계획서 4 Task 7 — JSP 는 이 boolean/label 만 읽는다) ──────────
+    // ── 판정 (JSP 는 이 boolean/label 만 읽는다) ──────────
 
     /** 출근 기록이 있는가 */
     public boolean isCheckedIn() {

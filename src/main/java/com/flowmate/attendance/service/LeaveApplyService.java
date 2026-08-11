@@ -3,7 +3,7 @@ package com.flowmate.attendance.service;
 import com.flowmate.attendance.domain.LeaveApplyCommand;
 
 /**
- * ★ approval 이 승인 반영에서 보는 유일한 지점 (계획서 4 D1, Task 6 — 이 Phase의 척추).
+ * ★ approval 이 승인 반영에서 보는 유일한 지점 (이 Phase의 척추).
  *
  * approvalId 만 받지 않는다 — 값(LeaveApplyCommand)을 받는다. attendance 가
  * approvalId 로 사원·기간·일수를 알아내려면 approval 의 leave_request 를
@@ -14,7 +14,7 @@ import com.flowmate.attendance.domain.LeaveApplyCommand;
  *
  * ApprovalService.approve() 의 트랜잭션 안에서 직접 호출된다. Spring 이벤트가
  * 아니다 — 어느 한쪽이 실패하면 전부 롤백되어야 "승인은 됐는데 연차가 안
- * 깎였다" 같은 부분 실패를 막을 수 있기 때문이다 (설계서 §6.3).
+ * 깎였다" 같은 부분 실패를 막을 수 있기 때문이다.
  */
 public interface LeaveApplyService {
 

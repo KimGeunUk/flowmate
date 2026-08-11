@@ -3,7 +3,7 @@ package com.flowmate.approval.domain;
 /**
  * 결재선 종류.
  *
- * Phase 2 는 APPROVAL 만 쓴다. AGREEMENT/REFERENCE 는 설계서 §9 가 정한
+ * Phase 2 는 APPROVAL 만 쓴다. AGREEMENT/REFERENCE 는 뒤로 미룬
  * 잘라내기 순서에서 2순위이므로 상수만 두고 화면·로직은 만들지 않는다.
  */
 public final class LineType {

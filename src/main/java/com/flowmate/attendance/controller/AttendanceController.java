@@ -16,11 +16,11 @@ import com.flowmate.attendance.service.AttendanceService;
 import com.flowmate.org.security.LoginEmployee;
 
 /**
- * 출퇴근 등록(Task 3) + 근태 조회 화면(Task 7).
+ * 출퇴근 등록 + 근태 조회 화면.
  *
  * 조회 두 화면 모두 대상(empId/deptId)을 요청 파라미터로 받지 않는다 —
  * 로그인 주체(loginEmployee)에서만 가져온다. 그래서 URL 을 조작해 남의
- * 근태나 다른 부서를 보는 경로 자체가 없다(계획서 4 Task 7 권한 규칙).
+ * 근태나 다른 부서를 보는 경로 자체가 없다(권한 규칙).
  */
 @Controller
 @RequestMapping("/attendance")

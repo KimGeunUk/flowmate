@@ -18,7 +18,7 @@ import com.flowmate.approval.domain.LeaveRequest;
 import com.flowmate.attendance.domain.LeaveType;
 
 /**
- * leave_request 는 approval_doc 을 PK 로 참조하는 1:1 확장이다 (설계서 §5.3).
+ * leave_request 는 approval_doc 을 PK 로 참조하는 1:1 확장이다.
  * 먼저 approval_doc 행을 만들어야 FK 제약을 지킬 수 있다.
  */
 @SpringBootTest

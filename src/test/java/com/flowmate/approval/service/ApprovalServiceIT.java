@@ -215,7 +215,7 @@ class ApprovalServiceIT {
     @Test
     @DisplayName("이미 처리된 단계를 다시 승인하려 하면 권한이 아니라 상태 문제로 거부한다")
     void reApprovingProcessedStepIsStateError() {
-        // 신동혁(과장)이 기안하면 결재선은 박현주 1명뿐이다 (로드맵 §5.1 검증 표).
+        // 신동혁(과장)이 기안하면 결재선은 박현주 1명뿐이다 (검증 표).
         // 결재자가 1명이라 첫 승인이 곧 최종 승인이고, current_step 이 그대로 1에 머문다 —
         // 그래서 다시 눌러도 "다른 사람 차례"가 아니라 "이미 끝난 단계"로 걸린다.
         Long id = approvalService.saveDraft(newForm("중복 클릭", "1000000"), SHIN);

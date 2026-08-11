@@ -5,7 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * {@code ai_preflight_result} 행 (설계서 §5.5, 계획서 5 Task 5).
+ * {@code ai_preflight_result} 행.
  */
 @Mapper
 public interface PreflightResultMapper {

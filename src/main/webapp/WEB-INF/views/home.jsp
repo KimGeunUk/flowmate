@@ -55,7 +55,7 @@
         </section>
 
         <%--
-          출퇴근 (계획서 4 Task 3). 상태 판정(출근/퇴근 여부)은 HomeController 가
+          출퇴근. 상태 판정(출근/퇴근 여부)은 HomeController 가
           이미 boolean(checkedIn/checkedOut)으로 끝내 넘긴다 — 여기서는 그 값만
           읽는다. ${todayAttendance.status == 'LATE'} 같은 비교를 JSP 에 두지 않는다.
         --%>

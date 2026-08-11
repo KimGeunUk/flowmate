@@ -13,7 +13,7 @@ import java.util.Map;
  * Mockito 를 새로 들이지 않는다는 이 프로젝트의 관례를 따른다 - 이 클래스 하나면
  * CachingLlmClient 가 미스/히트/저장을 정확히 수행하는지 실제 DB 없이 검증할 수 있다.
  *
- * ★ insert() 가 put(덮어쓰기)인 이유(계획서 5 Task 7, TTL): 실제 매퍼의
+ * ★ insert 가 put(덮어쓰기)인 이유(TTL): 실제 매퍼의
  *   {@code ON CONFLICT DO UPDATE} 와 같은 upsert 동작을 흉내낸다 - 만료된 캐시를
  *   같은 cache_key 로 다시 저장하는 경로를 이 대역으로도 검증할 수 있어야 한다.
  *   createdAt 이 비어 있으면 지금 시각을 채우는 것도 실제 DB 의 {@code created_at

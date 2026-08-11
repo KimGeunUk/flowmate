@@ -12,7 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Task 1 시드(2026년 한국 공휴일 15건)를 전제로 한다.
+ * 시드(2026년 한국 공휴일 15건)를 전제로 한다.
  */
 @SpringBootTest
 @Transactional

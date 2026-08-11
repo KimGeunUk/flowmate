@@ -8,12 +8,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@code ai_prompt} 테이블에서 프롬프트를 읽는다 - 커스터마이징 지점 4
- * ({@link PromptRepository})의 두 번째 구현 (계획서 5 Task 8, 설계서 §6.4.4·§7).
+ * ({@link PromptRepository})의 두 번째 구현.
  * {@code ai.prompt-repository=database} 로 켠다 - {@code PromptRepositoryConfig} 참고.
  *
- * 설계서 §6.4.4 가 "나중에 DB 관리 화면으로 승격할 때 구현체만 교체하면 된다"고
- * 적은 그 구현체다. 관리 화면 자체는 이 Phase 의 범위가 아니다(계획서 5 정정
- * 섹션이 "향후"라고 명시한 부분) - 지금은 누구든 {@code ai_prompt} 행을 직접
+ * "나중에 DB 관리 화면으로 승격할 때 구현체만 교체하면 된다"는 설계를
+ * 실현한 구현체다. 관리 화면 자체는 아직 만들지 않았다 - 지금은
+ * 누구든 {@code ai_prompt} 행을 직접
  * 갱신하면(운영에서는 관리 화면이, 지금은 psql 이) 재배포 없이 프롬프트가
  * 바뀐다는 것만 증명한다.
  *
@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 이유 자체가 무효화된다. 그렇다고 매 호출마다 DB 를 때리면 SummaryService/
  * PreflightService 가 캐시 미스마다(요약은 매 신규 문서, 사전점검은 매 상신)
  * 프롬프트를 다시 조립하므로 I/O 가 상시로 늘어난다. 짧은 TTL 은 그 사이 -
- * Task 7 이 {@code LEAVE_CONTEXT} 캐시에 쓴 것과 같은 절충이다.
+ * {@code LEAVE_CONTEXT} 캐시에 쓴 것과 같은 절충이다.
  */
 public class DatabasePromptRepository implements PromptRepository {
 

@@ -10,7 +10,7 @@ import com.flowmate.approval.domain.LeaveRequest;
  *
  * upsert 를 쓰는 이유: 임시저장을 반복 수정하면 문서는 있고 확장 행은 없는
  * 상태(최초 저장)와 둘 다 있는 상태(수정)가 섞인다. INSERT/UPDATE 를 분기하는
- * 대신 ON CONFLICT 로 DB 안에서 해결한다 (계획서 4 D6과 같은 방식 — 여기서는
+ * 대신 ON CONFLICT 로 DB 안에서 해결한다 — 여기서는
  * 제약 위반을 피하는 용도가 아니라 분기 자체를 없애는 용도다).
  */
 @Mapper

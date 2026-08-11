@@ -3,7 +3,7 @@ spring:
     name: flowmate
   datasource:
     driver-class-name: org.postgresql.Driver
-    # ★ 환경변수로 재정의할 수 있게 둔다 (계획서 6 D3, 로드맵 "계획서 6의 필수 항목 ③").
+    # ★ 환경변수로 재정의할 수 있게 둔다 (배포 환경마다 값이 다르다).
     #
     #   여기 커밋된 flowmate/flowmate 는 비밀이 아니다 — 로컬 개발 컨테이너의
     #   기본값이고 같은 값이 docker-compose.yml 에도 있어야 동작한다.
@@ -21,7 +21,7 @@ spring:
       prefix: /WEB-INF/views/
       suffix: .jsp
   servlet:
-    # 설정하지 않으면 기본 1MB 에서 조용히 막힌다 (Task 10).
+    # 설정하지 않으면 기본 1MB 에서 조용히 막힌다.
     multipart:
       max-file-size: 10MB
       max-request-size: 20MB
@@ -46,7 +46,7 @@ flowmate:
     # 고객사별 납품에서 코드를 고치지 않고 이 값만 바꾼다.
     line-policy: default
   attendance:
-    # 근태 판정 정책 교체 지점 (계획서 4 D7). default | flex
+    # 근태 판정 정책 교체 지점. default | flex
     work-time-policy: default
     # 연차 부여 정책 교체 지점. flat | tenure
     leave-grant-policy: flat
@@ -57,7 +57,7 @@ flowmate:
     max-file-size: 10MB
 
 ai:
-  enabled: false          # 기본값 - API 키 없이 빌드·실행된다 (계획서 3 D3)
+  enabled: false # 기본값 - API 키 없이 빌드·실행된다
   # AI 제공자 교체 지점(LlmConfig 참고). claude | gemini - ai.enabled=true 일 때만 의미가 있다.
   # gemini 가 기본값인 이유: 무료 등급이 있다(Claude 는 유료뿐이다).
   provider: gemini
@@ -66,7 +66,7 @@ ai:
   # 확인한 것이다. gemini-3.5-flash-lite 가 현재 신규 키로 실제 동작하는 모델이다.
   model: gemini-3.5-flash-lite  # claude 로 되돌리려면 provider: claude 와 model: claude-opus-5 를 함께 바꾼다
   timeout-seconds: 30
-  # 프롬프트 저장소 교체 지점(커스터마이징 지점 4, 계획서 5 Task 8). file | database
+  # 프롬프트 저장소 교체 지점(커스터마이징 지점 4). file | database
   # database 는 ai_prompt 테이블에서 읽는다 - PromptRepositoryConfig 참고.
   prompt-repository: file
   features:

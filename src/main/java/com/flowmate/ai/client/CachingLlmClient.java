@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * ★ 캐시 키에 promptVersion 을 넣는 이유 (설계서 §6.4.3):
+ * ★ 캐시 키에 promptVersion 을 넣는 이유:
  *   프롬프트를 고쳤는데 캐시가 옛 결과를 돌려주면, 프롬프트를 고친 사람은
  *   "왜 안 바뀌지"를 한참 디버깅하게 된다. 버전이 키에 있으면 자동으로 무효화된다.
  *
@@ -26,7 +26,7 @@ import java.util.Optional;
  * 비용이 0이다 - 단, 그러려면 이 데코레이터가 MaskingLlmClient 보다 바깥에 있어야
  * 한다. 뒤집히면 캐시 테이블에 원문이 그대로 저장된다 (LlmChainIT 가 이 순서를 단정한다).
  *
- * ★ 기능별 TTL (계획서 5 D4, Task 7): 설계서가 캐시 수명을 기능마다 다르게 준다 -
+ * ★ 기능별 TTL: 캐시 수명은 기능마다 달라야 한다 -
  *   요약(SUMMARY)은 완료된 문서가 안 바뀌므로 무기한, 연차 맥락(LEAVE_CONTEXT)은
  *   팀 부재 현황이 시시각각 바뀌므로 1시간이다. {@link #TTL_BY_FEATURE} 에 없는
  *   feature 는 무기한으로 취급한다 - SUMMARY 를 굳이 이 맵에 넣지 않는 이유다.
@@ -126,7 +126,7 @@ public class CachingLlmClient implements LlmClient {
     }
 
     private String computeCacheKey(LlmRequest request) {
-        // ★ outputType 을 키에 넣는 이유 (계획서 5 D3, Phase 3 부채 A2 - "잊으면 조용히
+        // ★ outputType 을 키에 넣는 이유 ("잊으면 조용히
         //   틀린다"고 적어 둔 그 부채): 구조화 출력이 생기면 입력이 같아도 outputType 이
         //   다르면 결과의 모양(JSON 스키마)이 다르다. outputType 이 키에 없으면 먼저 캐시된
         //   옛 모양을 그대로 돌려주고, 화면은 새 필드를 읽다가 예외 없이 null 을 받는다.

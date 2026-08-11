@@ -16,16 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기능 3a — 연차 맥락 표시, LLM 없음 (설계서 §6.4.7, 계획서 5 Task 4).
+ * 기능 3a — 연차 맥락 표시, LLM 없음.
  *
- * ★ 이 패널 하나로 "결재와 근태 두 모듈이 통합됐다"는 주장이 성립한다(설계서
+ * ★ 이 패널 하나로 "결재와 근태 두 모듈이 통합됐다"는 주장이 성립한다(설계
  * §6.4.7). API 키가 없어도 완전히 동작한다 - LlmClient 를 전혀 부르지 않는다.
  *
  * ★ 권한: 새 규칙을 만들지 않고 {@link ApprovalQueryService#findDoc(Long, Long)}
  * 를 그대로 태운다 - 문서를 볼 수 없는 사람에게는 이 메서드가 예외로 끝난다
- * (Task 3 의 SummaryService 와 같은 원칙).
+ * (SummaryService 와 같은 원칙).
  *
- * ★ 교차 모듈 경계(Phase 4 D1): attendance 는 {@link AttendanceQueryService}·
+ * ★ 교차 모듈 경계: attendance 는 {@link AttendanceQueryService}·
  * {@link LeaveInquiryService} 두 Service 인터페이스로만 본다 - 매퍼를 직접
  * 부르지 않는다. approval 쪽도 마찬가지로 {@link ApprovalQueryService} 하나만
  * 본다.
@@ -57,10 +57,10 @@ public class LeaveContextService {
      * ★ 최근 3개월·팀 가동률의 기준일은 신청서의 {@code startDate} 다 - 실행
      * 시점의 실제 날짜(LocalDate.now())가 아니다. "지금 이 신청을 검토하는
      * 시점에 그 신청자가 최근 어땠는가"를 신청일 기준으로 고정해야 언제
-     * 조회하든(승인 직후든 한참 뒤든) 같은 값이 나온다 - 계획서가 이 기준을
+     * 조회하든(승인 직후든 한참 뒤든) 같은 값이 나온다 - 이 기준을
      * 명시하지 않아 내린 결정이다.
      *
-     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.leave-context}
+     * ★ 기능 플래그(커스터마이징 지점 5): {@code ai.features.leave-context}
      * 가 꺼져 있으면 즉시 null 이다 - "LEAVE 문서가 아니다"·"확장 데이터가 없다"와
      * 같은 취급이다. 이 서비스는 애초에 LlmClient 를 부르지 않으므로(클래스 주석)
      * 이 플래그는 LLM 호출을 막는 것이 아니라 패널의 노출 여부만 결정한다 - 그래도

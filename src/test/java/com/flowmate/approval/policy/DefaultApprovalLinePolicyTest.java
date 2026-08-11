@@ -16,9 +16,9 @@ import com.flowmate.approval.domain.LineStatus;
 import com.flowmate.approval.domain.LineType;
 
 /**
- * 기본 결재선 정책. 로드맵 §5.1 이 확정한 규칙과 검증 표를 그대로 고정한다.
+ * 기본 결재선 정책. 확정된 규칙과 검증 표를 그대로 고정한다.
  *
- * 후보 목록을 인자로 받으므로 DB 없이 돈다 — 이것이 이 인터페이스를 설계서 원안과
+ * 후보 목록을 인자로 받으므로 DB 없이 돈다 — 이것이 이 인터페이스를 원안과
  * 다르게 잡은 이유다.
  */
 class DefaultApprovalLinePolicyTest {
@@ -60,7 +60,7 @@ class DefaultApprovalLinePolicyTest {
     }
 
     @Test
-    @DisplayName("사원이 소액을 기안하면 팀장과 본부장 2단계가 된다 - 설계서 완료 기준과 같은 모양")
+    @DisplayName("사원이 소액을 기안하면 팀장과 본부장 2단계가 된다 - 완료 기준과 같은 모양")
     void staffSmallAmountGetsTeamLeadAndDivisionHead() {
         List<ApprovalLine> lines = policy.determineLines(doc(KWAK, "1000000"), KWAK, DEV_CHAIN);
 

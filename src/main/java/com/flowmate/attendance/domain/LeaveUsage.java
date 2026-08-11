@@ -6,8 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 연차 반영 이력 (설계서 §5.4). 결재 승인 1건당 정확히 1행 —
- * approval_id 가 UNIQUE 다 (중복 반영 방지, 계획서 4 D2).
+ * 연차 반영 이력. 결재 승인 1건당 정확히 1행 —
+ * approval_id 가 UNIQUE 다 (중복 반영 방지).
  *
  * DefaultLeaveApplyService 가 existsByApprovalId 로 먼저 조회해 분기하므로,
  * 이 UNIQUE 제약은 정상 경로에서는 걸리지 않는다 — 걸린다면 조회-후-분기

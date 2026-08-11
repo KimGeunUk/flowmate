@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
- * "부서 근태 현황" 화면의 사원별 한 줄 (계획서 4 Task 7).
+ * "부서 근태 현황" 화면의 사원별 한 줄.
  *
  * AttendanceMapper#findDeptMonthlySummary 의 GROUP BY 결과를 그대로 담는
  * 조회 전용 DTO 다 — Attendance(일별 원본 테이블 행)와는 다른 모양이라

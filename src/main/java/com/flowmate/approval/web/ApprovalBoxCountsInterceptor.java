@@ -31,7 +31,7 @@ import com.flowmate.org.security.LoginEmployee;
  *   이 값이 없으면 배지가 안 보일 뿐이고, 있으면 안 되는 일은 배지 하나
  *   때문에 화면 전체가 500 이 되는 것이다. 특히 오류 화면을 그리는 중에
  *   여기서 또 예외가 나면 원래 오류가 무엇이었는지조차 알 수 없게 된다.
- *   설계서 §6.4.3 의 폴백 원칙(보조 장치가 죽어도 본 기능은 산다)과 같다.
+ * 폴백 원칙(보조 장치가 죽어도 본 기능은 산다)과 같다.
  */
 @Component
 public class ApprovalBoxCountsInterceptor implements HandlerInterceptor {

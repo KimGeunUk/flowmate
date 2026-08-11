@@ -9,7 +9,7 @@ import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import java.util.Optional;
 
 /**
- * 실제 Gemini API 호출 (설계서 §6.4.1 체인의 맨 안쪽) — {@code ClaudeLlmClient} 와 나란한
+ * 실제 Gemini API 호출 (체인의 맨 안쪽) — {@code ClaudeLlmClient} 와 나란한
  * 커스터마이징 지점 4의 세 번째 구현이다.
  *
  * ★ 이 클래스가 존재하는 이유 자체가 증명이다 — 데코레이터 체인({@code CachingLlmClient} →
@@ -23,7 +23,7 @@ import java.util.Optional;
  *   (ClaudeLlmClient 클래스 주석과 같은 이유·같은 함정), 여기서는 그 값을 다시 읽어
  *   {@code Client} 를 만들기만 한다 — 키 부재를 다시 검사하지 않는다(이미 걸렀다).
  *
- * ★ 구조화 출력 (계획서 5 D2): Gemini Java SDK 에는 Claude 처럼 "클래스를 주면 스키마를
+ * ★ 구조화 출력: Gemini Java SDK 에는 Claude 처럼 "클래스를 주면 스키마를
  *   자동으로 뽑아 타입으로 돌려주는" 오버로드가 없다 — SDK 의 {@code Schema} 는
  *   {@code Schema.builder()} 로 손으로 짓거나 {@code Schema.fromJson(String)} 뿐이고,
  *   POJO 에서 자동 유도하는 헬퍼가 없다. 그래서 이 클래스는 스키마 객체를 만들지
@@ -32,7 +32,7 @@ import java.util.Optional;
  *   (summary.v1.txt/preflight.v1.txt)의 지시문이 책임진다 — {@code SummaryService}/
  *   {@code PreflightService} 둘 다 응답을 관대하게 파싱하고(Jackson 파싱 실패 시
  *   {@code Optional.empty()}) 실패해도 예외를 던지지 않으므로, 스키마 없이 MIME
- *   타입만 지정해도 충분하다(설계서 5 D8 폴백 원칙과 같은 방향 — 스키마 강제가
+ *   타입만 지정해도 충분하다(폴백 원칙과 같은 방향 — 스키마 강제가
  *   실패하면 요청 자체를 실패시키는 것이 아니라, 어차피 있는 관대한 파싱에 맡긴다).
  *
  * ★ 거절(Claude 의 refusal)에 준하는 별도 검사를 하지 않는다 — 안전 필터에 걸리는 등

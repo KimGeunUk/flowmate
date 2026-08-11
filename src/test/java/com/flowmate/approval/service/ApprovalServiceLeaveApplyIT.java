@@ -28,7 +28,7 @@ import com.flowmate.attendance.mapper.LeaveUsageMapper;
 import com.flowmate.attendance.service.LeaveApplyService;
 
 /**
- * ★★ 이 Phase의 척추 (설계서 §6.3, 계획서 4 Task 6) — 성공 경로들.
+ * ★★ 이 Phase의 척추 — 성공 경로들.
  *
  * 실패·롤백 경로(테스트 2, 3)는 별도 클래스 {@link ApprovalServiceLeaveApplyRollbackIT}
  * 에 있다 — 이 클래스처럼 {@code @Transactional} 을 쓰면, approve() 안에서 이미
@@ -36,7 +36,7 @@ import com.flowmate.attendance.service.LeaveApplyService;
  * 다시 읽혀서 거짓으로 보일 수 있기 때문이다 (그 클래스의 클래스 주석 참조).
  * 이 클래스의 테스트들은 예외를 기대하지 않으므로 그 함정이 없다.
  *
- * 사원 18(곽수빈)의 2026년 잔여는 부여 17.0/사용 5.0(잔여 12.0)이다 (Task 1 시드,
+ * 사원 18(곽수빈)의 2026년 잔여는 부여 17.0/사용 5.0(잔여 12.0)이다 (시드,
  * LeaveBalanceMapperIT 로 확인됨). 2026년 7월은 공휴일이 없다(HolidayMapperIT).
  * 곽수빈의 결재선은 신동혁(14, 팀장) → 박현주(3, 부장) 2단계다 (ApprovalServiceIT).
  */

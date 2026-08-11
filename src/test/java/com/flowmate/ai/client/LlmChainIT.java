@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code LlmConfig} 가 실제로 조립한 체인(Caching → Masking → Logging → Resilient → 실구현)을
- * 통째로 검증한다 (계획서 3 Task 6, D8).
+ * 통째로 검증한다 (D8).
  *
  * {@code ai.enabled=false}(기본값)로 테스트가 돌기 때문에 체인의 맨 안쪽은
  * {@link FakeLlmClient} 다. 이 클래스가 "받은 요청을 기록"하는 능력 덕분에, 체인 밖에서
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * ★ 1번({@code originalTextNeverReachesTheInnerClient})과
  *   2번({@code cacheStoresMaskedTextNotOriginal})이 이 Phase 전체의 존재 이유다.
- *   설계서의 주장 "원문이 외부로 나가지 않는다"를 단위 테스트가 아니라
+ *   "원문이 외부로 나가지 않는다"는 주장를 단위 테스트가 아니라
  *   조립된 체인 수준에서 고정하는 것이 이 둘의 역할이다.
  */
 @SpringBootTest
@@ -134,7 +134,7 @@ class LlmChainIT {
         Optional<LlmResponse> result = llmClient.complete(
                 newRequest(AiFeature.PREFLIGHT, "v-fail-1", "사전점검 대상 문서 본문"));
 
-        // 폴백 원칙(설계서 §6.4.3): AI 실패가 업무 실패가 되어서는 안 된다 - 예외가 아니라 empty.
+        // 폴백 원칙: AI 실패가 업무 실패가 되어서는 안 된다 - 예외가 아니라 empty.
         assertThat(result).isEmpty();
 
         Map<String, Object> log = jdbcTemplate.queryForMap(
@@ -167,7 +167,7 @@ class LlmChainIT {
         assertThat(resultA.get().getModel()).isNotEqualTo(resultB.get().getModel());
     }
 
-    // ── TTL (계획서 5 D4, Task 7) - 실제 Postgres 에서 ON CONFLICT 갱신까지 확인한다 ──
+    // ── TTL - 실제 Postgres 에서 ON CONFLICT 갱신까지 확인한다 ──
 
     @Test
     @DisplayName("★ LEAVE_CONTEXT 캐시는 1시간이 지나면 실제 DB 에서도 만료돼 다시 위임한다")

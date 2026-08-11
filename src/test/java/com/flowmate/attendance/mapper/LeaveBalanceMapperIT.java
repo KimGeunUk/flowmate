@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.flowmate.attendance.domain.LeaveBalance;
 
 /**
- * 연차 잔여 매퍼. Task 1 시드(사원 18 곽수빈, 2026년, 부여 17.0/사용 5.0)를 전제로 한다.
+ * 연차 잔여 매퍼. 시드(사원 18 곽수빈, 2026년, 부여 17.0/사용 5.0)를 전제로 한다.
  *
  * ★ @Transactional 로 각 테스트가 끝나면 롤백되므로, updateUsedDays 로 시드를
  * 바꿔도 다음 테스트나 다음 실행에 흔적이 남지 않는다.

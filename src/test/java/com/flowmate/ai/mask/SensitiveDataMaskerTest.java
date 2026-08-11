@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 외부 LLM 으로 나가는 텍스트에서 민감정보 6종(주민번호·계좌·전화·사업자번호·카드·이메일)을
- * 치환하는지 검증한다 (설계서 §6.4.2).
+ * 치환하는지 검증한다.
  *
  * ★ 오탐 허용·미탐 불허라는 비대칭을 13번({@link #docNoLooksLikeAccountAndThatIsAccepted()}),
  *   14번({@link #rrnIsMaskedEvenInsideLongerDigits()}) 테스트가 고정한다.

@@ -21,7 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * ★ 커스터마이징 지점 5 의 증명(계획서 5 Task 7, 계획서 5 정정 섹션). {@code ai.features.*}
+ * ★ 커스터마이징 지점 5 의 증명. {@code ai.features.*}
  * 키는 Phase 3 부터 application.yml 에 있었지만 아무도 읽지 않았다 - "키만 있고 쓰는
  * 기능이 없다"는 것이 그 정정 섹션이 지적한 결함이다. 이 클래스는 그 반대,
  * 즉 플래그를 끄면 해당 기능이 {@link com.flowmate.ai.client.LlmClient} 까지 실제로
@@ -96,7 +96,7 @@ class AiFeatureFlagsDisabledIT {
         LeaveContext context = leaveContextService.build(approvalId, KWAK);
 
         assertThat(context).isNull();
-        // LeaveContextService 는 원래도 LlmClient 를 쓰지 않는다(Task 4, LLM 없음) -
+        // LeaveContextService 는 원래도 LlmClient 를 쓰지 않는다(LLM 없음) -
         // 그래도 세 기능이 같은 방식으로 검증된다는 것을 보이기 위해 함께 확인한다.
         assertThat(fakeLlmClient.getReceived()).isEmpty();
     }

@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import com.flowmate.attendance.domain.LeaveUsage;
 
 /**
- * 연차 반영 이력. approval_id 가 UNIQUE 다 (계획서 4 D2 — 중복 반영 방지).
+ * 연차 반영 이력. approval_id 가 UNIQUE 다 (중복 반영 방지).
  *
  * ★ existsByApprovalId 를 먼저 불러 분기한다. UNIQUE 제약 위반을 잡아서
  * 판단하지 않는다 — PostgreSQL 은 제약 위반 시 트랜잭션 전체를 중단 상태로
