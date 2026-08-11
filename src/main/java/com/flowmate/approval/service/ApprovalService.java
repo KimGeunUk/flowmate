@@ -113,13 +113,30 @@ public class ApprovalService {
         return form.getAmount() == null ? BigDecimal.ZERO : form.getAmount();
     }
 
+    /**
+     * 저장할 본문. 연차 신청서는 **사유가 곧 본문**이다.
+     *
+     * ★ 이전에는 화면이 사유와 본문을 따로 물었는데, 사유(leave_request.reason)를
+     *   읽는 곳이 기안 화면의 되채우기뿐이었다 - 결재자의 문서 상세에도, AI 요약·
+     *   사전점검 프롬프트에도 들어가지 않았다. 그 둘은 approval_doc.content 만
+     *   읽는다. 그래서 신청자가 사유를 적어도 아무에게도 닿지 않았고, 본문에 같은
+     *   내용을 한 번 더 적어야만 실제로 전달됐다.
+     *
+     *   사유를 content 로 승격시키면 기존 경로가 전부 살아난다 - 문서 상세의 본문
+     *   영역, AI 요약, 사전점검이 손대지 않아도 사유를 보게 된다. 그래서 화면에서는
+     *   연차신청일 때 본문 칸을 감춘다(write.jsp).
+     */
+    private String contentOf(ApprovalForm form) {
+        return DocType.LEAVE.equals(form.getDocType()) ? form.getReason() : form.getContent();
+    }
+
     private Long createDraft(ApprovalForm form, Long actorId) {
         Employee drafter = requireEmployee(actorId);
 
         ApprovalDoc doc = new ApprovalDoc();
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
-        doc.setContent(form.getContent());
+        doc.setContent(contentOf(form));
         doc.setAmount(amountOrZero(form));
         doc.setDrafterId(actorId);
         doc.setDeptId(drafter.getDeptId());
@@ -145,7 +162,7 @@ public class ApprovalService {
         String previousDocType = doc.getDocType();
         doc.setDocType(form.getDocType());
         doc.setTitle(form.getTitle());
-        doc.setContent(form.getContent());
+        doc.setContent(contentOf(form));
         doc.setAmount(amountOrZero(form));
         docMapper.update(doc);
 
@@ -174,6 +191,11 @@ public class ApprovalService {
         }
         if (form.getLeaveType() == null || form.getStartDate() == null || form.getEndDate() == null) {
             throw new IllegalArgumentException("연차 신청서는 유형과 기간을 모두 입력해야 합니다");
+        }
+        // 사유는 이 문서의 본문이 된다(contentOf 참조). 비면 결재자가 판단할 근거가
+        // 없는 문서가 만들어지므로 다른 필수 항목과 같은 자리에서 막는다.
+        if (form.getReason() == null || form.getReason().isBlank()) {
+            throw new IllegalArgumentException("연차 신청서는 사유를 입력해야 합니다");
         }
 
         BigDecimal days = leaveInquiryService.calculateDays(
