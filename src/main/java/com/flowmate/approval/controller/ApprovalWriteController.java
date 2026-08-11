@@ -94,6 +94,8 @@ public class ApprovalWriteController {
         // 렌더링하지 않는다 - 상신 폼이 원래(사전점검이 아예 없던 시절과 같은)
         // 평범한 POST 로 동작한다.
         model.addAttribute("aiPreflightEnabled", aiProperties.getFeatures().isPreflight());
+        // 기안 본문 제안 버튼·스크립트 노출 여부. 꺼져 있으면 화면에 흔적이 없다
+        model.addAttribute("aiDraftHintEnabled", aiProperties.getFeatures().isDraftHint());
         return "approval/write";
     }
 

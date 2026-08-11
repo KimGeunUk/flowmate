@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 
 /**
@@ -20,7 +21,8 @@ import java.util.Optional;
  *   프롬프트를 고쳤는데 캐시가 옛 결과를 돌려주면, 프롬프트를 고친 사람은
  *   "왜 안 바뀌지"를 한참 디버깅하게 된다. 버전이 키에 있으면 자동으로 무효화된다.
  *
- * 사전점검(PREFLIGHT)은 캐시하지 않는다 — 수정 후 재실행이 정상 동작이다.
+ * 사전점검(PREFLIGHT)과 기안 제안(DRAFT_HINT)은 캐시하지 않는다 — 둘 다 내용을 고친 뒤
+ * 다시 부르는 것이 정상 동작이라, 캐시가 맞으면 오히려 옛 답이 나온다.
  *
  * 체인의 가장 바깥이다. 히트하면 마스킹도 실제 API 호출도 일어나지 않으므로
  * 비용이 0이다 - 단, 그러려면 이 데코레이터가 MaskingLlmClient 보다 바깥에 있어야
@@ -32,6 +34,10 @@ import java.util.Optional;
  *   경로(위임 → 재저장)를 탄다.
  */
 public class CachingLlmClient implements LlmClient {
+
+    /** 고쳐서 다시 부르는 것이 정상인 기능 - 캐시가 맞으면 옛 답이 나온다 */
+    private static final Set<String> NEVER_CACHED =
+            Set.of(AiFeature.PREFLIGHT, AiFeature.DRAFT_HINT);
 
     private static final Map<String, Duration> TTL_BY_FEATURE =
             Map.of(AiFeature.LEAVE_CONTEXT, Duration.ofHours(1));
@@ -54,7 +60,7 @@ public class CachingLlmClient implements LlmClient {
 
     @Override
     public Optional<LlmResponse> complete(LlmRequest request) {
-        if (AiFeature.PREFLIGHT.equals(request.getFeature())) {
+        if (NEVER_CACHED.contains(request.getFeature())) {
             return delegate.complete(request);
         }
 

@@ -1,7 +1,10 @@
 package com.flowmate.ai.controller;
 
+import com.flowmate.ai.domain.DraftHint;
+import com.flowmate.ai.domain.DraftHintCommand;
 import com.flowmate.ai.domain.PreflightRecord;
 import com.flowmate.ai.domain.SummaryResult;
+import com.flowmate.ai.feature.DraftHintService;
 import com.flowmate.ai.feature.PreflightService;
 import com.flowmate.ai.feature.SummaryService;
 import com.flowmate.common.exception.ApprovalAccessDeniedException;
@@ -13,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,9 +43,13 @@ public class AiController {
     private final SummaryService summaryService;
     private final PreflightService preflightService;
 
-    public AiController(SummaryService summaryService, PreflightService preflightService) {
+    private final DraftHintService draftHintService;
+
+    public AiController(SummaryService summaryService, PreflightService preflightService,
+                        DraftHintService draftHintService) {
         this.summaryService = summaryService;
         this.preflightService = preflightService;
+        this.draftHintService = draftHintService;
     }
 
     /**
@@ -85,6 +93,24 @@ public class AiController {
                                                 @AuthenticationPrincipal LoginEmployee loginEmployee) {
         preflightService.ignore(resultId, loginEmployee.getEmpId());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 기안 본문 제안. 작성자가 버튼을 눌렀을 때만 불린다.
+     *
+     * ★ approvalId 를 받지 않는다 - 저장하기 전에 부르는 기능이라 아직 문서가 없다.
+     *   본문은 화면이 보낸 값 그대로 쓰고 부서는 로그인 주체에서 가져오므로, 남의
+     *   문서에 닿을 경로가 없어 문서 열람 권한 검사도 필요 없다.
+     *
+     * ★ 실패는 503 이고 화면은 안내 문구만 바꾼다 - 제안이 없어도 기안 작성은
+     *   그대로 이어진다(요약·사전점검과 같은 폴백 원칙).
+     */
+    @PostMapping("/draft-hint")
+    public ResponseEntity<DraftHint> draftHint(@RequestBody DraftHintCommand command,
+                                               @AuthenticationPrincipal LoginEmployee loginEmployee) {
+        return draftHintService.suggest(command, loginEmployee.getEmpId())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
 
     @ExceptionHandler(ApprovalNotFoundException.class)

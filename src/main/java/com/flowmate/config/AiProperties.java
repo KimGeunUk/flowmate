@@ -69,6 +69,7 @@ public class AiProperties {
         private boolean summary = true;
         private boolean preflight = true;
         private boolean leaveContext = true;
+        private boolean draftHint = true;
 
         public boolean isSummary() {
             return summary;
@@ -92,6 +93,14 @@ public class AiProperties {
 
         public void setLeaveContext(boolean leaveContext) {
             this.leaveContext = leaveContext;
+        }
+
+        public boolean isDraftHint() {
+            return draftHint;
+        }
+
+        public void setDraftHint(boolean draftHint) {
+            this.draftHint = draftHint;
         }
     }
 }
