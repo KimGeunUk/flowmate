@@ -355,8 +355,7 @@ DROP TABLE IF EXISTS demo_doc;
 -- 7) 근태 (2026-01-01 ~ 오늘), 평일만, 공휴일 제외, 전 직원 20명.
 --    attendance 는 명시적 PK 를 쓰지 않는다 - UNIQUE(emp_id, work_date) 가 이미
 --    자연키라서 그것으로 충돌을 판정하는 편이 더 단순하다.
---    ★ 5~7월이 아니라 2~4월인 이유는 파일 맨 위 주석 참고 (AttendanceQueryServiceIT
---    가 6·7월에 손으로 근태 행을 꽂는다 - ON CONFLICT 없이).
+--    여기서는 출근/지각/조퇴/결근만 만든다. 연차는 바로 아래 8) 에서 얹는다.
 -- =====================================================================
 INSERT INTO attendance (emp_id, work_date, check_in, check_out, work_minutes, overtime_minutes, status, note)
 SELECT
@@ -392,3 +391,113 @@ CROSS JOIN LATERAL (
     SELECT (e.emp_id + (d.work_date - date '2026-01-01')) % 20 AS m
 ) mm
 ON CONFLICT (emp_id, work_date) DO NOTHING;
+
+-- =====================================================================
+-- 8) 연차 사용을 근태에 반영한다.
+--
+-- ★ 핵심 불변식: 각 사원의 연차 근태 일수 합계 = leave_balance.used_days
+--
+--   used_days 를 새로 정하지 않고, **이미 시드된 used_days 만큼 정확히**
+--   연차 근태를 만든다. 방향이 중요하다:
+--     - 근태만 넣고 used_days 를 안 맞추면 화면이 어긋난다. 연차 맥락 패널은
+--       "사용 5.0일"이라 하는데 달력에는 12일이 연차로 찍히는 식이다.
+--     - 반대로 used_days 를 근태에서 다시 계산하면 이미 그 값을 단정하는
+--       테스트들(LeaveBalanceMapperIT·LeaveContextServiceIT 의 곽수빈 5.0,
+--       ApprovalServiceLeaveApplyRollbackIT 의 신동혁 10.0)이 깨진다.
+--   used_days 를 기준으로 삼으면 그 테스트들이 기대하는 값이 임의의 숫자가
+--   아니라 **실제로 참인 값**이 된다.
+--
+--   반차(0.5)는 used_days 의 소수부로 표현된다 - 5.5 면 종일 5 + 반차 1 이다.
+--
+-- ★ INSERT 가 아니라 UPDATE 인 이유: 위 7) 이 모든 영업일에 이미 행을 만들었다.
+--   같은 날짜에 또 넣으면 UNIQUE(emp_id, work_date) 위반이다.
+--
+-- ★ leave_usage / leave_request / 연차 결재 문서는 만들지 않는다 - 파일 맨 위에서
+--   LEAVE 문서를 시드에 넣지 않기로 한 것과 같은 이유다(Phase 4 D1 의 트랜잭션
+--   규약을 손으로 우회하게 된다). 이 데이터는 "시스템 도입 전에 이미 쓴 연차"로
+--   읽으면 되고, 앞으로 생기는 연차는 결재 승인 경로가 만든다.
+--
+-- ★ 여름에 40% 정도를 몰아준다 - 실제 패턴이 그렇고 데모에서 월을 넘겨볼 때
+--   눈에 띈다. 다만 **전부 여름에 몰면 오히려 비현실적**이라 나머지 60% 는
+--   1~6월에 흩뿌린다. (처음에 여름 가중치를 세게 줬더니 54일 전부가 7·8월에
+--   들어가 버렸다 - 연중 한 번도 연차를 안 쓰다가 여름에만 몰아 쓰는 사람은 없다.)
+-- =====================================================================
+
+-- 8-1) 재실행 대비 초기화. 결재 승인 경로가 만든 연차(leave_usage 에 근거가 있는 것)는
+--      건드리지 않고, 이 시드가 만든 것만 되돌린다. 그래야 아래 UPDATE 를 다시 돌려도
+--      연차가 누적되지 않고 used_days 와의 불변식이 유지된다.
+UPDATE attendance a
+SET status           = 'NORMAL',
+    check_in         = a.work_date + (time '08:55:00' + ((a.emp_id % 10) || ' minutes')::interval),
+    check_out        = a.work_date + (time '18:00:00' + ((a.emp_id % 15) || ' minutes')::interval),
+    work_minutes     = 480,
+    overtime_minutes = 0,
+    note             = NULL
+WHERE a.status IN ('LEAVE', 'HALF_LEAVE')
+  AND NOT EXISTS (
+      SELECT 1 FROM leave_usage lu
+       WHERE lu.emp_id = a.emp_id
+         AND a.work_date BETWEEN lu.start_date AND lu.end_date
+  );
+
+-- 8-2) used_days 만큼 연차를 배치한다.
+WITH biz AS (
+    SELECT gs::date AS work_date,
+           row_number() OVER (ORDER BY gs) AS n
+    FROM generate_series(date '2026-01-01', CURRENT_DATE, interval '1 day') AS gs
+    WHERE extract(dow FROM gs) NOT IN (0, 6)
+      AND gs::date NOT IN (SELECT holiday_date FROM holiday)
+),
+plan AS (
+    SELECT emp_id,
+           floor(used_days)::int                                        AS full_days,
+           CASE WHEN used_days > floor(used_days) THEN 1 ELSE 0 END     AS half_days,
+           GREATEST(1, round(used_days * 0.4)::int)                     AS summer_quota
+    FROM leave_balance
+    WHERE year = 2026
+      AND used_days > 0
+),
+picked AS (
+    SELECT u.emp_id,
+           u.work_date,
+           u.full_days,
+           row_number() OVER (PARTITION BY u.emp_id ORDER BY u.work_date) AS pick_no
+    FROM (
+        -- 여름 몫 (7월 이후)
+        SELECT p.emp_id, s.work_date, p.full_days
+        FROM plan p
+        CROSS JOIN LATERAL (
+            SELECT b.work_date
+            FROM biz b
+            WHERE b.work_date >= date '2026-07-01'
+            ORDER BY ((b.n * 7919 + p.emp_id * 104729) % 100000)
+            LIMIT LEAST(p.summer_quota, p.full_days + p.half_days)
+        ) s
+        UNION ALL
+        -- 나머지 (1~6월)
+        SELECT p.emp_id, r.work_date, p.full_days
+        FROM plan p
+        CROSS JOIN LATERAL (
+            SELECT b.work_date
+            FROM biz b
+            WHERE b.work_date < date '2026-07-01'
+            ORDER BY ((b.n * 6971 + p.emp_id * 92831) % 100000)
+            LIMIT GREATEST(0, p.full_days + p.half_days
+                              - LEAST(p.summer_quota, p.full_days + p.half_days))
+        ) r
+    ) u
+)
+UPDATE attendance a
+SET status           = CASE WHEN pk.pick_no <= pk.full_days THEN 'LEAVE' ELSE 'HALF_LEAVE' END,
+    -- 종일 연차는 출퇴근 기록이 없다(DefaultLeaveApplyService.apply 와 같은 모양).
+    -- 반차는 반나절 근무하므로 출퇴근이 남는다.
+    check_in         = CASE WHEN pk.pick_no <= pk.full_days THEN NULL
+                            ELSE a.work_date + time '09:00:00' END,
+    check_out        = CASE WHEN pk.pick_no <= pk.full_days THEN NULL
+                            ELSE a.work_date + time '14:00:00' END,
+    work_minutes     = CASE WHEN pk.pick_no <= pk.full_days THEN 0 ELSE 240 END,
+    overtime_minutes = 0,
+    note             = CASE WHEN pk.pick_no <= pk.full_days THEN '연차' ELSE '반차' END
+FROM picked pk
+WHERE a.emp_id = pk.emp_id
+  AND a.work_date = pk.work_date;
