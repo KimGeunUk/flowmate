@@ -49,6 +49,22 @@ services:
       #  17.0.x 패치나 다른 배포판/이미지에서는 이 보정이 없을 수 있으므로 방어적으로 계속 고정한다.)
       CATALINA_OPTS: -Dfile.encoding=UTF-8
       TZ: Asia/Seoul
+      # ── AI 기능 (기본 꺼짐) ──────────────────────────────────────
+      # 키 없이도 이대로 뜬다. AI_ENABLED 가 false 면 FakeLlmClient 가 배선되고
+      # GEMINI_API_KEY 는 아예 읽히지 않는다(LlmConfig 의 requireApiKey 는
+      # 실제 제공자 빈이 만들어질 때만 돈다).
+      #
+      # 실제 LLM 을 켜려면 compose 를 실행하는 셸에 두 값을 넣고 올린다:
+      #   $env:AI_ENABLED = 'true'
+      #   $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
+      #   docker compose up -d --force-recreate tomcat
+      #
+      # ★ 값을 이 파일에 적지 않는다. 여기 있는 것은 "호스트 환경에서 받아
+      #   전달한다"는 배선일 뿐이고, 키 자체는 저장소에 절대 들어가지 않는다.
+      #   :- 기본값 덕분에 두 변수를 안 준 사람도 경고 없이 그대로 뜬다.
+      AI_ENABLED: "${AI_ENABLED:-false}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     ports:
       # 로컬 spring-boot:run(내장 Tomcat, 8080)과 충돌하지 않도록 다른 포트로 발행한다.
       - "18080:8080"

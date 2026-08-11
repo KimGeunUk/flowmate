@@ -1,9 +1,9 @@
 package com.flowmate.ai.feature;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowmate.ai.client.LlmClient;
 import com.flowmate.ai.domain.AiFeature;
+import com.flowmate.ai.domain.LlmJson;
 import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
 import com.flowmate.ai.domain.SummaryResult;
@@ -45,7 +45,6 @@ public class SummaryService {
     private final PromptRepository promptRepository;
     private final LlmClient llmClient;
     private final AiProperties aiProperties;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SummaryService(ApprovalQueryService approvalQueryService,
                           PromptRepository promptRepository,
@@ -98,10 +97,13 @@ public class SummaryService {
      * 경로는 이미 {@code ClaudeLlmClient} 가 걸러내지만, 그 밖의 형식 이탈까지
      * 전부 막지는 못한다). 그런 경우도 예외 대신 {@code Optional.empty()} 로
      * 처리해 D8 원칙을 끝까지 지킨다.
+     *
+     * ★ {@link LlmJson#mapper()} 를 쓴다 - 모델이 덤으로 붙인 필드 때문에 응답
+     * 전체가 버려지지 않게 하려는 것이다(그 클래스 주석에 실제 사례가 있다).
      */
     private Optional<SummaryResult> parseSafely(LlmResponse response) {
         try {
-            return Optional.of(objectMapper.readValue(response.getText(), SummaryResult.class));
+            return Optional.of(LlmJson.mapper().readValue(response.getText(), SummaryResult.class));
         } catch (JsonProcessingException e) {
             return Optional.empty();
         }

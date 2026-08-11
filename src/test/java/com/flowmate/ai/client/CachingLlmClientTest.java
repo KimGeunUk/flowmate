@@ -11,13 +11,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 가장 바깥 데코레이터. cache_key = SHA256(feature:promptVersion:prompt) 로 조회/저장한다
- * (설계서 §6.4.3, 계획서 3 D8).
+ * 가장 바깥 데코레이터. cache_key = SHA256(feature:promptVersion:modelKey:outputType:prompt)
+ * 로 조회/저장한다 (설계서 §6.4.3, 계획서 3 D8).
  *
- * promptVersion 이 캐시 키에 들어가는 이유와 PREFLIGHT 를 캐시하지 않는 이유는
- * CachingLlmClient 클래스 주석 참고.
+ * promptVersion·modelKey 가 캐시 키에 들어가는 이유와 PREFLIGHT 를 캐시하지 않는
+ * 이유는 CachingLlmClient 클래스 주석 참고.
  */
 class CachingLlmClientTest {
+
+    /** 이 테스트에서 캐시를 채우는 제공자. 모델이 캐시를 가르는지 볼 때만 다른 값을 쓴다 */
+    private static final String MODEL_KEY = "gemini:gemini-3.5-flash-lite";
 
     private LlmRequest request(String feature, String version, String prompt) {
         LlmRequest r = new LlmRequest();
@@ -32,7 +35,7 @@ class CachingLlmClientTest {
     void missDelegatesAndStores() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
 
         Optional<LlmResponse> result = caching.complete(request(AiFeature.SUMMARY, "v1", "요약할 문서"));
 
@@ -46,7 +49,7 @@ class CachingLlmClientTest {
     void hitDoesNotDelegateAndIncrementsHitCount() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
         LlmRequest req = request(AiFeature.SUMMARY, "v1", "요약할 문서");
 
         caching.complete(req);
@@ -58,11 +61,35 @@ class CachingLlmClientTest {
     }
 
     @Test
+    @DisplayName("★ 모델이 다르면 다른 캐시 키라서 미스가 난다 — 제공자를 바꾸면 옛 결과가 무효가 된다")
+    void differentModelMisses() {
+        // 이 단정이 없으면 ai.enabled 를 false 에서 true 로 바꿔도 FakeLlmClient 가
+        // 만들어 둔 "[FAKE] 고정 응답입니다" 가 영원히 그대로 나온다. 실제로 겪은
+        // 일이다 - 컨테이너에 키를 넣고 AI 를 켰는데 요약이 계속 null 로 왔고
+        // ai_call_log 에는 새 호출 기록조차 없었다.
+        FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
+        LlmRequest req = request(AiFeature.SUMMARY, "v1", "요약할 문서");
+
+        FakeLlmClient fakeProvider = new FakeLlmClient();
+        new CachingLlmClient(fakeProvider, cacheMapper, "fake").complete(req);
+
+        // 같은 캐시 테이블을 그대로 두고 제공자만 바꾼다
+        FakeLlmClient realProvider = new FakeLlmClient();
+        new CachingLlmClient(realProvider, cacheMapper, "gemini:gemini-3.5-flash-lite").complete(req);
+
+        assertThat(realProvider.getReceived())
+                .as("제공자가 바뀌었으므로 캐시를 건너뛰고 실제로 호출해야 한다")
+                .hasSize(1);
+        assertThat(cacheMapper.getIncrementHitCountCalls()).isZero();
+        assertThat(cacheMapper.getInsertCount()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("promptVersion 이 다르면 다른 캐시 키라서 미스가 난다")
     void differentPromptVersionMisses() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
 
         caching.complete(request(AiFeature.SUMMARY, "v1", "요약할 문서"));
         caching.complete(request(AiFeature.SUMMARY, "v2", "요약할 문서"));
@@ -81,7 +108,7 @@ class CachingLlmClientTest {
         // 만 다르면 반드시 캐시 미스여야 한다.
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
 
         LlmRequest withoutType = request(AiFeature.SUMMARY, "v1", "같은 입력");
         LlmRequest withSampleType = request(AiFeature.SUMMARY, "v1", "같은 입력");
@@ -103,7 +130,7 @@ class CachingLlmClientTest {
     void preflightNotCached() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
         LlmRequest req = request(AiFeature.PREFLIGHT, "v1", "상신 전 점검 대상 문서");
 
         caching.complete(req);
@@ -120,7 +147,7 @@ class CachingLlmClientTest {
     void summaryNeverExpires() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
         LlmRequest req = request(AiFeature.SUMMARY, "v1", "요약할 문서");
 
         caching.complete(req);
@@ -137,7 +164,7 @@ class CachingLlmClientTest {
     void leaveContextExpiresAfterOneHour() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
         LlmRequest req = request(AiFeature.LEAVE_CONTEXT, "v1", "연차 맥락 캐시 대상");
 
         caching.complete(req);
@@ -157,7 +184,7 @@ class CachingLlmClientTest {
     void leaveContextHitsWithinOneHour() {
         FakeLlmClient fake = new FakeLlmClient();
         FakeAiResultCacheMapper cacheMapper = new FakeAiResultCacheMapper();
-        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper);
+        CachingLlmClient caching = new CachingLlmClient(fake, cacheMapper, MODEL_KEY);
         LlmRequest req = request(AiFeature.LEAVE_CONTEXT, "v1", "연차 맥락 캐시 대상");
 
         caching.complete(req);

@@ -74,8 +74,21 @@ public class LlmConfig {
                 Duration.ofSeconds(props.getTimeoutSeconds()));
         chain = new LoggingLlmClient(chain, logMapper);
         chain = new MaskingLlmClient(chain, masker);
-        chain = new CachingLlmClient(chain, cacheMapper);
+        chain = new CachingLlmClient(chain, cacheMapper, modelKey(props));
         return chain;
+    }
+
+    /**
+     * 캐시 키에 들어갈 "누가 이 답을 만들었는가". CachingLlmClient 의 주석이 이유를
+     * 설명한다 - 이 값이 없으면 제공자를 바꿔도 옛 제공자의 결과가 계속 나온다.
+     *
+     * enabled=false 일 때 props.getModel() 을 쓰지 않는 것이 핵심이다. 그 값은
+     * AI 를 꺼 두어도 gemini-3.5-flash-lite 로 남아 있으므로, 모델명만 쓰면
+     * "꺼진 상태(FakeLlmClient)"와 "켠 상태(GeminiLlmClient)"가 같은 키가 된다 -
+     * 정확히 고치려던 그 버그가 그대로 남는다. 그래서 꺼진 경우는 별도 값이다.
+     */
+    private String modelKey(AiProperties props) {
+        return props.isEnabled() ? props.getProvider() + ":" + props.getModel() : "fake";
     }
 
     /**

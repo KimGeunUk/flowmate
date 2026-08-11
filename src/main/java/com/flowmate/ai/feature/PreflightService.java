@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowmate.ai.client.LlmClient;
 import com.flowmate.ai.domain.AiFeature;
 import com.flowmate.ai.domain.Finding;
+import com.flowmate.ai.domain.LlmJson;
 import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
 import com.flowmate.ai.domain.PreflightRecord;
@@ -193,10 +194,14 @@ public class PreflightService {
     /**
      * 구조화 출력이라도 응답 JSON 이 스키마를 벗어날 가능성은 남는다(SummaryService 와
      * 같은 이유). 예외 대신 Optional.empty() 로 D8 원칙을 지킨다.
+     *
+     * ★ {@link LlmJson#mapper()} 를 쓴다 - 모델이 덤으로 붙인 필드 때문에 응답
+     * 전체가 버려지지 않게 하려는 것이다(그 클래스 주석에 실제 사례가 있다).
+     * 요약에서 먼저 터졌지만 점검이라고 안전한 것은 아니다.
      */
     private Optional<PreflightResult> parseSafely(LlmResponse response) {
         try {
-            return Optional.of(objectMapper.readValue(response.getText(), PreflightResult.class));
+            return Optional.of(LlmJson.mapper().readValue(response.getText(), PreflightResult.class));
         } catch (JsonProcessingException e) {
             return Optional.empty();
         }
