@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
  * 이미 확인된 값이다. 개발팀(dept 7)은 7명(14~20) - 11-seed-org.sql.
  *
  * 신청일을 2026-09-01(화, 평일)로 고정한다 - "최근 3개월" 창은
- * [2026-06-01, 2026-08-31] 이 되는데, 이 구간은 데모 시드(2~4월)·다른 IT의
- * 6·7월 픽스처와 겹치지 않는 완전히 빈 구간이라 이 테스트가 직접 넣는 행만
- * 집계에 잡힌다 - 값을 손으로 계산할 필요 없이 넣은 그대로 기대할 수 있다.
+ * [2026-06-01, 2026-08-31] 이 된다. 그 구간을 아래 @BeforeEach 가 비우고
+ * 시작하므로 이 테스트가 직접 넣는 행만 집계에 잡힌다 - 값을 손으로 계산할
+ * 필요 없이 넣은 그대로 기대할 수 있다.
+ *
+ * (예전에는 "데모 시드가 2~4월만 채우니 6~8월은 원래 비어 있다"에 기대고
+ *  있었는데, 시드를 1월~오늘로 넓히자 그 전제가 깨졌다.)
  */
 @SpringBootTest
 @Transactional
@@ -52,6 +56,23 @@ class LeaveContextServiceIT {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    /**
+     * ★ "최근 3개월" 창(신청일 2026-09-01 기준 6~8월)을 비운 상태에서 시작한다.
+     *
+     *   이 테스트는 그 창의 지각 1회·결근 1회·연장 1.0시간을 **정확한 수**로 단정하고,
+     *   그 값을 만들려고 8/3·8/4·8/5 에 자기 행을 직접 넣는다. 데모 시드가 그 구간을
+     *   채우면 INSERT 가 UNIQUE(emp_id, work_date) 로 깨지고, 깨지지 않더라도 집계가
+     *   틀어진다.
+     *
+     *   AttendanceQueryServiceIT 와 같은 판단이다 - 시드가 테스트를 피해 다니는 대신
+     *   테스트가 자기 구간을 확보한다. 클래스가 @Transactional 이라 함께 롤백된다.
+     */
+    @BeforeEach
+    void clearRecentWindow() {
+        jdbcTemplate.update(
+                "DELETE FROM attendance WHERE work_date >= DATE '2026-06-01' AND work_date < DATE '2026-09-02'");
+    }
 
     @Test
     @DisplayName("★ 완료 기준: LEAVE 문서를 열면 신청 정보·연차 현황·팀 가동률·최근 3개월이 한 번에 채워진다")

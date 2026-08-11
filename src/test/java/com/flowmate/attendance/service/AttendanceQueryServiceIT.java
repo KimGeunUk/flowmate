@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,8 @@ import com.flowmate.attendance.domain.DeptAttendanceRow;
  *
  * @Transactional 로 감싼다 — 이 테스트들은 롤백 자체를 검증하지 않으므로
  * (ApprovalServiceLeaveApplyIT 와 같은 이유) 함정이 없고, 만든 행은 자동 롤백된다.
- * 2026년 6월을 쓴다 — 시드/다른 테스트가 쓰는 7월과 겹치지 않게 하기 위해서다.
+ * 2026년 6·7월을 쓰되, 그 달을 @BeforeEach 가 직접 비우고 시작한다 — 시드가 어느
+ * 범위를 채우든 이 테스트의 개수 단정이 흔들리지 않게 하기 위해서다.
  */
 @SpringBootTest
 @Transactional
@@ -45,6 +47,25 @@ class AttendanceQueryServiceIT {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    /**
+     * ★ 이 테스트가 쓰는 달(2026년 6·7월)을 비운 상태에서 시작한다.
+     *
+     *   이 클래스는 "6월에 3행", "출근 1일", "한지우는 0일" 처럼 **정확한 개수**를
+     *   단정한다. 그래서 그 달에 다른 행이 하나라도 있으면 곧바로 깨진다.
+     *   원래는 데모 시드가 6·7월을 비워 두는 것에 기대고 있었고, 시드 파일에도
+     *   "테스트가 쓰는 달이라 피한다"는 주석이 있었다.
+     *
+     *   그 방향이 거꾸로였다 — 시드가 테스트를 피해 다니면 시드 범위를 넓힐 때마다
+     *   테스트가 깨지고, 어느 달이 예약됐는지 아무도 기억하지 못한다.
+     *   테스트가 자기 달을 직접 확보하는 쪽이 맞다. 클래스가 @Transactional 이라
+     *   이 삭제도 함께 롤백되어 진짜 데이터는 그대로다.
+     */
+    @BeforeEach
+    void clearMonthsUnderTest() {
+        jdbcTemplate.update(
+                "DELETE FROM attendance WHERE work_date >= DATE '2026-06-01' AND work_date < DATE '2026-08-01'");
+    }
 
     @Test
     @DisplayName("내 근태: 그 달의 행만 모아 합계를 계산하고, 다른 달은 섞이지 않는다")

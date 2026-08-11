@@ -47,12 +47,15 @@
 --   가 "CON 접두사 문서번호가 아직 하나도 없다"(COALESCE 가 NULL 을 0 으로 바꾸는지의
 --   검증)를 단정한다. 대량 시드가 CONTRACT 문서를 만들면 그 단정이 영구히 깨진다.
 --
--- ★ 근태 3개월: 2026-02-01 ~ 2026-04-30, 평일만, holiday 테이블에 있는 날짜는 제외한다.
---   5~7월이 아니라 2~4월을 쓰는 이유 - AttendanceQueryServiceIT 가 스스로 "6월은 내가
---   쓰고 7월은 시드/다른 테스트가 쓴다"고 적어 두었고, 실제로 곽수빈(18)의 근태를
---   6/1·6/2·6/3·7/1 에 손으로 INSERT 한다(ON CONFLICT 없이). 대량 시드가 그 날짜에
---   이미 행을 넣어 두면 그 INSERT 가 UNIQUE(emp_id, work_date) 위반으로 깨진다.
---   충돌 가능성이 있는 달을 아예 피하는 것이 다음 사람이 또 이 함정을 밟지 않는 방법이다.
+-- ★ 근태: 2026-01-01 ~ 오늘(CURRENT_DATE), 평일만, holiday 테이블에 있는 날짜는 제외한다.
+--   끝을 고정 날짜가 아니라 CURRENT_DATE 로 두는 이유 - 언제 클론해서 띄우든
+--   "올해 1월부터 오늘까지"가 채워져 화면이 비어 보이지 않는다.
+--
+--   원래는 2~4월만 채웠고, 그 이유가 "AttendanceQueryServiceIT 가 6·7월을 쓰므로
+--   피한다"였다. 그 방향이 거꾸로였다 - 시드가 테스트를 피해 다니면 시드 범위를
+--   넓힐 때마다 테스트가 깨지고, 어느 달이 예약됐는지 아무도 기억하지 못한다.
+--   지금은 그 테스트가 @BeforeEach 로 자기 달을 직접 비우고 시작한다.
+--   시드는 테스트를 신경 쓰지 않고 데모에 좋은 범위를 고르면 된다.
 
 -- =====================================================================
 -- 1) 결재 문서 200건을 임시 테이블에 먼저 만든다 (idx 1~200 -> approval_id 10001~10200)
@@ -349,7 +352,7 @@ SELECT setval(pg_get_serial_sequence('approval_reject_history', 'id'),
 DROP TABLE IF EXISTS demo_doc;
 
 -- =====================================================================
--- 7) 근태 3개월분 (2026-02-01 ~ 2026-04-30), 평일만, 공휴일 제외, 전 직원 20명.
+-- 7) 근태 (2026-01-01 ~ 오늘), 평일만, 공휴일 제외, 전 직원 20명.
 --    attendance 는 명시적 PK 를 쓰지 않는다 - UNIQUE(emp_id, work_date) 가 이미
 --    자연키라서 그것으로 충돌을 판정하는 편이 더 단순하다.
 --    ★ 5~7월이 아니라 2~4월인 이유는 파일 맨 위 주석 참고 (AttendanceQueryServiceIT
@@ -381,11 +384,11 @@ SELECT
 FROM employee e
 CROSS JOIN LATERAL (
     SELECT gs::date AS work_date
-    FROM generate_series(date '2026-02-01', date '2026-04-30', interval '1 day') AS gs
+    FROM generate_series(date '2026-01-01', CURRENT_DATE, interval '1 day') AS gs
     WHERE extract(dow FROM gs) NOT IN (0, 6)
       AND gs::date NOT IN (SELECT holiday_date FROM holiday)
 ) d
 CROSS JOIN LATERAL (
-    SELECT (e.emp_id + (d.work_date - date '2026-02-01')) % 20 AS m
+    SELECT (e.emp_id + (d.work_date - date '2026-01-01')) % 20 AS m
 ) mm
 ON CONFLICT (emp_id, work_date) DO NOTHING;
