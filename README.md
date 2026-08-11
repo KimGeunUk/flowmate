@@ -55,7 +55,7 @@ docker compose up -d         # PostgreSQL + 외부 Tomcat 10.1, 빈 볼륨이면
 → **http://localhost:18080/flowmate** · 계정 `2020003` / 비밀번호 `flowmate1!`
 
 **API 키는 필요 없습니다.** `ai.enabled` 기본값이 `false` 라 키 없이 그대로 뜹니다 — AI 기능
-3종만 꺼지고 전자결재·근태관리는 전부 정상 동작합니다.
+4종만 꺼지고 전자결재·근태관리는 전부 정상 동작합니다.
 
 <details>
 <summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / AI 켜기</summary>
@@ -126,6 +126,15 @@ docker compose up -d
 ①의 사전점검이 이 표를 읽어 *"과거 반려 3건에 근거함"* 이라는 숫자를 만듭니다.
 자유 텍스트만 받으면 이 집계가 불가능하다는 것이 유형을 필수로 둔 이유입니다.
 
+### ④ 같은 이력이 반대 방향으로도 쓰인다 (AI 켰을 때)
+
+기안 작성의 본문 칸 아래 **[AI 제안 받기]** 를 누르면, 같은 반려 이력을 근거로 이번에는
+**쓰기 전에** 뼈대를 잡아 줍니다. 사전점검이 *"이대로 올리면 반려된다"* 라면 이건
+*"이 부서에서 자주 빠뜨리는 항목을 미리 넣어 두자"* 입니다.
+
+모르는 값은 지어내지 않고 `[금액]` 처럼 자리표시자로 남기며, 이미 쓴 내용은 지우지 않고
+살려서 다듬습니다. 제안은 **[본문에 넣기]** 를 눌러야 적용됩니다.
+
 ---
 
 ## 아키텍처
@@ -144,10 +153,10 @@ docker compose up -d
 [PostgreSQL 16]  Oracle 대응은 docs/oracle-mapping.md
 ```
 
-**AI 게이트웨이** — 기능 3종이 이 뒤에 선다.
+**AI 게이트웨이** — 기능 4종이 이 뒤에 선다.
 
 ```
-[SummaryService] [PreflightService] [LeaveContextService(LLM 미사용)]
+[SummaryService] [PreflightService] [DraftHintService] [LeaveContextService(LLM 미사용)]
     ↓
 LlmClient 데코레이터 체인
     Caching → Masking → Logging → Resilient → 실제 클라이언트
@@ -175,7 +184,7 @@ LlmClient 데코레이터 체인
 | 2 | `LeaveGrantPolicy` | Flat(전원 15일) / TenureBased(근속 비례) | `flowmate.attendance.leave-grant-policy` |
 | 3 | `WorkTimePolicy` | Default(09-18 고정) / Flexible(코어타임) | `flowmate.attendance.work-time-policy` |
 | 4 | `PromptRepository` | File(classpath) / Database(`ai_prompt`, 5분 TTL) | `ai.prompt-repository` |
-| 5 | `ai.features.*` | 기능별 on/off (summary · preflight · leave-context) | `ai.features.summary` 등 |
+| 5 | `ai.features.*` | 기능별 on/off (summary · preflight · draft-hint · leave-context) | `ai.features.summary` 등 |
 
 ---
 
@@ -186,15 +195,15 @@ LlmClient 데코레이터 체인
 | 단위 176건 | `*Test.java` | `mvnw.cmd test` | 불필요 |
 | 통합 133건 | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
-**API 키 없이 `mvnw clean verify` 가 통과하는 것이 지켜야 할 계약입니다.** AI 기능 3종은
+**API 키 없이 `mvnw clean verify` 가 통과하는 것이 지켜야 할 계약입니다.** AI 기능 4종은
 `FakeLlmClient` 로 마스킹·캐싱·폴백·기능 플래그까지 체인 수준에서 검증됩니다.
 
-실제 LLM 응답 품질을 보는 **고정 평가셋 5건**만 키가 있어야 수동으로 돌아갑니다
-(`PreflightEvalSetIT`, `@Tag("llm")`, 기본 빌드 제외).
+실제 LLM 응답 품질을 보는 **고정 평가셋 8건**만 키가 있어야 수동으로 돌아갑니다
+(`PreflightEvalSetIT` 5건 · `DraftHintEvalSetIT` 3건, 둘 다 `@Tag("llm")` 이라 기본 빌드에서 제외).
 
 ```powershell
 $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
-.\mvnw.cmd verify "-Dit.test=PreflightEvalSetIT" "-Dgroups=llm" `
+.\mvnw.cmd verify "-Dit.test=*EvalSetIT" "-Dgroups=llm" `
     "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
 ```
 
@@ -203,3 +212,14 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 
 단위 테스트가 DB 없이 도는 경계를 의도적으로 유지합니다. 이 경계가 무너지면 순수 로직
 테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃습니다.
+
+---
+
+## 더 보기
+
+| | |
+|---|---|
+| [`docs/design-notes.md`](docs/design-notes.md) | **설계 판단 9가지** — 각 결정에서 버린 대안과 그 이유. 알려진 제약도 함께 |
+| [`docs/oracle-mapping.md`](docs/oracle-mapping.md) | PostgreSQL 전용 문법을 쓸 때마다 그 자리에서 적어 둔 Oracle 대응표 |
+| [`docs/ai-eval-results.md`](docs/ai-eval-results.md) | AI 평가셋 실행 기록 — 실패 사례와 프롬프트 수정 내역까지 |
+| [`docs/superpowers/`](docs/superpowers/) | 원 설계서와 Phase별 계획서 (개발 과정 기록) |
