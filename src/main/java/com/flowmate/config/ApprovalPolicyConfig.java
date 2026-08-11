@@ -15,7 +15,7 @@ import com.flowmate.approval.policy.SimpleTwoStepLinePolicy;
  *   default      → DefaultApprovalLinePolicy (부서 트리 상향 + 금액별 임원)
  *   simple-two-step → SimpleTwoStepLinePolicy (소속 부서장 1명)
  *
- * 설정이 없으면 default 를 쓴다. 고객사별 납품에서 코드를 고치지 않고
+ * 설정이 없으면 default 를 쓴다. 회사마다 결재 규칙이 다르므로 코드를 고치지 않고
  * 설정 파일만 바꿔 결재 규칙을 교체하는 것이 이 구조의 목적이다.
  */
 @Configuration
