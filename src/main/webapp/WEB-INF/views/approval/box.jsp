@@ -101,7 +101,7 @@
                             <td><c:out value="${d.title}"/></td>
                             <td class="doc-list__amount">${d.amount}</td>
                             <td><c:out value="${d.drafterName}"/></td>
-                            <td>${d.draftedAt}</td>
+                            <td>${d.draftedAtLabel}</td>
                             <td>
                                 <span class="status status--${fn:toLowerCase(d.status)}">
                                     <c:out value="${d.statusLabel}"/>

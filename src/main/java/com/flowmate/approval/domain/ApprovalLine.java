@@ -2,6 +2,7 @@ package com.flowmate.approval.domain;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import com.flowmate.common.web.DateLabels;
 
 /**
  * 결재선 한 단계.
@@ -35,6 +36,11 @@ public class ApprovalLine implements Serializable {
     /** 처리가 끝난 단계인가 */
     public boolean isProcessed() {
         return LineStatus.APPROVED.equals(this.status) || LineStatus.REJECTED.equals(this.status);
+    }
+
+    /** 화면 표시용 처리 시각 */
+    public String getProcessedAtLabel() {
+        return DateLabels.dateTime(this.processedAt);
     }
 
     /** 화면 표시용 상태 한글명 */

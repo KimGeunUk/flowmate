@@ -45,8 +45,8 @@
                     <c:forEach items="${summary.rows}" var="row">
                         <tr>
                             <td>${row.workDate}</td>
-                            <td>${row.checkIn}</td>
-                            <td>${row.checkOut}</td>
+                            <td>${row.checkInLabel}</td>
+                            <td>${row.checkOutLabel}</td>
                             <td><c:out value="${row.workMinutes}"/></td>
                             <td><c:out value="${row.overtimeMinutes}"/></td>
                             <td>

@@ -3,6 +3,7 @@ package com.flowmate.attendance.domain;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.flowmate.common.web.DateLabels;
 
 /**
  * 일별 근태. UNIQUE(emp_id, work_date) — 하루에 한 행이다.
@@ -111,6 +112,16 @@ public class Attendance implements Serializable {
     }
 
     /** 화면 표시용 상태 한글명 */
+    /** 출근 시각 "09:00". 같은 줄에 날짜가 이미 있으므로 시각만 적는다 */
+    public String getCheckInLabel() {
+        return DateLabels.time(this.checkIn);
+    }
+
+    /** 퇴근 시각 "18:00" */
+    public String getCheckOutLabel() {
+        return DateLabels.time(this.checkOut);
+    }
+
     public String getStatusLabel() {
         return AttendanceStatus.labelOf(status);
     }

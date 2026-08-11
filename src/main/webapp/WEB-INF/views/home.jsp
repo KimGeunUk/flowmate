@@ -64,10 +64,10 @@
             <p class="home-panel__item attendance-status">
                 <c:choose>
                     <c:when test="${checkedOut}">
-                        출근 ${todayAttendance.checkIn} · 퇴근 ${todayAttendance.checkOut}
+                        출근 ${todayAttendance.checkInLabel} · 퇴근 ${todayAttendance.checkOutLabel}
                     </c:when>
                     <c:when test="${checkedIn}">
-                        출근 ${todayAttendance.checkIn} · 퇴근 미등록
+                        출근 ${todayAttendance.checkInLabel} · 퇴근 미등록
                     </c:when>
                     <c:otherwise>
                         오늘 출근 기록이 없습니다
