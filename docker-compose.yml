@@ -65,6 +65,12 @@ services:
       AI_ENABLED: "${AI_ENABLED:-false}"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      # 기능별 on/off (커스터마이징 지점 5). 끄면 화면에서 그 기능의 흔적이 사라진다 -
+      # 오류가 아니라 부재다. 값을 안 주면 application.yml 기본값(전부 켜짐)을 쓴다.
+      AI_FEATURES_SUMMARY: "${AI_FEATURES_SUMMARY:-true}"
+      AI_FEATURES_PREFLIGHT: "${AI_FEATURES_PREFLIGHT:-true}"
+      AI_FEATURES_DRAFTHINT: "${AI_FEATURES_DRAFTHINT:-true}"
+      AI_FEATURES_LEAVECONTEXT: "${AI_FEATURES_LEAVECONTEXT:-true}"
     ports:
       # 로컬 spring-boot:run(내장 Tomcat, 8080)과 충돌하지 않도록 다른 포트로 발행한다.
       - "18080:8080"

@@ -11,6 +11,7 @@ import com.flowmate.ai.domain.LlmRequest;
 import com.flowmate.ai.domain.LlmResponse;
 import com.flowmate.ai.domain.RejectPattern;
 import com.flowmate.ai.prompt.PromptRepository;
+import com.flowmate.approval.domain.ApprovalLimits;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.RejectHistoryMapper;
@@ -83,6 +84,13 @@ public class DraftHintService {
         if (command == null || command.getDocType() == null) {
             return Optional.empty();
         }
+        // ★ 이 엔드포인트만 요청 본문을 그대로 프롬프트에 넣는다. 요약·사전점검은
+        //   이미 저장된 문서를 읽으므로 저장 시점의 검증을 이미 거쳤지만, 여기는
+        //   화면을 우회하면 임의 길이 텍스트가 곧바로 유료 API 로 나간다.
+        //   조용히 자르지 않고 거부한다 - 잘린 본문으로 만든 제안은 작성자가
+        //   기대한 것과 다른데 그 사실이 화면에 드러나지 않는다.
+        ApprovalLimits.check(command.getTitle(), ApprovalLimits.TITLE, "제목");
+        ApprovalLimits.check(command.getContent(), ApprovalLimits.CONTENT, "본문");
         Employee drafter = employeeMapper.findById(empId);
         if (drafter == null) {
             return Optional.empty();

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalForm;
+import com.flowmate.approval.domain.ApprovalLimits;
 import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalStatus;
 import com.flowmate.approval.domain.DocType;
@@ -88,10 +89,25 @@ public class ApprovalService {
      */
     @Transactional
     public Long saveDraft(ApprovalForm form, Long actorId) {
+        checkLengths(form);
         if (form.getApprovalId() == null) {
             return createDraft(form, actorId);
         }
         return updateDraft(form, actorId);
+    }
+
+    /**
+     * 화면 maxlength 를 우회해 들어온 값을 여기서 막는다.
+     *
+     * ★ 없으면 DB 제약 위반이 그대로 올라와 500 이 된다 - 그 예외는
+     *   DataIntegrityViolationException 이라 GlobalExceptionHandler 가 잡는
+     *   IllegalArgumentException 계열도 아니어서 사용자에게 원인이 안 보인다.
+     *   화면·DB·서버 세 곳이 같은 숫자를 봐야 한다(ApprovalLimits).
+     */
+    private void checkLengths(ApprovalForm form) {
+        ApprovalLimits.check(form.getTitle(), ApprovalLimits.TITLE, "제목");
+        ApprovalLimits.check(form.getContent(), ApprovalLimits.CONTENT, "본문");
+        ApprovalLimits.check(form.getReason(), ApprovalLimits.REASON, "사유");
     }
 
     /**
@@ -244,6 +260,7 @@ public class ApprovalService {
      */
     @Transactional
     public void approve(Long approvalId, Long actorId, String comment) {
+        ApprovalLimits.check(comment, ApprovalLimits.COMMENT, "의견");
         ApprovalDoc doc = requireDocForUpdate(approvalId);
         ApprovalLine current = requireMyCurrentLine(doc, approvalId, actorId);
         int totalStep = lineMapper.countByApprovalId(approvalId);
@@ -294,6 +311,7 @@ public class ApprovalService {
         if (!RejectReason.isValid(reasonCategory)) {
             throw new IllegalArgumentException("반려 유형을 선택해야 합니다: " + reasonCategory);
         }
+        ApprovalLimits.check(reasonText, ApprovalLimits.COMMENT, "의견");
         ApprovalDoc doc = requireDocForUpdate(approvalId);
         ApprovalLine current = requireMyCurrentLine(doc, approvalId, actorId);
 
