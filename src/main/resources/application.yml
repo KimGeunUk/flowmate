@@ -43,7 +43,7 @@ mybatis:
 flowmate:
   approval:
     # 결재선 정책 교체 지점. default | simple-two-step
-    # 고객사별 납품에서 코드를 고치지 않고 이 값만 바꾼다.
+    # 회사마다 결재 규칙이 다르므로 코드를 고치지 않고 이 값만 바꾼다.
     line-policy: default
   attendance:
     # 근태 판정 정책 교체 지점. default | flex
