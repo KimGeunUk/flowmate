@@ -93,6 +93,12 @@
  * 액션바     .doc-actions-bar  .doc-actions-bar__back
  * 첨부       .attach-list__empty
  * 연차       .leave-fields__breakdown
+ *
+ * ── 클래스 목록 (결재 검토 영역 통합) ────────────────────────────
+ * 검토       .doc-review  .doc-review__actions
+ * 반려모달   .reject-modal__intro  .reject-modal__actions
+ *            (.doc-actions__approve 는 없어졌다 — 의견 칸이 하나로 합쳐지며
+ *             승인 폼이 검토 영역 자체가 되었다)
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
@@ -431,9 +437,9 @@ a:hover { text-decoration: underline; }
 .approval-line__comment { flex: 1; color: var(--color-text-muted); font-size: 13px; }
 .approval-line__at { color: var(--color-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-/* 액션 */
+/* 액션 (수정·회수·목록). 승인·반려는 위쪽 .doc-review 가 맡는다 */
 .doc-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
-.doc-actions__approve { display: inline-flex; gap: var(--space-2); align-items: center; margin: 0; }
+.doc-actions form { margin: 0; }
 
 /* 이력 */
 .doc-history { margin-bottom: var(--space-5); }
@@ -476,6 +482,31 @@ a:hover { text-decoration: underline; }
     box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
 }
 .reject-modal__title, .preflight-modal__title { font-size: 17px; font-weight: 700; margin-bottom: var(--space-4); }
+.reject-modal__intro { color: var(--color-text-muted); font-size: 13px; margin-bottom: var(--space-4); }
+.reject-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+}
+.reject-modal__actions .btn { min-width: 88px; text-align: center; }
+.reject-modal__actions .btn--plain { min-width: 0; }
+
+/*
+ * 검토 영역 — 의견 칸은 하나이고 [승인]·[반려]가 그 아래 나란히 선다.
+ * 예전에는 의견 칸이 승인 폼 안에만 있어서, 반려를 누르면 적어 둔 의견이
+ * 딸려가지 않고 버려졌다(reject-modal.jsp 주석 참조).
+ */
+.doc-review {
+    padding: var(--space-4);
+    margin-bottom: var(--space-5);
+    background: var(--color-stripe);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+.doc-review textarea.form-input { resize: vertical; }
+.doc-review__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.doc-review__actions .btn { min-width: 96px; text-align: center; }
 
 /* ══ 근태 (Phase 4) ══════════════════════════════════════════════ */
 
@@ -679,6 +710,10 @@ a:hover { text-decoration: underline; }
 .doc-form .form-label { padding-top: 7px; }   /* 입력칸 첫 줄에 눈높이를 맞춘다 */
 .doc-form .form-row--stack { grid-template-columns: minmax(0, 1fr); }
 .doc-form .form-row--stack .form-label { padding-top: 0; }
+
+/* 라벨을 위에 두는 줄. 전역 .form-row(flex) 안에서도 쓸 수 있어야 한다 —
+   반려 모달처럼 .doc-form 바깥의 폼도 같은 모양을 쓴다 */
+.form-row--stack { flex-direction: column; align-items: stretch; }
 
 /* 입력 열 — 입력칸과 단위·보조 문구를 함께 담는다 */
 .form-field {

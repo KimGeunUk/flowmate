@@ -155,21 +155,48 @@
             </c:choose>
         </section>
 
-        <section class="doc-actions">
-            <%-- 버튼 표시 조건은 Service 가 계산해 넘긴 값만 쓴다. JSP 에 규칙을 흩지 않는다 --%>
-            <c:if test="${myTurn}">
-                <form class="doc-actions__approve" method="post"
+        <%--
+          검토 영역. 의견 칸은 **하나**다.
+
+          ★ 예전에는 의견 칸이 둘이었다 — 승인 폼의 "의견"과 반려 모달의
+            "반려 사유". 그런데 둘은 같은 컬럼(approval_line.comment,
+            approval_history.comment)에 저장된다. 이름만 다른 같은 칸이었다.
+
+            더 나쁜 것은 승인 폼 안에 있던 의견 칸이 반려에는 딸려가지 않는
+            것이었다. 결재자가 "견적서가 없습니다"라고 적고 [반려]를 누르면
+            모달이 뜨면서 그 문장이 사라졌다 — 의견을 가장 길게 쓰는 경우가
+            반려인데 하필 그때 버려졌다.
+
+            지금은 화면이 데이터 모델과 같은 모양이다:
+              의견(comment)          → 승인·반려 공통이므로 칸도 하나
+              반려 유형(reason_category) → 반려 전용이므로 반려 모달에만
+            모달의 의견 칸은 이 칸의 값을 이어받는다(common.js).
+
+          버튼 표시 조건은 Service 가 계산해 넘긴 값만 쓴다. JSP 에 규칙을 흩지 않는다.
+        --%>
+        <c:if test="${myTurn}">
+            <section class="doc-review">
+                <h3 class="section-title">검토</h3>
+                <form id="approveForm" method="post"
                       action="${pageContext.request.contextPath}/approval/${doc.approvalId}/approve">
                     <jsp:include page="../common/csrf-input.jsp"/>
-                    <div class="form-row">
+                    <div class="form-row form-row--stack">
                         <label class="form-label" for="comment">의견</label>
-                        <input class="form-input" type="text" id="comment" name="comment" maxlength="500">
+                        <div class="form-field">
+                            <textarea class="form-input" id="comment" name="comment" rows="3" maxlength="500"
+                                      placeholder="승인이든 반려든 여기에 적습니다. 반려할 때는 유형만 더 고르면 됩니다."></textarea>
+                            <span class="form-hint" data-count-for="comment"></span>
+                        </div>
+                    </div>
+                    <div class="doc-review__actions">
                         <button class="btn btn--primary" type="submit">승인</button>
+                        <button class="btn btn--danger" type="button" id="rejectOpen">반려</button>
                     </div>
                 </form>
-                <button class="btn btn--danger" type="button" id="rejectOpen">반려</button>
-            </c:if>
+            </section>
+        </c:if>
 
+        <section class="doc-actions">
             <c:if test="${doc.editable}">
                 <a class="btn btn--plain"
                    href="${pageContext.request.contextPath}/approval/write?approvalId=${doc.approvalId}">수정</a>

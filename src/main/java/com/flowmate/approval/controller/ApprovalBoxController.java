@@ -66,7 +66,7 @@ public class ApprovalBoxController {
         model.addAttribute("lines", lines);
         model.addAttribute("histories", queryService.findHistories(approvalId));
         model.addAttribute("attachments", attachmentMapper.findByApprovalId(approvalId));
-        model.addAttribute("rejectReasons", RejectReason.ALL);
+        model.addAttribute("rejectReasons", RejectReason.options());
         model.addAttribute("myTurn", queryService.isMyTurn(doc, lines, viewerId));
         model.addAttribute("canCancel", queryService.canCancel(doc, viewerId));
 
