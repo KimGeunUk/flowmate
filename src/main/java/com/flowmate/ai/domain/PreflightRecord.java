@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * {@code ai_preflight_result} 행 (설계서 §5.5, 계획서 5 Task 5).
+ * {@code ai_preflight_result} 행.
  *
  * ApprovalDoc 이 DB 컬럼과 "조회 표시용" 필드를 함께 갖는 것과 같은 방식으로,
  * 이 클래스도 두 종류의 필드를 섞는다:
@@ -19,7 +19,7 @@ import java.util.List;
  * 필드가 이미 같은 내용을 구조화된 형태로 담고 있어 중복이고, 원시 JSON 문자열을 다시
  * JSON 안에 문자열로 얹는 것은 화면 쪽에서 다루기 번거롭다.
  *
- * ★ PASS 판정은 이 테이블에 남기지 않는다(PreflightService 의 결정, 계획서가 명시하지
+ * ★ PASS 판정은 이 테이블에 남기지 않는다(PreflightService 의 결정 - 어디에도 명시돼 있지
  * 않아 이 Phase 가 내린 선택). ai_preflight_result 의 존재 이유가 테이블 코멘트에 적힌
  * 대로 "경고를 무시하고 상신했는지 추적"이므로, 경고가 없었던 호출까지 남기면 그 측정의
  * 신호가 옅어진다. resultId 가 있는 행은 전부 "실제로 화면에 WARN 모달을 띄웠던 순간"이다.

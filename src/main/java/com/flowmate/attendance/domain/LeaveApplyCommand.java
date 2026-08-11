@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * approval → attendance 경계를 넘는 값 (계획서 4 D1 — ★ 모듈 의존은 한 방향이다).
+ * approval → attendance 경계를 넘는 값 (★ 모듈 의존은 한 방향이다).
  *
  * approvalId 만 넘기면 attendance 가 사원·기간·일수를 알아내려고 approval 의
  * leave_request 테이블을 읽어야 하고, 그러면 attendance → approval 호출이

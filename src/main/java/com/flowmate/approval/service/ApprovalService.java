@@ -162,7 +162,7 @@ public class ApprovalService {
 
     /**
      * docType=LEAVE 일 때만 leave_request 를 채운다. 일수는 화면 입력이 아니라
-     * LeaveInquiryService(attendance 의 영업일 계산)가 계산한다 (계획서 4 D5).
+     * LeaveInquiryService(attendance 의 영업일 계산)가 계산한다.
      *
      * ★ 영업일이 0일이면 기안 자체를 거부한다 — 의미 없는 신청이 문서로 남는 것을
      * 막는다. 이 메서드는 saveDraft() 의 @Transactional 안에서 불리므로, 여기서
@@ -239,7 +239,7 @@ public class ApprovalService {
         }
         historyMapper.insert(HistoryFactory.of(approvalId, actorId, HistoryAction.APPROVE, comment));
 
-        // ★★ 이 Phase의 척추 (설계서 §6.3, 계획서 4 D9). 연차 신청서가 최종
+        // ★★ 이 Phase의 척추. 연차 신청서가 최종
         // 승인되면 근태에 반영한다. Spring 이벤트가 아니라 직접 호출로 붙인다 —
         // 같은 트랜잭션 안에서 어느 한쪽이 실패하면 전부 롤백되어야
         // "승인은 됐는데 연차가 안 깎였다" 같은 부분 실패를 막을 수 있기 때문이다.
@@ -250,7 +250,7 @@ public class ApprovalService {
 
     /**
      * leave_request(approval 소유)를 읽어 LeaveApplyCommand 값을 조립한다
-     * (계획서 4 D1). attendance 는 이 값만 받고, 자신의 소유가 아닌
+     * attendance 는 이 값만 받고, 자신의 소유가 아닌
      * leave_request 를 직접 읽지 않는다 — 그래야 의존이 approval → attendance
      * 한 방향으로 유지된다.
      */
@@ -343,7 +343,7 @@ public class ApprovalService {
     /**
      * 결재선을 정책으로 다시 만든다.
      *
-     * 부서장 체인 조회는 org 모듈의 Service 를 경유한다 (설계서 §4.3).
+     * 부서장 체인 조회는 org 모듈의 Service 를 경유한다.
      * 변환(Employee → ApproverCandidate)은 여기서 한다 — org 이 approval 의 타입을 알지 않게.
      */
     private void rebuildLines(ApprovalDoc doc, Employee drafter) {

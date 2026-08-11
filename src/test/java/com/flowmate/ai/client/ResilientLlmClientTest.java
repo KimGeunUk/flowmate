@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 타임아웃과 예외를 흡수하는 가장 안쪽 데코레이터를 검증한다 (설계서 §6.4.3, 계획서 3 D7).
+ * 타임아웃과 예외를 흡수하는 가장 안쪽 데코레이터를 검증한다.
  *
  * SDK 클라이언트 자체의 타임아웃 설정만으로는 부족해서 ExecutorService + Future.get(timeout)
  * 으로 직접 거는 이유가, 바로 이 클래스처럼 "타임아웃이 실제로 발동하는지" 를 테스트할 수

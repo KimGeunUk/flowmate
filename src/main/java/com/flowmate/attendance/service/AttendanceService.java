@@ -13,7 +13,7 @@ import com.flowmate.attendance.mapper.AttendanceMapper;
 import com.flowmate.attendance.policy.WorkTimePolicy;
 
 /**
- * 출퇴근 등록 (계획서 4 Task 3).
+ * 출퇴근 등록.
  *
  * checkIn()/checkOut() 은 각각 "그날 하루" 단위로 동작한다 — 사원 1명이
  * 하루에 attendance 행을 1개만 갖는다(UNIQUE(emp_id, work_date)).
@@ -32,7 +32,7 @@ public class AttendanceService {
     /**
      * 출근을 등록한다. 하루 1회다 — 그날 행이 이미 있으면 기존 값을 조용히
      * 유지하지 않고 예외를 던진다. 두 번 누른 사용자가 "됐나?"를 모르는
-     * 것보다 "이미 등록됐습니다"를 보는 것이 낫다(계획서 4 Task 3).
+     * 것보다 "이미 등록됐습니다"를 보는 것이 낫다.
      */
     @Transactional
     public void checkIn(Long empId) {
@@ -48,7 +48,7 @@ public class AttendanceService {
         attendance.setWorkMinutes(0);
         attendance.setOvertimeMinutes(0);
 
-        // ★ 함정 (계획서 4 Task 3) — 여기서 WorkTimePolicy 를 부르지 않는다.
+        // ★ 함정 — 여기서 WorkTimePolicy 를 부르지 않는다.
         // WorkTimePolicy.evaluate() 는 checkOut 이 없으면 status=null 을 돌려준다
         // (지각·조퇴 여부를 아직 판정할 수 없어 유보한다는 뜻, WorkTimeResult 주석
         // 참조). 그런데 attendance.status 컬럼은 NOT NULL 이라 그 null 을 그대로

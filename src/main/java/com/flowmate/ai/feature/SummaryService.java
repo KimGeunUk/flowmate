@@ -15,7 +15,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
- * 기능 1 — 결재 문서 요약 (설계서 §6.4.5, 계획서 5 Task 3).
+ * 기능 1 — 결재 문서 요약.
  *
  * ★ 권한: 문서를 볼 수 있는 사람만 요약도 볼 수 있어야 한다. 별도 규칙을 만들지
  * 않고 {@link ApprovalQueryService#findDoc(Long, Long)} 을 그대로 태운다 - 그
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
  * (호출자인 {@code AiController} 가 404/403 으로 바꾼다).
  *
  * ★ 반면 LLM 호출 자체의 실패(빈 응답, 스키마를 벗어난 JSON)는 예외가 아니라
- * {@code Optional.empty()} 로 흡수한다 (계획서 5 D8) - 문서 조회 권한 검사를 통과한
+ * {@code Optional.empty} 로 흡수한다 - 문서 조회 권한 검사를 통과한
  * 뒤부터는 "AI 가 지금 안 될 뿐, 문서는 정상"이라는 뜻이어야 한다.
  */
 @Service
@@ -57,11 +57,11 @@ public class SummaryService {
     }
 
     /**
-     * 문서 요약. 완료 기준(설계서 §9 5-1): 같은 문서를 두 번 부르면 두 번째는
+     * 문서 요약. 완료 기준: 같은 문서를 두 번 부르면 두 번째는
      * {@code llmClient}(캐싱 데코레이터가 가장 바깥)가 캐시에서 응답한다 - 이
      * 메서드는 매번 같은 cache_key 가 나오도록 매번 같은 프롬프트를 다시 조립한다.
      *
-     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.summary}
+     * ★ 기능 플래그(커스터마이징 지점 5): {@code ai.features.summary}
      * 가 꺼져 있으면 문서 조회조차 하지 않고 즉시 빈 결과다 - llmClient 는 물론
      * {@code approvalQueryService} 도 건드리지 않는다. 화면(ApprovalBoxController/
      * detail.jsp)은 이 메서드의 결과가 아니라 같은 플래그를 별도로 보고 요약

@@ -11,10 +11,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 실제 호출 직전에 프롬프트를 마스킹해서 위임하는 데코레이터를 검증한다 (계획서 3 D8).
+ * 실제 호출 직전에 프롬프트를 마스킹해서 위임하는 데코레이터를 검증한다.
  *
  * 이 데코레이터 하나만으로 "원문이 안 나간다" 를 완전히 증명하지는 못한다 -
- * 체인 순서(캐싱보다 안쪽)까지 함께 봐야 하고 그건 Task 6 의 LlmChainIT 가 한다.
+ * 체인 순서(캐싱보다 안쪽)까지 함께 봐야 하고 그건 LlmChainIT 가 한다.
  * 여기서는 이 데코레이터 자신의 책임 - 위임 직전 마스킹 - 만 검증한다.
  */
 class MaskingLlmClientTest {

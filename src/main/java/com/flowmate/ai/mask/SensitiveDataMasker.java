@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
- * 외부 LLM 으로 나가는 텍스트에서 민감정보를 토큰으로 치환한다 (설계서 §6.4.2).
+ * 외부 LLM 으로 나가는 텍스트에서 민감정보를 토큰으로 치환한다.
  *
  * ★ 설계 원칙 — 오탐은 허용하고 미탐은 불허한다.
  *
@@ -37,7 +37,7 @@ public class SensitiveDataMasker {
     /**
      * 마스킹한다. 복원용 매핑을 함께 돌려준다.
      *
-     * 복원 매핑을 돌려주되 요약·점검 기능에서는 쓰지 않는다 (설계서 §6.4.2 정책 1).
+     * 복원 매핑을 돌려주되 요약·점검 기능에서는 쓰지 않는다.
      * 요약문에 계좌번호가 필요 없고, 복원하면 마스킹의 목적이 절반 사라진다.
      */
     public MaskResult mask(String text) {
@@ -68,7 +68,7 @@ public class SensitiveDataMasker {
         return new MaskResult(result, mapping);
     }
 
-    /** 토큰을 원문으로 되돌린다. 기본적으로 쓰지 않는다 — 설계서 §6.4.2 정책 1. */
+    /** 토큰을 원문으로 되돌린다. 기본적으로 쓰지 않는다 — 마스킹의 목적이 절반 사라지기 때문이다. */
     public String restore(String masked, Map<String, String> mapping) {
         if (masked == null) {
             return null;

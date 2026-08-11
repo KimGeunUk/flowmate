@@ -32,7 +32,7 @@ import com.flowmate.attendance.mapper.LeaveUsageMapper;
 
 /**
  * ★★ 테스트 2 · 3 — approve() 가 실패하면 **정말로 전부 롤백되는지** 증명한다
- * (설계서 §6.3, 계획서 4 Task 6). 설계서가 Spring 이벤트를 거부하고 같은
+ * Spring 이벤트를 거부하고 같은
  * 트랜잭션의 직접 호출을 선택한 이유가 이것이고, 이 클래스가 없으면 그 판단이
  * 증명되지 않는다.
  *
@@ -88,7 +88,7 @@ class ApprovalServiceLeaveApplyRollbackIT {
     private JdbcTemplate jdbcTemplate;
 
     /**
-     * ★ 실패하는 협력자를 주입한다(계획서 4 Task 6 "make the failure real").
+     * ★ 실패하는 협력자를 주입한다("make the failure real").
      * AttendanceMapper 를 모킹해서 근태 UPSERT 단계만 확실히 실패시킨다 —
      * 그 앞의 모든 단계(결재선·문서 상태 갱신, leave_balance 잠금·갱신,
      * leave_usage 삽입)는 실제 DB 로 실행된 뒤, 이 실패로 인해 실제

@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *   null 이 되고, 화면은 이미 null 을 다룰 수 있다(요약이 비면 안내 문구).
  *   즉 "덜 온 것"은 부분적으로 쓰고 "더 온 것"은 무시한다.
  *
- * 설계서 §6.4.3 의 폴백 원칙과 같은 정신이다 - 완벽하지 않은 응답을 이유로
+ * 폴백 원칙과 같은 정신이다 - 완벽하지 않은 응답을 이유로
  * 기능 전체를 죽이지 않는다.
  */
 public final class LlmJson {

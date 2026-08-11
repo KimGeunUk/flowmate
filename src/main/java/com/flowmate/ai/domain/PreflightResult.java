@@ -5,11 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 사전 점검 구조화 출력 (설계서 §6.4.6, 계획서 5 Task 5).
+ * 사전 점검 구조화 출력.
  *
  * {@code LlmRequest.outputType} 에 이 클래스를 실어 보내면 {@code ClaudeLlmClient} 가
  * 이 POJO 에서 JSON 스키마를 뽑아 구조화 출력을 요청하고, 응답도 이 타입으로 강제한다
- * (계획서 5 D2). 이 클래스는 모델이 채울 필드만 갖는다 - resultId 같은 DB 행 식별자는
+ * 이 클래스는 모델이 채울 필드만 갖는다 - resultId 같은 DB 행 식별자는
  * 여기 두지 않는다({@link PreflightRecord} 의 몫이다). 구조화 출력 스키마에 모델이
  * 채울 수 없는 필드(예: DB 가 나중에 매기는 PK)를 섞으면 모델이 그 값을 지어내려 하거나
  * null 로 채운 채 스키마만 지키는 무의미한 값이 나온다.

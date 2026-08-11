@@ -15,9 +15,9 @@ import com.flowmate.ai.domain.LlmResponse;
 import java.util.Optional;
 
 /**
- * 실제 Anthropic API 호출 (설계서 §6.4.1 체인의 맨 안쪽).
+ * 실제 Anthropic API 호출 (체인의 맨 안쪽).
  *
- * ★ Claude Opus 5 의 요청 규약 (계획서 3 D6) — 아래는 전부 의도된 것이다:
+ * ★ Claude Opus 5 의 요청 규약 — 아래는 전부 의도된 것이다:
  *
  *   temperature/top_p/top_k 를 넣지 않는다 — Opus 5 에서 제거됐다. 보내면 400 이다.
  *
@@ -32,12 +32,12 @@ import java.util.Optional;
  * ★ API 키는 환경변수 ANTHROPIC_API_KEY 로만 받는다.
  *   fromEnv() 가 직접 읽으므로 코드에도 설정 파일에도 키 문자열이 등장하지 않는다.
  *
- * ★ LlmRequest 에 별도 시스템 프롬프트 필드가 없다 (계획서 3 D1 - 구조화 출력과 마찬가지로
+ * ★ LlmRequest 에 별도 시스템 프롬프트 필드가 없다 (구조화 출력과 마찬가지로
  *   Phase 5로 미룬 결정). PromptRepository 가 불러온 시스템 프롬프트 템플릿과 실제 문서
  *   본문을 합치는 것은 이 게이트웨이가 아니라 Phase 5 기능 쪽의 책임이므로, 여기서는
  *   request.getPrompt() 하나만 사용자 메시지로 보낸다.
  *
- * ★ 구조화 출력 (계획서 5 D2, Phase 3 부채 A1): request.getOutputType() 이 있으면
+ * ★ 구조화 출력: request.getOutputType 이 있으면
  *   SDK 의 클래스 기반 오버로드(outputConfig(Class))를 쓴다. 스키마를 손으로 쓰지 않고
  *   POJO 에서 자동으로 뽑아내고, 결과도 문자열이 아니라 그 타입으로 돌아온다
  *   (StructuredTextBlock.text() 가 T 를 준다). 이 클래스는 LlmResponse.text 에 항상
@@ -45,7 +45,7 @@ import java.util.Optional;
  *   다시 JSON 문자열로 직렬화해 넣는다 - 그래서 인터페이스도 데코레이터도 바뀔 필요가 없다.
  *
  *   구조화 출력과 인용(citations)은 함께 쓸 수 없고, 거절(refusal) 시에는 스키마를
- *   지키지 않는다(설계서 §6.4 인용 - 계획서 5 D2). 그래서 거절 검사(Phase 3 D6)는
+ * 지키지 않는다. 그래서 거절 검사는
  *   구조화 출력 경로에서도 content 를 읽기 전에 그대로 먼저 돈다.
  */
 public class ClaudeLlmClient implements LlmClient {

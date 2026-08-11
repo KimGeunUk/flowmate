@@ -4,7 +4,7 @@
 <mapper namespace="com.flowmate.attendance.mapper.AttendanceMapper">
 
     <!--
-      연차 반영 UPSERT (계획서 4 D6). ON CONFLICT 가 DB 안에서 해결하므로
+      연차 반영 UPSERT. ON CONFLICT 가 DB 안에서 해결하므로
       INSERT 실패를 잡아 판단하지 않는다(D2 와 같은 이유) — 트랜잭션을
       중단시키지 않는다. check_in/check_out/work_minutes/overtime_minutes 는
       건드리지 않는다 — 오전 출근을 찍고 오후에 반차를 낸 경우 그 값을
@@ -24,7 +24,7 @@
     </select>
 
     <!--
-      출근 등록 (계획서 4 Task 3). 순수 INSERT 다 — 중복 방지는 서비스가
+      출근 등록. 순수 INSERT 다 — 중복 방지는 서비스가
       findByEmpIdAndWorkDate 로 먼저 확인한다. work_minutes/overtime_minutes 는
       0으로 시작하고, status 는 서비스가 정한 임시값을 그대로 쓴다
       (WorkTimePolicy 는 퇴근 시점에만 부른다 — AttendanceService 주석 참조).
@@ -47,7 +47,7 @@
          WHERE att_id = #{attId}
     </update>
 
-    <!-- "내 근태"(계획서 4 Task 7). ?ym=2026-08 로 넘어온 달의 행만, 날짜순 -->
+    <!-- "내 근태". ?ym=2026-08 로 넘어온 달의 행만, 날짜순 -->
     <select id="findByEmpIdAndMonth" resultType="Attendance">
         SELECT att_id, emp_id, work_date, check_in, check_out, work_minutes, overtime_minutes, status, note
           FROM attendance
@@ -57,7 +57,7 @@
     </select>
 
     <!--
-      "부서 근태 현황"(계획서 4 Task 7). employee 를 기준으로 LEFT JOIN 하므로
+      "부서 근태 현황". employee 를 기준으로 LEFT JOIN 하므로
       그 달에 근태 행이 하나도 없는 사원(예: 이번 달 신규 입사자)도 0으로
       채워진 행으로 나온다 — 누락되지 않는다.
 
@@ -90,7 +90,7 @@
     </select>
 
     <!--
-      팀 가동률(계획서 5 Task 4). deptId 하나만 필터한다 - 하위 부서로 확장하지
+      팀 가동률. deptId 하나만 필터한다 - 하위 부서로 확장하지
       않는다("팀"은 신청자와 같은 리프 부서를 뜻한다, TeamAvailability 주석 참조).
       GROUP BY 없이 집계 함수만 쓰므로 항상 정확히 한 행이 나온다(팀원이
       0명이어도 team_size=0 인 행이 나온다 - NULL 이 아니다).

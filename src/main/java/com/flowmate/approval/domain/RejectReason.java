@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 반려 유형 6종 (설계서 §5.2 확정).
+ * 반려 유형 6종.
  *
  * ★ 이 값이 Phase 5 AI 사전점검의 학습 원천이다.
  *   반려 화면에서 선택을 필수로 만드는 이유가 여기에 있다 —

@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * ★ 계획서 5 D5 / Task 6 - {@code fetch()} 는 {@code $.ajaxSetup} 경로를 타지 않아
+ * ★ {@code fetch()} 는 {@code $.ajaxSetup} 경로를 타지 않아
  * CSRF 헤더가 안 붙고 조용히 403 이 되는 그 현상을, 실제 Spring Security 필터 체인을
  * 통과시켜 고정한다(단정만이 아니라 실제로 재현한다).
  *

@@ -31,19 +31,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기능 2 — 상신 전 사전 점검 (설계서 §6.4.6, 계획서 5 Task 5 ★ 이 Phase 의 핵심).
+ * 기능 2 — 상신 전 사전 점검 (★ 이 Phase 의 핵심).
  *
- * 흐름(설계서 §6.4.6 ①~④):
+ * 흐름:
  *   1) 같은 doc_type + dept_id 의 최근 반려 이력 10건 조회(없으면 전사로 확대)
  *   2) reason_category 별 빈도 집계
  *   3) [현재 문서 요지] + [과거 반려 패턴 + 빈도] 프롬프트 조립 → 구조화 출력으로 findings 수신
  *   4) WARN 이면 ai_preflight_result 에 기록 - PASS 는 기록하지 않는다({@link PreflightRecord}
  *      클래스 주석 참고)
  *
- * ★ D8(계획서 5): 점검은 보조 장치다. LLM 호출이 실패하면(Optional.empty()) 이 서비스도
+ * ★ 점검은 보조 장치다. LLM 호출이 실패하면(Optional.empty) 이 서비스도
  * 예외 없이 Optional.empty() 를 돌려준다 - {@code AiController} 는 그 상태를 503 으로
  * 바꾸고, 화면 스크립트는 그 어떤 실패(503·네트워크 오류·타임아웃)도 "모달 없이 바로
- * 상신"으로 처리한다. 사전 점검이 상신을 막을 수 있다면 그 자체로 설계서 §6.4.3 의
+ * 상신"으로 처리한다. 사전 점검이 상신을 막을 수 있다면 그 자체로
  * 폴백 원칙 위반이다.
  *
  * ★ 권한: SummaryService/LeaveContextService 와 같은 원칙 - 새 규칙을 만들지 않고
@@ -56,7 +56,7 @@ public class PreflightService {
     private static final String PROMPT_FEATURE = "preflight";
     private static final String PROMPT_VERSION = "v1";
 
-    /** 설계서 §6.4.6 ②(a) - 최근 반려 이력 10건 */
+    /** 최근 반려 이력 10건 */
     private static final int RECENT_REJECT_LIMIT = 10;
 
     private final ApprovalQueryService approvalQueryService;
@@ -95,7 +95,7 @@ public class PreflightService {
      *   묶어서 얻는 것도 없다 - WARN 경로의 INSERT 는 한 문장이라 그 자체로 원자적이다.
      *   같은 모양("조회 후 LLM 호출")인 SummaryService 도 @Transactional 을 쓰지 않는다.
      *
-     * ★ 기능 플래그(계획서 5 Task 7, 커스터마이징 지점 5): {@code ai.features.preflight}
+     * ★ 기능 플래그(커스터마이징 지점 5): {@code ai.features.preflight}
      * 가 꺼져 있으면 즉시 빈 결과다 - llmClient 는 물론 반려 이력 집계·문서 조회도
      * 하지 않는다. 이 empty 는 D8 이 이미 만들어 둔 "AI 실패 → 모달 없이 바로 상신"
      * 경로를 그대로 탄다 - 즉 플래그를 끄는 것과 AI 가 실패하는 것은 화면 입장에서
@@ -118,7 +118,7 @@ public class PreflightService {
     }
 
     /**
-     * '무시하고 상신'을 기록한다(설계서 §6.4.6 ④). resultId 로 행을 찾아 그 행의
+     * '무시하고 상신'을 기록한다. resultId 로 행을 찾아 그 행의
      * approvalId 로 다시 열람 권한을 검사한다 - 다른 사람의 점검 결과 id 를 넣어
      * 아무 문서나 무시 처리하지 못하게 막는다(viewer identity 는 항상 로그인
      * principal 에서 온다).
@@ -135,7 +135,7 @@ public class PreflightService {
 
     /**
      * 같은 doc_type + dept_id 의 최근 반려 이력을 reason_category 별로 집계한다.
-     * 없으면 전사로 확대한다(설계서 §6.4.6 ②(a)).
+     * 없으면 전사로 확대한다.
      */
     private List<RejectPattern> aggregatePatterns(String docType, Long deptId) {
         List<String> categories =

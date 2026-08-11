@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 결재 문서의 상태 기계. 설계서 §6.2 가 정의한 전이만 허용하고 나머지는 즉시 예외로 막는다.
+ * 결재 문서의 상태 기계. 정의된 전이만 허용하고 나머지는 즉시 예외로 막는다.
  * DB 도 Spring 도 없는 순수 단위 테스트다.
  */
 class ApprovalDocTest {

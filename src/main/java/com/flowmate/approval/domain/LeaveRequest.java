@@ -5,10 +5,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 연차 신청서 — approval_doc 의 유형별 확장 (설계서 §5.3, docType=LEAVE 일 때만 존재).
+ * 연차 신청서 — approval_doc 의 유형별 확장 (docType=LEAVE 일 때만 존재).
  *
  * approval 모듈이 소유한다. attendance 는 이 테이블을 직접 읽지 않는다 — 승인
- * 반영은 LeaveApplyCommand 값으로만 attendance 에 전달된다 (계획서 4 D1).
+ * 반영은 LeaveApplyCommand 값으로만 attendance 에 전달된다.
  */
 public class LeaveRequest implements Serializable {
 

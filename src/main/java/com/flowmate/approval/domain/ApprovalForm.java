@@ -11,7 +11,7 @@ import java.time.LocalDate;
  *
  * leaveType/startDate/endDate/reason 은 docType=LEAVE 일 때만 쓰는 필드다.
  * days 는 여기 없다 — 서버(BusinessDayCalculator)가 계산한다. 기안자가 일수를
- * 직접 입력하게 하면 금요일~월요일을 4일로 적는 실수가 반드시 난다 (계획서 4 D5).
+ * 직접 입력하게 하면 금요일~월요일을 4일로 적는 실수가 반드시 난다.
  */
 public class ApprovalForm {
 

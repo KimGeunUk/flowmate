@@ -1,15 +1,15 @@
 -- 데모용 대량 시드: 결재 문서 200건 + 반려 40건(부서·유형별 편중) + 근태 3개월분.
--- 설계서 §9 Phase 5-2, 계획서 5(2026-08-09-phase-5-ai-features.md) D6·D7, Task 1.
+-- 데모 데이터: 결재 문서 200건 + 반려 이력 40건.
 --
 -- ★ ON CONFLICT DO NOTHING: 이 파일은 몇 번을 다시 실행해도 안전하다.
 --   approval_doc / approval_line / approval_history / approval_reject_history 는
 --   전부 명시적 PK(10001~ 대역, 기존 21-seed-approval.sql 의 1~6 과 절대 겹치지 않는다)를
 --   쓰고 그 PK 로 충돌을 판정한다. attendance 는 자체 UNIQUE(emp_id, work_date) 로
 --   충돌을 판정한다. 재실행해도 기존 6건이나 이미 들어간 행을 다시 만들거나
---   중복시키지 않는다. (계획서 5 D7)
+-- 중복시키지 않는다.
 --
--- ★ 반려 사유를 부서·문서유형별로 편중시키는 것이 이 파일의 핵심이다 (계획서 5 D6).
---   고르게 뿌리면 Task 5 사전점검이 "이 부서·이 유형에서 자주 나는 반려"를 집계해도
+-- ★ 반려 사유를 부서·문서유형별로 편중시키는 것이 이 파일의 핵심이다.
+--   고르게 뿌리면 사전점검이 "이 부서·이 유형에서 자주 나는 반려"를 집계해도
 --   아무 신호가 없다. 그래서 반려 40건 중 4개 조합(부서×유형)에 편중을 명시적으로 심는다:
 --
 --     개발팀(dept 7) + PURCHASE  -> MISSING_EVIDENCE 위주      (12건 중 8건)
@@ -20,7 +20,7 @@
 --   검증: SELECT dept_id, doc_type, reason_category, COUNT(*) FROM approval_reject_history
 --         GROUP BY 1,2,3 ORDER BY 4 DESC; 로 편중이 실제로 보이는지 확인한다.
 --
--- ★ 결재선은 ApprovalLinePolicy 를 호출하지 않고 손으로 고정한다 (계획서 5 D6,
+-- ★ 결재선은 ApprovalLinePolicy 를 호출하지 않고 손으로 고정한다 (
 --   21-seed-approval.sql 과 같은 판단). 부서 관리자(또는 대리 승인자) 1인 -> 상위
 --   본부장 1인의 2단계. 정책 코드를 호출해서 200건을 만들면 느리고, 정책이 바뀌면
 --   시드도 조용히 바뀐다 (Phase 2·4에서 이미 두 번 내린 판단과 같다).
@@ -39,9 +39,9 @@
 --   개발팀 기안자 후보에서도 14·17·18 을 제외한다.
 --
 -- ★ LEAVE 문서는 이 시드에 포함하지 않는다. LEAVE 는 leave_request 확장 테이블과
---   승인 시 leave_balance/attendance 반영까지 얽혀 있어(Phase 4 D1) 대량으로 손으로
+-- 승인 시 leave_balance/attendance 반영까지 얽혀 있어 대량으로 손으로
 --   찍으면 그 트랜잭션 규약을 우회하게 된다. 반려 편중 데모는 EXPENSE/PURCHASE/
---   GENERAL 만으로 설계서의 예시(개발팀 PURCHASE, 마케팅팀 EXPENSE)를 충분히 보인다.
+--   GENERAL 만으로 대표 조합(개발팀 PURCHASE, 마케팅팀 EXPENSE)을 충분히 보인다.
 --
 -- ★ CONTRACT 문서유형도 이 시드에 포함하지 않는다 - 의도적이다. ApprovalDocMapperIT
 --   가 "CON 접두사 문서번호가 아직 하나도 없다"(COALESCE 가 NULL 을 0 으로 바꾸는지의
@@ -322,9 +322,9 @@ ON CONFLICT (history_id) DO NOTHING;
 
 -- =====================================================================
 -- 5) approval_reject_history - 반려 40건, 부서·유형별로 편중된 reason_category.
---    ★ Task 5 사전점검이 읽는 표. reason_text 는 여기 있지만(사람이 볼 화면용),
---    Task 5 는 reason_text 원문을 프롬프트에 넣지 않고 reason_category 와 빈도만 쓴다
---    (계획서 5 Task 5 표 - 개인정보 유입 방지).
+--    ★ 사전점검이 읽는 표. reason_text 는 여기 있지만(사람이 볼 화면용),
+--    사전점검은 reason_text 원문을 프롬프트에 넣지 않고 reason_category 와 빈도만
+--    쓴다 - 개인정보가 프롬프트로 흘러드는 것을 막기 위해서다.
 -- =====================================================================
 INSERT INTO approval_reject_history (id, approval_id, doc_type, dept_id, rejector_id, reason_category, reason_text, rejected_at)
 SELECT 40000 + idx, approval_id, doc_type, dept_id, approver1_id, reason_category, reason_text, submitted_at + interval '2 hours'
@@ -413,7 +413,7 @@ ON CONFLICT (emp_id, work_date) DO NOTHING;
 --   같은 날짜에 또 넣으면 UNIQUE(emp_id, work_date) 위반이다.
 --
 -- ★ leave_usage / leave_request / 연차 결재 문서는 만들지 않는다 - 파일 맨 위에서
---   LEAVE 문서를 시드에 넣지 않기로 한 것과 같은 이유다(Phase 4 D1 의 트랜잭션
+-- LEAVE 문서를 시드에 넣지 않기로 한 것과 같은 이유다(의 트랜잭션
 --   규약을 손으로 우회하게 된다). 이 데이터는 "시스템 도입 전에 이미 쓴 연차"로
 --   읽으면 되고, 앞으로 생기는 연차는 결재 승인 경로가 만든다.
 --

@@ -21,7 +21,7 @@ import com.flowmate.attendance.domain.AttendanceStatus;
 import com.flowmate.attendance.domain.DeptAttendanceRow;
 
 /**
- * 근태 조회 통합 테스트 (계획서 4 Task 7).
+ * 근태 조회 통합 테스트.
  *
  * 조직도 시드(README): 대표이사실(1) - 경영지원본부(2) - 인사팀(4)/재무팀(5),
  * 사업본부(3) - 마케팅팀(6)/개발팀(7). 인사팀 사원은 최민석(4)·한지우(5)·서다인(6),

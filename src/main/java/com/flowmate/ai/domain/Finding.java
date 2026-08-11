@@ -3,13 +3,13 @@ package com.flowmate.ai.domain;
 import java.io.Serializable;
 
 /**
- * 사전 점검 지적 항목 한 건 (설계서 §6.4.6, 계획서 5 Task 5).
+ * 사전 점검 지적 항목 한 건.
  *
  * {@code ClaudeLlmClient} 가 {@code outputConfig(PreflightResult.class)} 로 이 POJO 에서
  * JSON 스키마를 뽑아낸다 - 기본 생성자와 getter/setter 만으로 충분하다(SummaryResult 와
  * 같은 규약).
  *
- * ★ basedOnRejectCount 가 이 기능의 존재 이유다(계획서 5 Task 5). AI 가 "더 자세히
+ * ★ basedOnRejectCount 가 이 기능의 존재 이유다. AI 가 "더 자세히
  * 쓰세요" 같은 뻔한 조언을 하는 것이 아니라 "과거 반려 3건에 근거함"을 숫자로 제시해야
  * 한다. 이 숫자는 {@code PreflightService} 가 집계한 {@link RejectPattern#getCount()} 를
  * 프롬프트에 그대로 넣고, 모델이 그 숫자를 인용하도록 지시해서 나온다 -

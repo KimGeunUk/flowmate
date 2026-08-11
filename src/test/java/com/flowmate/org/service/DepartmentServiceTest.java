@@ -18,7 +18,7 @@ import com.flowmate.org.mapper.DepartmentMapper;
 
 /**
  * findDeptAndDescendantIds() 는 findDeptTree() 가 이미 깊이 우선 순서로 반환한
- * 목록에서 부분트리를 뽑아낸다(계획서 4 Task 7 — 새 재귀 쿼리를 추가하지 않고
+ * 목록에서 부분트리를 뽑아낸다(새 재귀 쿼리를 추가하지 않고
  * Phase 1의 하향 재귀 CTE 결과를 재사용한다). 이 순서 의존성이 핵심이므로
  * findDeptTree() 를 목으로 고정해 그 전제를 명시적으로 검증한다.
  *

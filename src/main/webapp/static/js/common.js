@@ -4,8 +4,8 @@
  */
 
 /*
- * ★ flowmateFetch(url, options) — CSRF 헤더를 붙이는 fetch() 래퍼 (계획서 5 D5,
- * 로드맵 C3, Phase 1부터 이월된 항목).
+ * ★ flowmateFetch(url, options) — CSRF 헤더를 붙이는 fetch 래퍼 (
+ * Phase 1부터 이월된 항목).
  *
  * 왜 필요한가: 아래 $.ajaxSetup 은 jQuery 의 AJAX 경로에만 적용된다. jQuery 는 매
  * 요청 전에 beforeSend 훅을 부르므로 헤더를 자동으로 붙일 수 있지만, 전역 fetch()

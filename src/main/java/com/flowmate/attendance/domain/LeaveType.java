@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 연차 신청 유형 (설계서 §5.3).
+ * 연차 신청 유형.
  *
  * enum 이 아니라 String 상수인 이유는 AttendanceStatus 와 같다: MyBatis 가
  * VARCHAR 컬럼을 그대로 읽고, JSP EL 이 ${form.leaveType == 'HALF_AM'} 로
@@ -28,7 +28,7 @@ public final class LeaveType {
     }
 
     /**
-     * 반차인가. 반차는 하루짜리만 허용하고 0.5일로 고정한다 (계획서 4 Task 5) —
+     * 반차인가. 반차는 하루짜리만 허용하고 0.5일로 고정한다 —
      * 반차가 며칠에 걸치는 것은 기능이 아니라 입력 오류다.
      */
     public static boolean isHalfDay(String leaveType) {

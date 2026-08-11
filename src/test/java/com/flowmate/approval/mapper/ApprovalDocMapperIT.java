@@ -22,7 +22,7 @@ import com.flowmate.org.domain.Employee;
 import com.flowmate.org.service.DepartmentService;
 
 /**
- * 결재 매퍼와 부서장 체인 조회. Task 1 의 시드(문서 6건)를 전제로 한다.
+ * 결재 매퍼와 부서장 체인 조회. 시드 문서 6건을 전제로 한다.
  */
 @SpringBootTest
 @Transactional

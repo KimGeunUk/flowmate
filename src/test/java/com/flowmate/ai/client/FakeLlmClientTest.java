@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * outputType 이 있을 때 {@link FakeLlmClient} 가 그 타입에 맞는 JSON 을 돌려주는지 검증한다
- * (계획서 5 Task 2). {@code ClaudeLlmClient} 의 구조화 출력 경로는 실제 API 호출 없이는
+ * {@code ClaudeLlmClient} 의 구조화 출력 경로는 실제 API 호출 없이는
  * 테스트할 수 없으므로, 키 없이 이 경로를 훈련시키는 대역이 FakeLlmClient 다.
  */
 class FakeLlmClientTest {

@@ -1,6 +1,6 @@
--- 근태 스키마 5종 (설계서 §5.3~5.4). Phase 4 계획서 D1·D8.
+-- 근태 스키마 5종. D8.
 --
--- ★ 이 파일은 두 경로에서 실행된다 (계획서 3 D5, 계획서 4 D8):
+-- ★ 이 파일은 두 경로에서 실행된다:
 --   1) 새 환경: docker compose up 이 빈 볼륨에서 자동 실행한다
 --   2) 기존 환경: docker exec ... psql -f 로 손으로 한 번 적용한다
 --
@@ -9,8 +9,8 @@
 -- 확인한다 (실패한 init 스크립트는 컨테이너를 죽이지 않고, 테이블 없이
 -- healthy 한 컨테이너를 남긴다).
 --
--- leave_request 는 approval 모듈 소유 테이블이다 (설계서 §5.3 "결재 문서의
--- 유형별 확장" — approval_doc 을 PK 로 참조하는 1:1 확장). 계획서 4 D1 은
+-- leave_request 는 approval 모듈 소유 테이블이다 ("결재 문서의
+-- 유형별 확장" — approval_doc 을 PK 로 참조하는 1:1 확장). 모듈 규칙은
 -- attendance 가 approval 을 참조하면 순환 의존이 되므로 attendance 가
 -- approvalId 대신 LeaveApplyCommand 값을 받는다고 확정했다. 그 확정과
 -- 별개로, 이 테이블의 SQL 파일 위치는 "연차 기능이 이 Phase에서 처음
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS leave_usage (
     UNIQUE (approval_id)
 );
 COMMENT ON TABLE  leave_usage             IS '연차 반영 이력. 결재 승인 1건당 정확히 1행';
-COMMENT ON COLUMN leave_usage.approval_id IS 'UNIQUE — 결재 1건당 1회만 반영 (중복 반영 방지). 계획서 4 D2: 이 제약 위반을 잡아서 판단하지 않는다. existsByApprovalId 로 먼저 조회해 분기한다 — PostgreSQL 은 제약 위반 시 트랜잭션 전체를 중단시키므로, approve() 트랜잭션 안에서 그 예외를 잡으면 안 된다';
+COMMENT ON COLUMN leave_usage.approval_id IS 'UNIQUE — 결재 1건당 1회만 반영 (중복 반영 방지). 이 제약 위반을 잡아서 판단하지 않는다. existsByApprovalId 로 먼저 조회해 분기한다 — PostgreSQL 은 제약 위반 시 트랜잭션 전체를 중단시키므로, approve 트랜잭션 안에서 그 예외를 잡으면 안 된다';
 
 CREATE TABLE IF NOT EXISTS holiday (
     holiday_date DATE        PRIMARY KEY,

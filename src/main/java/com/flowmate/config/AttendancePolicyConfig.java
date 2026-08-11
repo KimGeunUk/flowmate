@@ -12,7 +12,7 @@ import com.flowmate.attendance.policy.TenureBasedLeaveGrantPolicy;
 import com.flowmate.attendance.policy.WorkTimePolicy;
 
 /**
- * ★ 커스터마이징 지점 2·3 의 교체 배선 (계획서 4 D7).
+ * ★ 커스터마이징 지점 2·3 의 교체 배선.
  *
  * ApprovalPolicyConfig(지점 1)·LlmConfig(지점 4)와 정확히 같은 형태다 —
  * application.yml 값으로 구현체를 고르고, 설정이 없으면 default 로 떨어진다.

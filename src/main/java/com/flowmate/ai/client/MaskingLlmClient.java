@@ -15,7 +15,7 @@ import java.util.Optional;
  *   순서가 뒤집혀도 컴파일은 되고 테스트도 대부분 통과한다.
  *   LlmChainIT 가 이 순서를 단정한다.
  *
- * 복원하지 않는다 (설계서 §6.4.2 정책 1). mask() 가 돌려준 매핑을 버린다.
+ * 복원하지 않는다. mask 가 돌려준 매핑을 버린다.
  */
 public class MaskingLlmClient implements LlmClient {
 

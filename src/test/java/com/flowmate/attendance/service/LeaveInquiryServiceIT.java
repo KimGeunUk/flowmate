@@ -18,7 +18,7 @@ import com.flowmate.attendance.domain.LeaveType;
  * approval 이 실제로 의존할 지점. 2026년 7월은 공휴일이 없다는 것을
  * HolidayMapperIT 이 확인했으므로, 그 달의 금~월을 경계 검증에 그대로 쓴다.
  *
- * 사원 18(곽수빈) 2026년 잔여(부여 17.0/사용 5.0)는 Task 1 시드다.
+ * 사원 18(곽수빈) 2026년 잔여(부여 17.0/사용 5.0)는 시드 값이다.
  */
 @SpringBootTest
 @Transactional

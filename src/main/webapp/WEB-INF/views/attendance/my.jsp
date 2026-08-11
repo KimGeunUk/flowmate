@@ -21,7 +21,7 @@
             <a class="btn btn--plain" href="${pageContext.request.contextPath}/attendance/my?ym=${nextYm}">다음 달</a>
         </nav>
 
-        <%-- 합계 4종(설계서 §6.3): 근무일수·지각·연장·연차사용. 전부
+        <%-- 합계 4종: 근무일수·지각·연장·연차사용. 전부
              AttendanceMonthlySummary(Service 계층)가 계산한 값이고 JSP 는 읽기만 한다 --%>
         <section class="attendance-summary">
             <p class="attendance-summary__item">근무일수 <strong><c:out value="${summary.workingDays}"/></strong>일</p>

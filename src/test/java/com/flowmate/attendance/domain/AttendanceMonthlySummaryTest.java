@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * of(rows) 는 순수 함수라 DB 없이 테스트한다 (계획서 4 Task 7).
+ * of(rows) 는 순수 함수라 DB 없이 테스트한다.
  */
 class AttendanceMonthlySummaryTest {
 

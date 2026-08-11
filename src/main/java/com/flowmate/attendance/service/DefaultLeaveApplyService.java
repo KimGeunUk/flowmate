@@ -20,13 +20,13 @@ import com.flowmate.attendance.mapper.LeaveBalanceMapper;
 import com.flowmate.attendance.mapper.LeaveUsageMapper;
 
 /**
- * ★★ 이 Phase의 척추 (설계서 §6.3, 계획서 4 Task 6).
+ * ★★ 이 Phase의 척추.
  *
  * ApprovalService.approve() 의 트랜잭션 안에서 직접 호출된다 — Spring 이벤트가
  * 아니다. 어느 한쪽이 실패하면 전부 롤백되어야 "승인은 됐는데 연차가 안
  * 깎였다" 같은 사고를 막을 수 있기 때문이다. 이 판단은 README에도 기록한다.
  *
- * 순서가 중요하다 (계획서 4 Task 6):
+ * 순서가 중요하다:
  *   1) 이미 반영됐는지 조회 (D2 — 제약 위반을 잡지 않는다) → 있으면 조용히 return
  *   2) leave_balance 를 FOR UPDATE 로 잠그고 읽는다 (D3, 잠금 순서 approval_doc → leave_balance)
  *   3) 잔여 검사 — 부족하면 IllegalStateException (D4)

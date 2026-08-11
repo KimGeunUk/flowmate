@@ -20,11 +20,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기능 1(문서 요약) 배선 검증 (계획서 5 Task 3). {@code ai.enabled=false}(기본값)라서
+ * 기능 1(문서 요약) 배선 검증. {@code ai.enabled=false}(기본값)라서
  * 실제 API 호출 없이 {@link FakeLlmClient} 로 전체 체인(Caching→Masking→Logging→
  * Resilient→Fake)을 태운다.
  *
- * ★ 완료 기준(설계서 §9 5-1): 같은 문서를 두 번 요약하면 두 번째는 캐시에서
+ * ★ 완료 기준: 같은 문서를 두 번 요약하면 두 번째는 캐시에서
  * 나온다 - {@code secondCallIsServedFromCache} 가 {@code ai_result_cache.hit_count}
  * 가 1이 되는 것으로 이를 증명한다.
  *

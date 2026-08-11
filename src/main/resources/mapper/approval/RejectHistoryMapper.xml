@@ -15,7 +15,7 @@
     </insert>
 
     <!--
-      ★ reason_text 를 SELECT 목록에 넣지 않는다 - 계획서 5 Task 5 (개인정보 유입 방지).
+      ★ reason_text 를 SELECT 목록에 넣지 않는다 - 개인정보 유입 방지.
       idx_reject_type_dept(doc_type, dept_id, rejected_at DESC) 인덱스를 그대로 탄다.
     -->
     <select id="findRecentReasonCategories" resultType="string">

@@ -3,7 +3,7 @@ package com.flowmate.ai.domain;
 import java.io.Serializable;
 
 /**
- * LLM 호출 응답. 텍스트뿐 아니라 토큰 수와 모델명을 함께 나른다 (계획서 3 D2).
+ * LLM 호출 응답. 텍스트뿐 아니라 토큰 수와 모델명을 함께 나른다.
  *
  * {@code LoggingLlmClient} 가 {@code ai_call_log.input_tokens} 를 기록하고
  * {@code CachingLlmClient} 가 {@code ai_result_cache.model} 을 저장해야 하는데,

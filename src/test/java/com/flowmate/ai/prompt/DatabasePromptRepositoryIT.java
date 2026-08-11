@@ -11,14 +11,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * ★ 커스터마이징 지점 4 완성의 증명(계획서 5 Task 8, 설계서 §7) - 같은
+ * ★ 커스터마이징 지점 4 완성의 증명 - 같은
  * {@code (feature, version)} 에 File 과 DB 가 서로 다른 본문을 갖고 있을 때,
  * {@code ai.prompt-repository=database} 로 설정을 바꾸면 실제로 DB 쪽 문구가
  * 나오는 것을 단정한다. Phase 2({@code ApprovalLinePolicy})·Phase 4
  * ({@code WorkTimePolicy}/{@code LeaveGrantPolicy})가 이미 쓴 것과 같은 형태의
  * 교체 증명이다 - 같은 입력(같은 feature+version 키), 다른 설정 → 다른 결과.
  *
- * {@code ai_prompt} 는 시작 시점에 비어 있다(Task 1) - 이 테스트가 넣는 행은
+ * {@code ai_prompt} 는 시작 시점에 비어 있다 - 이 테스트가 넣는 행은
  * {@code @Transactional} 로 자동 롤백되므로 최종 행 수(0)에 영향이 없다.
  */
 @SpringBootTest(properties = "ai.prompt-repository=database")

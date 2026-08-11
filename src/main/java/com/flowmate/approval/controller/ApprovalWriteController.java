@@ -62,7 +62,7 @@ public class ApprovalWriteController {
         model.addAttribute("leaveBalance", leaveBalance);
 
         if (approvalId != null) {
-            // var 를 쓰지 않는다 — 설계서 §3 이 Java 8 에 없는 문법을 최소화하라고 했다
+            // var 를 쓰지 않는다 — Java 8 에 없는 문법은 최소화한다는 규약이다
             ApprovalDoc doc = queryService.findDoc(approvalId, loginEmployee.getEmpId());
             form.setApprovalId(doc.getApprovalId());
             form.setDocType(doc.getDocType());
@@ -88,7 +88,7 @@ public class ApprovalWriteController {
         model.addAttribute("form", form);
         model.addAttribute("docTypes", DocType.options());
         model.addAttribute("leaveTypes", LeaveType.options());
-        // 사전점검 모달·스크립트 노출 여부(계획서 5 Task 7, 커스터마이징 지점 5) -
+        // 사전점검 모달·스크립트 노출 여부(커스터마이징 지점 5) -
         // ApprovalBoxController.detail 의 aiSummaryEnabled 와 같은 목적이다. 꺼져
         // 있으면 write.jsp 가 모달 include 와 상신 가로채기 스크립트를 아예
         // 렌더링하지 않는다 - 상신 폼이 원래(사전점검이 아예 없던 시절과 같은)

@@ -14,7 +14,7 @@ import com.flowmate.attendance.domain.LeaveType;
 import com.flowmate.attendance.mapper.HolidayMapper;
 
 /**
- * 영업일 계산 — 주말과 holiday 테이블을 뺀다 (계획서 4 D5).
+ * 영업일 계산 — 주말과 holiday 테이블을 뺀다.
  *
  * 사람이 연차 신청서에 일수를 직접 입력하게 두면 금요일~월요일을 4일로 적는
  * 실수가 반드시 난다. 서버가 계산해서 신뢰할 수 있는 값 하나만 남긴다.
@@ -50,7 +50,7 @@ public class BusinessDayCalculator {
     /**
      * [start, end] 구간(양끝 포함)에서 주말·공휴일을 뺀 날짜 목록 그대로.
      *
-     * DefaultLeaveApplyService(Task 6)가 연차 반영 시 근태를 UPSERT 할 날짜를
+     * DefaultLeaveApplyService가 연차 반영 시 근태를 UPSERT 할 날짜를
      * 정할 때 쓴다 — countBusinessDays 는 개수만 주므로 이 반영 루프에는
      * 쓸 수 없다.
      */

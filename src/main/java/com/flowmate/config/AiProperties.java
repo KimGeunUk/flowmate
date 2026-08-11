@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
  * 함께 주입받는다.
  *
  * {@code ai.enabled} 이 false(기본값)면 FakeLlmClient, true 면 {@code ai.provider} 값에
- * 따라 ClaudeLlmClient 또는 GeminiLlmClient 로 배선이 바뀐다 (계획서 3 D3, Gemini 추가로
+ * 따라 ClaudeLlmClient 또는 GeminiLlmClient 로 배선이 바뀐다 (Gemini 추가로
  * 확장) - {@code enabled}·{@code provider} 두 값 자체는 {@code @ConditionalOnProperty} 가
  * 직접 읽고, 이 클래스는 나머지(모델명·타임아웃·기능 플래그)를 하나로 묶어 전달하는
  * 역할이다.

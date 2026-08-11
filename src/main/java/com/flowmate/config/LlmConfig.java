@@ -21,7 +21,7 @@ import org.springframework.core.env.Environment;
 /**
  * ★ 커스터마이징 지점 4의 배선 - AI 제공자 교체와 데코레이터 체인 조립을 모두 이 클래스가 한다.
  *
- * 데코레이터 순서는 설계서 §6.4.1 이 정한 것이고 그 근거가 있다:
+ * 데코레이터 순서에는 근거가 있다:
  *
  *   Caching (바깥) → 히트하면 마스킹도 API 호출도 안 한다. 비용 0.
  *     Masking     → 실제 호출 직전에 치환한다. 어느 경로로 들어와도 원문이 안 나간다.
@@ -92,7 +92,7 @@ public class LlmConfig {
     }
 
     /**
-     * ai.enabled=true 이고 ai.provider=claude 일 때 실제 호출을 배선한다 (계획서 3 D3).
+     * ai.enabled=true 이고 ai.provider=claude 일 때 실제 호출을 배선한다.
      *
      * ★ 키가 없으면 기동을 막는다. 이유가 있다 — 실측으로 확인한 것이다:
      *
@@ -174,7 +174,7 @@ public class LlmConfig {
 
     /**
      * 기본값. 키 없이 앱이 뜨고 테스트가 돈다.
-     * ★ 이것이 LlmClient 의 세 번째 구현이다 (계획서 3 D4) - Claude/Gemini/Fake 셋 중
+     * ★ 이것이 LlmClient 의 세 번째 구현이다 - Claude/Gemini/Fake 셋 중
      *   "AI 를 실제로 부르지 않는" 쪽이다.
      */
     @Bean

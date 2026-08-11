@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * ★ 커스터마이징 지점 4의 교체 배선 (계획서 5 Task 8, 설계서 §6.4.4·§7).
+ * ★ 커스터마이징 지점 4의 교체 배선.
  *
  * ApprovalPolicyConfig(지점 1)·AttendancePolicyConfig(지점 2·3)와 정확히 같은
  * 형태다 - application.yml 값으로 구현체를 고르고, 설정이 없으면 file 로

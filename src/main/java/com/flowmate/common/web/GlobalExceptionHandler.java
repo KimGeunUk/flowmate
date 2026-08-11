@@ -16,7 +16,7 @@ import com.flowmate.common.exception.ApprovalNotFoundException;
  * IllegalArgumentException 과 IllegalStateException 은 JDK 전반에서 흔히 던져진다
  * (NumberFormatException 도 IllegalArgumentException 이다). 범위를 제한하지 않으면
  * 다른 모듈의 진짜 버그가 친절한 400/409 화면으로 덮여 500 으로 드러나지 않는다
- * (로드맵 §6.2 항목 3). attendance.controller 를 계획서 4 Task 3 에서 추가한 것도
+ * attendance.controller 를 뒤에 추가한 것도
  * 같은 이유다 — 전역으로 넓히지 않고, 실제로 이 패턴(도메인 예외 → 4xx 안내)을
  * 쓰는 컨트롤러 패키지만 하나씩 나열한다.
  */

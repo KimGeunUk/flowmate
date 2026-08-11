@@ -32,7 +32,7 @@
         </table>
 
         <%--
-          연차 맥락 패널(설계서 §6.4.7 3a, 계획서 5 Task 4) - LEAVE 문서에만,
+          연차 맥락 패널 - LEAVE 문서에만,
           문서를 볼 수 있는 사람에게만 보인다(leaveContext 자체가 그 권한 검사를
           통과한 뒤에만 채워진다 - ApprovalBoxController 참고). LLM 을 쓰지
           않으므로 API 키 없이도 항상 값이 채워진다. leaveContext 가 null 이면
@@ -86,14 +86,14 @@
         </section>
 
         <%--
-          AI 요약(계획서 5 Task 3). 본문과 분리된 영역이라 요약이 실패해도
+          AI 요약. 본문과 분리된 영역이라 요약이 실패해도
           본문 표시에는 영향이 없다(D8) - 실패 시 이 영역 안에서만 안내 문구로
           바뀐다. data-approval-id 는 아래 스크립트가 AJAX 요청을 만드는 데 쓴다.
 
-          ★ aiSummaryEnabled(계획서 5 Task 7, 커스터마이징 지점 5) - ai.features.summary
+          ★ aiSummaryEnabled(커스터마이징 지점 5) - ai.features.summary
           가 꺼지면 이 <section> 자체를 렌더링하지 않는다. "AI 요약을 일시적으로
           사용할 수 없습니다"(D8, 실제 실패 시 문구)와 다르다 - 꺼진 기능은 오류가
-          아니라 부재이므로 영역 자체가 없어야 한다(계획서 5 Task 7).
+          아니라 부재이므로 영역 자체가 없어야 한다.
         --%>
         <c:if test="${aiSummaryEnabled}">
             <section class="ai-summary-box">
@@ -241,14 +241,14 @@
   가 애초에 존재하지 않는다. 스크립트를 무조건 내보내고 그 안에서 방어적으로
   #aiSummaryArea 유무를 검사하는 방법도 있지만, "AJAX 요청 자체를 만들지 않는다"를
   화면 코드로도 눈에 보이게 하려고 <c:if> 로 스크립트 블록째로 걸러낸다
-  (계획서 5 Task 7, 커스터마이징 지점 5 - 꺼진 기능은 API 를 두드리지 않는다).
+  (커스터마이징 지점 5 - 꺼진 기능은 API 를 두드리지 않는다).
 --%>
 <c:if test="${aiSummaryEnabled}">
 <script>
     /*
-     * AI 요약을 비동기로 불러온다(계획서 5 Task 3). jQuery $.ajax 를 쓴다 -
+     * AI 요약을 비동기로 불러온다. jQuery $.ajax 를 쓴다 -
      * common.js 의 $.ajaxSetup 이 이미 모든 jQuery AJAX 요청에 CSRF 헤더를
-     * 붙이므로 이 화면에서 따로 배선할 것이 없다(계획서 5 D5 는 fetch() 전용
+     * 붙이므로 이 화면에서 따로 배선할 것이 없다(는 fetch 전용
      * 래퍼를 다루는데, 사전점검 모달처럼 fetch 가 필요한 화면이 생기기 전까지는
      * 아직 없다).
      *

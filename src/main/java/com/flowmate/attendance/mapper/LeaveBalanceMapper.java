@@ -10,7 +10,7 @@ import com.flowmate.attendance.domain.LeaveBalance;
 /**
  * 연차 잔여 조회·갱신.
  *
- * findForUpdate 는 행 잠금 조회다 (계획서 4 D3) — 같은 사원의 연차 신청서 2건이
+ * findForUpdate 는 행 잠금 조회다 — 같은 사원의 연차 신청서 2건이
  * 동시에 승인되면, 잠그지 않을 경우 둘 다 같은 used_days 를 읽고 둘 다 같은 값을
  * 써서 하루가 사라진다(갱신 분실). findByEmpIdAndYear 는 잠그지 않는 일반 조회용
  * (근태 화면 등 읽기 전용)이다.

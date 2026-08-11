@@ -11,7 +11,7 @@ import com.flowmate.approval.domain.ApprovalSearchCond;
 
 /**
  * ★ 이 매퍼에 캐시(@Cacheable 등)를 붙이지 않는다.
- *   로드맵 §2.0 C1 과 같은 이유다 — 조회 결과 객체를 여러 요청이 공유하면
+ *   이유는 하나다 — 조회 결과 객체를 여러 요청이 공유하면
  *   한쪽에서 상태를 전이시킨 것이 다른 요청에 보인다.
  */
 @Mapper

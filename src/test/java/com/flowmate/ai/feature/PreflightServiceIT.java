@@ -29,9 +29,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기능 2(상신 전 사전 점검) 배선 검증 (설계서 §6.4.6, 계획서 5 Task 5 ★ 이 Phase 의 핵심).
+ * 기능 2(상신 전 사전 점검) 배선 검증 (★ 이 Phase 의 핵심).
  * {@code ai.enabled=false}(기본값)라서 {@link FakeLlmClient} 로 전체 체인을 태운다 - 실제
- * API 호출은 없다(평가셋은 별도 Task 9 의 몫이다).
+ * API 호출은 없다(평가셋은 PreflightEvalSetIT 의 몫이다).
  *
  * 드래프터는 사원 18(곽수빈, 개발팀=dept 7) - 다른 Phase 5 IT(SummaryServiceIT,
  * LeaveContextServiceIT)와 같은 픽스처를 재사용한다. approval_reject_history 에

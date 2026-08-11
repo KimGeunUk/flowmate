@@ -17,7 +17,7 @@ import com.flowmate.attendance.domain.Attendance;
 import com.flowmate.attendance.mapper.AttendanceMapper;
 
 /**
- * 출퇴근 등록 통합 테스트 (계획서 4 Task 3). 통합 3건:
+ * 출퇴근 등록 통합 테스트. 통합 3건:
  * 출근→퇴근 정상 / 중복 출근 거부 / 출근 없는 퇴근 거부.
  *
  * @Transactional 로 감싼다 — 이 클래스의 테스트는 실패 시 롤백 여부 자체를

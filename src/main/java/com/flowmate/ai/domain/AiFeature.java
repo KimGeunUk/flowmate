@@ -1,7 +1,7 @@
 package com.flowmate.ai.domain;
 
 /**
- * AI 기능 3종 (설계서 §6.4). {@code ai_result_cache.feature} / {@code ai_call_log.feature}
+ * AI 기능 3종. {@code ai_result_cache.feature} / {@code ai_call_log.feature}
  * 컬럼에 그대로 저장되는 값이다.
  */
 public final class AiFeature {
