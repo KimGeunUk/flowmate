@@ -43,7 +43,7 @@
                 <select class="form-input" id="docType" name="docType">
                     <option value="">전체</option>
                     <c:forEach items="${docTypes}" var="t">
-                        <option value="${t}" ${t eq cond.docType ? 'selected' : ''}><c:out value="${t}"/></option>
+                        <option value="${t.code}" ${t.code eq cond.docType ? 'selected' : ''}><c:out value="${t.label}"/></option>
                     </c:forEach>
                 </select>
                 <label class="form-label" for="keyword">검색</label>

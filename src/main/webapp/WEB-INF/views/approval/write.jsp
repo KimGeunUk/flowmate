@@ -35,8 +35,8 @@
                 <label class="form-label" for="docType">문서 유형</label>
                 <select class="form-input" id="docType" name="docType" required>
                     <c:forEach items="${docTypes}" var="t">
-                        <option value="${t}" ${t eq form.docType ? 'selected' : ''}>
-                            <c:out value="${t}"/>
+                        <option value="${t.code}" ${t.code eq form.docType ? 'selected' : ''}>
+                            <c:out value="${t.label}"/>
                         </option>
                     </c:forEach>
                 </select>

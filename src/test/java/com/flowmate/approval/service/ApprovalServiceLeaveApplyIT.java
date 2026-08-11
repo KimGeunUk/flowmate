@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.flowmate.approval.domain.ApprovalDoc;
@@ -50,6 +52,21 @@ class ApprovalServiceLeaveApplyIT {
     private static final LocalDate SAT = LocalDate.of(2026, 7, 4);
     private static final LocalDate SUN = LocalDate.of(2026, 7, 5);
     private static final LocalDate MON = LocalDate.of(2026, 7, 6);
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    /**
+     * ★ nonLeaveApprovalTouchesNothing 이 "오늘 근태 행이 없다"를 단정하므로
+     *   그 상태를 테스트가 직접 만든다. 이 DB 는 앱과 공유하는 것이라 누구든
+     *   화면에서 출근을 누르면 그 단정이 깨진다(AttendanceServiceIT 와 같은 이유).
+     *   클래스가 @Transactional 이라 이 삭제도 함께 롤백된다.
+     */
+    @BeforeEach
+    void clearTodaysAttendance() {
+        jdbcTemplate.update("DELETE FROM attendance WHERE emp_id = ? AND work_date = ?",
+                KWAK, LocalDate.now());
+    }
 
     @Autowired
     private ApprovalService approvalService;

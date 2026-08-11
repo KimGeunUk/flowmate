@@ -50,7 +50,7 @@ public class ApprovalBoxController {
                       Model model) {
         cond.setEmpId(loginEmployee.getEmpId());
         model.addAttribute("paging", queryService.searchBox(cond));
-        model.addAttribute("docTypes", DocType.ALL);
+        model.addAttribute("docTypes", DocType.options());
         return "approval/box";
     }
 
