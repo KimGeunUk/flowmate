@@ -2,13 +2,20 @@
 
 **전자결재 · 근태관리 그룹웨어 — 과거 반려 이력에 근거해 AI가 상신 전에 점검합니다.**
 
-`Java 17` · `Spring Boot 3.5 (WAR)` · `JSP + JSTL + jQuery` · `MyBatis 3` · `PostgreSQL 16` · `Spring Security 6` · `Docker`
+> 이 프로젝트는 Claude(Claude Code)와 함께 만들었습니다. 설계·계획을 문서로 먼저 세우고
+> 구현을 지시하고 결과를 검증했으며, 그 과정이 [`docs/superpowers/`](docs/superpowers/) 에
+> 그대로 남아 있습니다.
 
----
+| | |
+|---|---|
+| **언어 · 런타임** | Java 17 · 외부 Tomcat 10.1 (**WAR** 배포) |
+| **프레임워크** | Spring Boot 3.5.16 · Spring MVC · Spring Security 6 (세션 로그인 · CSRF) |
+| **화면** | JSP + Jakarta JSTL 3.0 · jQuery 3.7 · CSS 단일 파일 (UI 프레임워크 없음) |
+| **데이터** | PostgreSQL 16 · MyBatis 3 (인터페이스 + XML 매퍼) |
+| **AI** | Anthropic Java SDK 2.34 · Google Gen AI Java SDK 1.57 |
+| **빌드 · 실행** | Maven · Docker Compose (PostgreSQL + 외부 Tomcat) |
+| **테스트** | JUnit 5 · AssertJ · Surefire(단위) / Failsafe(통합) 분리 — **단위 180 · 통합 143** |
 
-## AI 사용
-
-이 프로젝트는 **Claude(Claude Code)와 함께 만들었습니다.**
 
 ---
 
@@ -25,8 +32,7 @@
 유형에서 이미 여러 번 나왔던 이유입니다. 반려 이력은 시스템 안에 그대로 쌓여 있는데
 아무도 그걸 읽지 않습니다. 그래서 이런 생각이 들었습니다.
 
-> **"상신 버튼을 누르기 전에, 과거에 같은 부서·같은 유형에서 무엇 때문에 반려됐는지
-> 알려주면 어떨까?"**
+> **"상신 버튼을 누르기 전에, 과거에 같은 부서·같은 유형에서 무엇 때문에 반려됐는지 알려주면 어떨까?"**
 
 그래서 이 프로젝트의 AI는 문서를 대신 써 주지 않습니다. `approval_reject_history` 에 쌓인
 실제 반려 유형을 집계해서 **"이 지적은 과거 3건의 실제 반려에 근거한다"** 는 숫자와 함께
@@ -72,8 +78,8 @@ docker compose up -d postgres
 
 **테스트**
 ```powershell
-.\mvnw.cmd test      # 단위 176건 (DB 불필요)
-.\mvnw.cmd verify    # 단위 + 통합 309건 (DB 기동 필요)
+.\mvnw.cmd test      # 단위 180건 (DB 불필요)
+.\mvnw.cmd verify    # 단위 + 통합 323건 (DB 기동 필요)
 ```
 
 **AI 기능 켜기** — 값은 저장소에 들어가지 않습니다. compose 를 실행하는 셸에만 넣습니다.
@@ -94,9 +100,9 @@ docker compose up -d
 
 ---
 
-## 주요 기능
+## 직접 해보기
 
-비밀번호는 전원 `flowmate1!` 입니다.
+아래 4명으로 로그인해 ①~④를 순서대로 따라가면 이 프로젝트의 주장이 화면에서 확인됩니다.
 
 | 사원번호 | 이름 | 부서 · 직급 | 역할 |
 |---|---|---|---|
@@ -156,15 +162,19 @@ docker compose up -d
 **AI 게이트웨이** — 기능 4종이 이 뒤에 선다.
 
 ```
-[SummaryService] [PreflightService] [DraftHintService] [LeaveContextService(LLM 미사용)]
+[SummaryService]  [PreflightService]  [DraftHintService]  [LeaveContextService]
+                                                            (LLM 미사용)
     ↓
 LlmClient 데코레이터 체인
-    Caching → Masking → Logging → Resilient → 실제 클라이언트
-      │         │                                ├─ ClaudeLlmClient (Anthropic)
-      │         └─ 실제 호출보다 바깥이라야       ├─ GeminiLlmClient (Google)
-      │            원문이 캐시·로그에 안 남는다   └─ FakeLlmClient   (키 없을 때)
-      └─ 히트하면 마스킹도 API 호출도 안 한다
+    Caching → Masking → Logging → Resilient → ClaudeLlmClient (Anthropic)
+                                              GeminiLlmClient (Google)
+                                              FakeLlmClient   (키 없을 때)
 ```
+
+- **Caching** 이 가장 바깥 — 히트하면 마스킹도 API 호출도 하지 않습니다.
+- **Masking** 이 실제 호출보다 바깥이어야 합니다. LLM 응답은 입력을 인용할 수 있어서,
+  마스킹이 호출 뒤에 있으면 응답이 원문을 실어 와 캐시와 로그에 그대로 남습니다.
+- 실제 클라이언트는 `ai.enabled` + `ai.provider` 로 셋 중 하나만 배선됩니다.
 
 패키지 루트는 `com.flowmate.{org, approval, attendance, ai, common, config}` 6개입니다.
 `approval` 이 `attendance.service.LeaveApplyService` **인터페이스만** 알고 구현이나 매퍼를
@@ -192,14 +202,20 @@ LlmClient 데코레이터 체인
 
 | 구분 | 파일 규칙 | 실행 | DB |
 |---|---|---|---|
-| 단위 176건 | `*Test.java` | `mvnw.cmd test` | 불필요 |
-| 통합 133건 | `*IT.java` | `mvnw.cmd verify` | 필요 |
+| 단위 **180건** | `*Test.java` | `mvnw.cmd test` | 불필요 |
+| 통합 **143건** | `*IT.java` | `mvnw.cmd verify` | 필요 |
 
 **API 키 없이 `mvnw clean verify` 가 통과하는 것이 지켜야 할 계약입니다.** AI 기능 4종은
-`FakeLlmClient` 로 마스킹·캐싱·폴백·기능 플래그까지 체인 수준에서 검증됩니다.
+`FakeLlmClient` 로 마스킹·캐싱·폴백·기능 플래그까지 체인 수준에서 검증됩니다. 단위 테스트가
+DB 없이 도는 경계도 의도적으로 유지합니다 — 무너지면 순수 로직 테스트가 컨테이너 기동에
+묶여 빠른 피드백을 잃습니다.
 
-실제 LLM 응답 품질을 보는 **고정 평가셋 8건**만 키가 있어야 수동으로 돌아갑니다
-(`PreflightEvalSetIT` 5건 · `DraftHintEvalSetIT` 3건, 둘 다 `@Tag("llm")` 이라 기본 빌드에서 제외).
+실제 LLM 응답 품질은 **고정 평가셋 8건**으로 봅니다(사전점검 5 · 기안 제안 3).
+`@Tag("llm")` 이라 기본 빌드에서는 제외되고, 키가 있을 때만 수동으로 돕니다 —
+**사전점검 5/5 · 기안 제안 3/3**, 기록은 [`docs/ai-eval-results.md`](docs/ai-eval-results.md).
+
+<details>
+<summary>평가셋 수동 실행</summary>
 
 ```powershell
 $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
@@ -207,11 +223,9 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
     "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
 ```
 
-결과 기록은 [`docs/ai-eval-results.md`](docs/ai-eval-results.md) 참고 (Gemini
-`gemini-3.5-flash-lite`, **5/5 통과**).
-
-단위 테스트가 DB 없이 도는 경계를 의도적으로 유지합니다. 이 경계가 무너지면 순수 로직
-테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃습니다.
+`-Dgroups=llm` 만으로는 부족합니다. `pom.xml` 의 `excludedGroups` 기본값이 이미 `llm` 이라,
+켜는 필터와 끄는 필터가 같은 태그를 가리키면 끄는 쪽이 항상 이깁니다(JUnit5 태그 결합 규칙).
+</details>
 
 ---
 

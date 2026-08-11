@@ -1,4 +1,6 @@
-# AI 사전점검 평가셋 실행 기록
+# AI 평가셋 실행 기록
+
+사전점검 5건 + 기안 제안 3건. 둘 다 실제 Gemini API 로 돌린 기록이다.
 
 설계서 §6.4.6 "★ 고정 평가셋 5건"과 계획서 5(`2026-08-09-phase-5-ai-features.md`) Task 9 · D1의
 산출물이다. "AI 기능 품질을 어떻게 검증했나"에 대한 답을 저장소 안에 남기기 위한 기록이므로,
@@ -214,7 +216,7 @@ $env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME','User')
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
 
-.\mvnw.cmd verify "-Dit.test=PreflightEvalSetIT" "-Dgroups=llm" `
+.\mvnw.cmd verify "-Dit.test=*EvalSetIT" "-Dgroups=llm" `
     "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
 ```
 
@@ -225,4 +227,70 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 프로퍼티 주석, `PreflightEvalSetIT` 클래스 주석 참고).
 
 기본 빌드(`mvnw clean verify`, 키 미설정)는 이 평가셋을 항상 건너뛴다 — `@Tag("llm")` +
-Failsafe `excludedGroups` 기본값 `llm` 조합이 그 계약(Phase 3 D3, 계획서 5 D1)을 지킨다.
+Failsafe `excludedGroups` 기본값 `llm` 조합이 "키 없이 빌드가 통과한다"는 계약을 지킨다.
+
+
+---
+
+# 기안 제안 평가셋 (DraftHintEvalSetIT)
+
+## 실행 정보
+
+| | |
+|---|---|
+| 모델 | `gemini-3.5-flash-lite` |
+| 사례 | 3건 |
+| 결과 | **3/3 통과** (7.7초) |
+
+사전점검과 함께 한 명령으로 돈다.
+
+```powershell
+.\mvnw.cmd verify "-Dit.test=*EvalSetIT" "-Dgroups=llm" `
+    "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
+```
+
+★ 패턴이 안 맞으면 **0건 실행하고도 `BUILD SUCCESS`** 가 난다. 확인할 때는 `Running` 줄까지
+본다. 마지막 실행은 `DraftHintEvalSetIT` 3건(7.690s) + `PreflightEvalSetIT` 5건(4.614s) =
+합계 8건이었다.
+
+## 세 사례
+
+| # | 무엇을 보는가 | 왜 단위 테스트로는 안 되는가 |
+|---|---|---|
+| 1 | 빈 상태에서 그 유형의 뼈대를 잡는다 | 배선이 아니라 모델이 실제로 뼈대를 만드는지의 문제 |
+| 2 | **이미 쓴 내용을 지우지 않는다** | 모델의 행동. 대역으로는 검증할 수 없다 |
+| 3 | **없는 개인정보 토큰을 지어내지 않는다** | 아래 결함의 회귀 |
+
+## 실호출에서 잡은 결함 — 없던 `[[RRN_1]]` 이 초안에 나타났다
+
+첫 실호출에서 이런 초안이 나왔다.
+
+```
+[출장 개요]
+- 목적: [출장 목적을 구체적으로 입력]
+- 출장자: [[RRN_1]]          ← 입력에 주민번호가 하나도 없었다
+```
+
+**원인은 프롬프트였다.** `[[RRN_1]] 같은 대괄호 토큰은 그대로 두십시오` 라는 문장을
+**리터럴 예시**로 적어 두었는데, 요약·사전점검은 같은 문장을 써도 문제가 없었다. 그 둘은
+모델에게 "있는 토큰을 건드리지 말라"고만 시키지만, 이 기능은 **자리표시자를 만들라**고
+시키기 때문에 두 종류를 혼동한 것이다.
+
+작성자 눈에는 자기가 쓰지도 않은 값이 지워진 것으로 보인다 — 마스킹이 제대로 동작하지
+않는다는 오해를 부른다.
+
+**수정**: 리터럴 예시를 빼고 형태로만 설명한 뒤, "그런 토큰을 새로 만들지 말 것"과
+"당신이 만드는 자리표시자는 대괄호를 한 겹만 쓴다"를 명시했다.
+
+**재확인** (수정 후 실호출 2건):
+
+```
+[출장 개요]
+- 목적: [출장 목적 상세 기재]
+- 방문지: 부산 지사              ← 작성자가 쓴 내용을 살렸다
+[정산 내역]
+- 교통비: 84,000원               ← 작성자가 쓴 값 그대로
+- 숙박비: [금액]                 ← 모르는 값은 지어내지 않는다
+```
+
+마스킹 토큰 오생성 **0건**. 사례 3이 이 회귀를 고정한다.
