@@ -158,32 +158,6 @@ docker compose up -d --force-recreate tomcat
 
 </details>
 
-<details>
-<summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / 스키마 변경</summary>
-
-**WAR 를 먼저 빌드하는 이유** — 이 프로젝트의 산출물은 Spring Boot 실행형 jar 가 아니라
-**WAR** 입니다(외부 WAS 배포가 핵심 주장 중 하나). `docker-compose.yml` 은 이미 만들어진
-WAR 를 외부 Tomcat 컨테이너에 얹기만 합니다.
-
-**로컬 개발** (내장 Tomcat, 빠른 재시작)
-```powershell
-docker compose up -d postgres
-.\mvnw.cmd spring-boot:run          # → http://localhost:8080/
-```
-
-**테스트**
-```powershell
-.\mvnw.cmd test      # 단위 180건 (DB 불필요)
-.\mvnw.cmd verify    # 단위 + 통합 323건 (DB 기동 필요)
-```
-
-**스키마를 고쳤을 때만** 볼륨을 지우고 다시 올립니다.
-```powershell
-docker compose down -v
-docker compose up -d
-```
-</details>
-
 ---
 
 ## 직접 해보기
@@ -314,12 +288,3 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 </details>
 
 ---
-
-## 더 보기
-
-| | |
-|---|---|
-| [`docs/design-notes.md`](docs/design-notes.md) | **설계 판단 9가지** — 각 결정에서 버린 대안과 그 이유. 알려진 제약도 함께 |
-| [`docs/oracle-mapping.md`](docs/oracle-mapping.md) | PostgreSQL 전용 문법을 쓸 때마다 그 자리에서 적어 둔 Oracle 대응표 |
-| [`docs/ai-eval-results.md`](docs/ai-eval-results.md) | AI 평가셋 실행 기록 — 실패 사례와 프롬프트 수정 내역까지 |
-| [`docs/superpowers/`](docs/superpowers/) | 원 설계서와 Phase별 계획서 (개발 과정 기록) |

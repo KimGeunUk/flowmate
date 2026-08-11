@@ -18,6 +18,9 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import com.flowmate.approval.domain.ApprovalLimits;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
  * ★ {@code fetch()} 는 {@code $.ajaxSetup} 경로를 타지 않아
@@ -93,5 +96,37 @@ class AiControllerIT {
                         .with(csrf()))
                 .andReturn();
         return (MockHttpSession) loginResult.getRequest().getSession(false);
+    }
+
+    @Test
+    @WithUserDetails("2020003")
+    @DisplayName("★ 기안 제안에 지나치게 긴 본문을 보내면 400 — LLM 에 닿기 전에 거부한다")
+    void draftHintRejectsOverlongContent() throws Exception {
+        // 이 엔드포인트만 요청 본문을 그대로 프롬프트에 넣는다. 상한이 없으면
+        // 인증된 사용자가 임의 길이 텍스트를 유료 API 로 흘려보낼 수 있다.
+        //
+        // ★ 400 이 나오려면 AiController 에 핸들러가 있어야 한다. GlobalExceptionHandler
+        //   는 basePackages 를 approval/attendance 로 좁혀 두어 이 패키지를 덮지 않으므로,
+        //   처음 구현했을 때는 500 이 났다.
+        String body = "{\"docType\":\"EXPENSE\",\"title\":\"t\",\"content\":\""
+                + "가".repeat(ApprovalLimits.CONTENT + 1) + "\"}";
+
+        mockMvc.perform(post("/api/ai/draft-hint").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithUserDetails("2020003")
+    @DisplayName("상한 안쪽이면 정상 경로를 탄다 — 거부가 길이 때문이라는 것을 확인한다")
+    void draftHintAcceptsContentWithinLimit() throws Exception {
+        String body = "{\"docType\":\"EXPENSE\",\"title\":\"출장비 정산\",\"content\":\"짧은 본문\"}";
+
+        // FakeLlmClient 가 빈 초안을 주므로 503 이다. 400 이 아니라는 것이 요점이다.
+        mockMvc.perform(post("/api/ai/draft-hint").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isServiceUnavailable());
     }
 }

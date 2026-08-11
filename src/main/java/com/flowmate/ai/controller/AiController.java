@@ -123,4 +123,18 @@ public class AiController {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public void handleAccessDenied() {
     }
+
+    /**
+     * 입력 검증 실패(길이 초과 등)는 400 이다.
+     *
+     * ★ 이 핸들러가 없으면 500 이 난다. GlobalExceptionHandler 는 basePackages 를
+     *   approval/attendance 컨트롤러로 좁혀 두었으므로 이 패키지를 덮지 않는다 -
+     *   그 좁힘 자체는 의도한 것이지만(JDK 전반이 던지는 예외를 전역에서 삼키지
+     *   않으려고), 그러면 여기에 같은 자리를 만들어 둬야 한다.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public void handleInvalidInput() {
+        // 본문 없이 상태 코드만 준다 - 화면은 어떤 실패든 같은 안내 문구로 합류한다.
+    }
 }

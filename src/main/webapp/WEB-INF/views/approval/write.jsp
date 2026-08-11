@@ -207,6 +207,7 @@
                     <label class="form-label" for="content">내용</label>
                     <div class="form-field">
                         <textarea class="form-input doc-form__content" id="content" name="content" rows="12"
+                                  maxlength="10000"
                                   placeholder="결재자가 판단에 필요한 내용을 적어 주세요.&#10;금액·기간·대상처럼 숫자로 확인되는 항목은 빠뜨리지 않는 편이 좋습니다."><c:out value="${form.content}"/></textarea>
                     </div>
                 </div>
