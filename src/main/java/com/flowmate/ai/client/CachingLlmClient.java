@@ -40,11 +40,18 @@ public class CachingLlmClient implements LlmClient {
 
     private final LlmClient delegate;
     private final AiResultCacheMapper cacheMapper;
+    private final String modelKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public CachingLlmClient(LlmClient delegate, AiResultCacheMapper cacheMapper) {
+    /**
+     * @param modelKey 이 캐시를 채우는 제공자의 신원. {@code LlmConfig} 가
+     *                 {@code ai.enabled}·{@code ai.provider}·{@code ai.model} 로 만든다.
+     *                 캐시 키에 들어가므로, 제공자를 바꾸면 옛 결과가 자동으로 무효가 된다.
+     */
+    public CachingLlmClient(LlmClient delegate, AiResultCacheMapper cacheMapper, String modelKey) {
         this.delegate = delegate;
         this.cacheMapper = cacheMapper;
+        this.modelKey = modelKey;
     }
 
     @Override
@@ -135,8 +142,24 @@ public class CachingLlmClient implements LlmClient {
         String outputTypeName = request.getOutputType() != null
                 ? request.getOutputType().getName()
                 : "TEXT";
+        //
+        // ★ modelKey 를 키에 넣는 이유 — promptVersion 을 넣은 것과 완전히 같은 이유다.
+        //   같은 프롬프트라도 누가 답했느냐에 따라 결과가 다르다. 그런데 이 키에
+        //   모델이 없으면, ai.enabled 를 false 에서 true 로 바꿔도 FakeLlmClient 가
+        //   만들어 둔 "[FAKE] 고정 응답입니다" 가 **영원히** 그대로 나온다.
+        //
+        //   실제로 겪었다. 컨테이너에 키를 넣고 AI 를 켠 뒤 요약을 불렀는데
+        //   summary 가 null 로 왔고 ai_call_log 에는 새 호출 기록조차 없었다 -
+        //   캐시가 먼저 답했기 때문이다. 그때 로그에 남은 것은 몇 시간 전
+        //   FakeLlmClient 가 남긴 10/10 토큰·2ms 짜리 행이었다.
+        //   claude <-> gemini 를 바꾸는 경우도 똑같다.
+        //
+        //   ai_result_cache 에 model 컬럼이 이미 있다는 것이 이 설계의 의도를
+        //   보여준다 - "어느 모델이 만든 결과인지"가 의미 있다고 보면서 키에는
+        //   넣지 않았던 것이다. 사전점검(PREFLIGHT)은 애초에 캐시하지 않으므로
+        //   이 문제를 겪지 않았고, 그래서 더 늦게 드러났다.
         String raw = request.getFeature() + ":" + request.getPromptVersion() + ":"
-                + outputTypeName + ":" + request.getPrompt();
+                + modelKey + ":" + outputTypeName + ":" + request.getPrompt();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
