@@ -26,7 +26,7 @@
             </tr>
             <tr>
                 <th>상태</th>
-                <td><span class="status status--${fn:toLowerCase(doc.status)}"><c:out value="${doc.status}"/></span></td>
+                <td><span class="status status--${fn:toLowerCase(doc.status)}"><c:out value="${doc.statusLabel}"/></span></td>
                 <th>기안일</th><td>${doc.draftedAt}</td>
             </tr>
         </table>
@@ -140,7 +140,7 @@
                                 <span class="approval-line__name"><c:out value="${line.approverName}"/></span>
                                 <span class="approval-line__position"><c:out value="${line.approverPositionName}"/></span>
                                 <span class="status status--${fn:toLowerCase(line.status)}">
-                                    <c:out value="${line.status}"/>
+                                    <c:out value="${line.statusLabel}"/>
                                 </span>
                                 <c:if test="${not empty line.comment}">
                                     <span class="approval-line__comment"><c:out value="${line.comment}"/></span>

@@ -136,6 +136,16 @@ public class ApprovalDoc implements Serializable {
         return DocType.labelOf(this.docType);
     }
 
+    /** 화면 표시용 상태 한글명 */
+    public String getStatusLabel() {
+        return ApprovalStatus.labelOf(this.status);
+    }
+
+    /** 금액 칸을 쓰는 문서인가 — 기안 화면이 금액 입력을 보일지 정하는 데 쓴다 */
+    public boolean isUsesAmount() {
+        return DocType.usesAmount(this.docType);
+    }
+
     // ── getter / setter ─────────────────────────────────────────
 
     public Long getApprovalId() {

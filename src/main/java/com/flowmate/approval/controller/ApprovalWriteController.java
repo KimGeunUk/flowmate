@@ -87,7 +87,7 @@ public class ApprovalWriteController {
         }
         model.addAttribute("form", form);
         model.addAttribute("docTypes", DocType.options());
-        model.addAttribute("leaveTypes", LeaveType.ALL);
+        model.addAttribute("leaveTypes", LeaveType.options());
         // 사전점검 모달·스크립트 노출 여부(계획서 5 Task 7, 커스터마이징 지점 5) -
         // ApprovalBoxController.detail 의 aiSummaryEnabled 와 같은 목적이다. 꺼져
         // 있으면 write.jsp 가 모달 include 와 상신 가로채기 스크립트를 아예

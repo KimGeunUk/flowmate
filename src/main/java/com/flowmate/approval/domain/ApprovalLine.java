@@ -37,6 +37,11 @@ public class ApprovalLine implements Serializable {
         return LineStatus.APPROVED.equals(this.status) || LineStatus.REJECTED.equals(this.status);
     }
 
+    /** 화면 표시용 상태 한글명 */
+    public String getStatusLabel() {
+        return LineStatus.labelOf(this.status);
+    }
+
     public Long getLineId() {
         return lineId;
     }

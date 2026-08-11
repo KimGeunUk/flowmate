@@ -83,7 +83,7 @@
                             <td>${d.draftedAt}</td>
                             <td>
                                 <span class="status status--${fn:toLowerCase(d.status)}">
-                                    <c:out value="${d.status}"/>
+                                    <c:out value="${d.statusLabel}"/>
                                 </span>
                             </td>
                         </tr>
