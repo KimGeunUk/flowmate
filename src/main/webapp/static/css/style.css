@@ -778,6 +778,39 @@ a:hover { text-decoration: underline; }
 .doc-actions-bar .btn { min-width: 96px; text-align: center; }
 .doc-actions-bar .btn--plain { min-width: 0; }
 
+/* ── 기안 본문 제안 ── 버튼을 누를 때만 도는 기능이라 평소에는 조용해야 한다 */
+.draft-hint { margin-top: var(--space-3); }
+.draft-hint > .btn { margin-right: var(--space-2); }
+.draft-hint__result {
+    margin-top: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-info-bg);
+    border: 1px solid #cfe0f7;
+    border-radius: var(--radius);
+}
+/* 근거 건수는 서버가 센 값이다 - 이 기능이 신뢰를 얻는 자리라 눈에 띄게 둔다 */
+.draft-hint__basis {
+    margin-bottom: var(--space-3);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+.draft-hint__draft {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.7;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.draft-hint__actions { display: flex; gap: var(--space-2); }
+
 /* ══ 결재 건수 ═══════════════════════════════════════════════════
    네 탭은 성격이 다르다 — 대기·반려는 할 일이고 기안·완료는 기록이다.
    숫자를 붙이는 것만으로는 부족해서, 할 일 쪽만 색으로 구분한다.      */

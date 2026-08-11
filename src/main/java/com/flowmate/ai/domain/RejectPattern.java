@@ -1,10 +1,10 @@
 package com.flowmate.ai.domain;
 
+import com.flowmate.approval.domain.RejectReason;
 import java.io.Serializable;
 
 /**
- * 과거 반려 이력을 {@code reason_category} 별로 집계한 결과 (
- * 집계 결과다.
+ * 과거 반려 이력을 {@code reason_category} 별로 집계한 결과.
  *
  * ★ 이 클래스가 담는 것은 유형과 건수뿐이다 - {@code approval_reject_history.reason_text}
  * (반려 원문, 사람 이름과 금액이 들어 있다)는 여기 담지 않는다. {@code PreflightService}
@@ -26,6 +26,11 @@ public class RejectPattern implements Serializable {
 
     public String getReasonCategory() {
         return reasonCategory;
+    }
+
+    /** 화면 표시용 한글 이름. JSON 응답에도 함께 실려 화면이 코드를 다시 해석하지 않는다 */
+    public String getReasonCategoryLabel() {
+        return RejectReason.labelOf(reasonCategory);
     }
 
     public int getCount() {

@@ -1,7 +1,7 @@
 package com.flowmate.ai.domain;
 
 /**
- * AI 기능 3종. {@code ai_result_cache.feature} / {@code ai_call_log.feature}
+ * AI 기능 4종. {@code ai_result_cache.feature} / {@code ai_call_log.feature}
  * 컬럼에 그대로 저장되는 값이다.
  */
 public final class AiFeature {
@@ -12,6 +12,8 @@ public final class AiFeature {
     public static final String PREFLIGHT = "PREFLIGHT";
     /** 연차 신청 맥락 보강 */
     public static final String LEAVE_CONTEXT = "LEAVE_CONTEXT";
+    /** 기안 본문 제안 */
+    public static final String DRAFT_HINT = "DRAFT_HINT";
 
     private AiFeature() {
     }

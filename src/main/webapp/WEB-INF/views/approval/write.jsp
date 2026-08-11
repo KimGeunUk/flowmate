@@ -210,6 +210,32 @@
                                   placeholder="결재자가 판단에 필요한 내용을 적어 주세요.&#10;금액·기간·대상처럼 숫자로 확인되는 항목은 빠뜨리지 않는 편이 좋습니다."><c:out value="${form.content}"/></textarea>
                     </div>
                 </div>
+
+                <%--
+                  기안 본문 제안. 버튼을 눌렀을 때만 부른다 - 타이핑 중에 자동으로
+                  부르면 캐시 키가 매번 달라져 히트율이 0 이 되고, 실측 지연(1.1초)이
+                  타이핑 속도를 못 따라가 도착할 때마다 낡은 제안이 된다.
+
+                  꺼져 있으면(aiDraftHintEnabled) 버튼도 스크립트도 렌더링하지 않는다 -
+                  요약·사전점검과 같은 규약이다.
+                --%>
+                <c:if test="${aiDraftHintEnabled}">
+                    <div class="draft-hint">
+                        <button class="btn" type="button" id="draftHintButton">AI 제안 받기</button>
+                        <span class="form-hint form-hint--inline" id="draftHintStatus">
+                            이 부서에서 자주 반려된 항목이 빠지지 않게 뼈대를 잡아 줍니다.
+                        </span>
+
+                        <div class="draft-hint__result" id="draftHintResult" hidden>
+                            <p class="draft-hint__basis" id="draftHintBasis"></p>
+                            <pre class="draft-hint__draft" id="draftHintDraft"></pre>
+                            <div class="draft-hint__actions">
+                                <button class="btn btn--primary" type="button" id="draftHintApply">본문에 넣기</button>
+                                <button class="btn btn--plain" type="button" id="draftHintDismiss">닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                </c:if>
             </section>
         </form>
 
@@ -369,6 +395,109 @@
         });
     });
 </script>
+
+<%--
+  기안 본문 제안. 버튼을 눌렀을 때만 /api/ai/draft-hint 를 부른다.
+
+  ★ 제안이 실패해도(503·타임아웃·네트워크 오류) 기안 작성은 그대로 이어진다 -
+    버튼 옆 문구만 바뀌고 본문은 손대지 않는다. 요약·사전점검과 같은 폴백 원칙이다.
+
+  ★ 받은 제안을 본문에 자동으로 넣지 않는다. 사용자가 [본문에 넣기] 를 눌러야
+    적용된다 - 지금까지 쓴 내용을 모델이 말없이 덮어쓰는 것이 이 기능이 할 수 있는
+    가장 나쁜 일이다. 이미 쓴 내용이 있으면 덮어쓰기 전에 한 번 더 확인한다.
+--%>
+<c:if test="${aiDraftHintEnabled}">
+<script>
+    $(function () {
+        var $button = $('#draftHintButton');
+        if ($button.length === 0) {
+            return;
+        }
+
+        var $status = $('#draftHintStatus');
+        var $result = $('#draftHintResult');
+        var $draft = $('#draftHintDraft');
+        var $basis = $('#draftHintBasis');
+        var contextPath = '${pageContext.request.contextPath}';
+        var IDLE_TEXT = $status.text();
+        var TIMEOUT_MS = 20000;
+
+        $button.on('click', function () {
+            $button.prop('disabled', true);
+            $status.text('제안을 만드는 중입니다...');
+            $result.prop('hidden', true);
+
+            var hasAbort = ('AbortController' in window);
+            var controller = hasAbort ? new AbortController() : null;
+            var timeoutId = hasAbort
+                ? setTimeout(function () { controller.abort(); }, TIMEOUT_MS)
+                : null;
+
+            flowmateFetch(contextPath + '/api/ai/draft-hint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: controller ? controller.signal : undefined,
+                body: JSON.stringify({
+                    docType: $('#docType').val(),
+                    title: $('#title').val(),
+                    content: $('#content').val()
+                })
+            }).then(function (response) {
+                clearTimeout(timeoutId);
+                return response.ok ? response.json() : null;
+            }).then(function (hint) {
+                if (!hint || !hint.draft) {
+                    fail();
+                    return;
+                }
+                show(hint);
+            }).catch(function () {
+                clearTimeout(timeoutId);
+                fail();
+            });
+        });
+
+        function show(hint) {
+            $draft.text(hint.draft);
+            $basis.text(basisText(hint.basedOn));
+            $result.prop('hidden', false);
+            $status.text(IDLE_TEXT);
+            $button.prop('disabled', false);
+        }
+
+        /* 근거 건수는 서버가 센 값이다 - 모델이 만든 숫자가 아니다 */
+        function basisText(basedOn) {
+            if (!basedOn || basedOn.length === 0) {
+                return '이 유형의 과거 반려 이력이 없어 일반적인 구성만으로 잡았습니다.';
+            }
+            var parts = [];
+            $.each(basedOn, function (i, p) {
+                parts.push(p.reasonCategoryLabel + ' ' + p.count + '건');
+            });
+            return '근거: 이 부서의 과거 반려 ' + parts.join(' · ');
+        }
+
+        function fail() {
+            $status.text('제안을 가져오지 못했습니다. 그대로 작성하셔도 됩니다.');
+            $button.prop('disabled', false);
+        }
+
+        $('#draftHintApply').on('click', function () {
+            var $content = $('#content');
+            if ($content.val().trim() !== ''
+                    && !window.confirm('작성 중인 본문을 제안 내용으로 바꿉니다. 계속할까요?')) {
+                return;
+            }
+            $content.val($draft.text()).trigger('input');
+            $result.prop('hidden', true);
+        });
+
+        $('#draftHintDismiss').on('click', function () {
+            $result.prop('hidden', true);
+        });
+    });
+</script>
+</c:if>
 
 <%--
   상신 전 사전 점검.

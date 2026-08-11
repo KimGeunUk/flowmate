@@ -177,31 +177,6 @@ LlmClient 데코레이터 체인
 | 4 | `PromptRepository` | File(classpath) / Database(`ai_prompt`, 5분 TTL) | `ai.prompt-repository` |
 | 5 | `ai.features.*` | 기능별 on/off (summary · preflight · leave-context) | `ai.features.summary` 등 |
 
-> **덤:** `LlmClient` 의 세 구현(Claude 실호출 / Gemini 실호출 / Fake)도 `ai.enabled` +
-> `ai.provider` 로 교체되지만, 이건 "AI 제공자를 바꾸는 것"이지 "고객사별 업무 규칙을 바꾸는
-> 것"이 아니라 위 표와 성격이 달라 따로 둡니다.
-
----
-
-## 설계 판단
-
-여덟 가지 결정에 각각 버린 대안이 있습니다. 전문은
-[`docs/design-notes.md`](docs/design-notes.md).
-
-| # | 결정 | 버린 대안과 이유 |
-|---|---|---|
-| 1 | 연차 승인 → 근태 반영을 **같은 트랜잭션 직접 호출** | Spring 이벤트는 리스너 애노테이션 하나로 트랜잭션 경계가 조용히 갈라진다 |
-| 2 | 문서번호 채번에 **자문 잠금** | PostgreSQL 은 제약 위반이 트랜잭션 전체를 abort 시켜 "충돌 → catch → 재시도"가 동작하지 않는다. **실제 DB에 재현함** |
-| 3 | 마스킹은 **오탐 허용 · 미탐 불허** | 패턴을 좁히면 정확도는 오르지만 개인정보가 나간다. 비대칭을 테스트로 박아 둠 |
-| 4 | 사전점검은 **상신을 절대 막지 않는다** | AI가 느리거나 죽은 것이 "결재를 못 올린다"로 번지면 안 된다 |
-| 5 | CSS를 **마지막 Phase까지 미룸** | 스타일 지침이 아니라 아키텍처 검증. 최종 마감이 `style.css` 한 파일 diff 로 끝났다 |
-| 6 | AI 품질을 **고정 평가셋**으로 확인 | 감으로 판단하면 검증한 적이 없는 것과 같다. 5/5, 기대값을 낮춘 적 없음 |
-| 7 | `LlmClient` 세 번째 구현으로 **Gemini** 추가 | 실호출 1개 + Fake 1개로는 "교체 가능"의 증거가 약했다. 체인은 한 줄도 안 바뀜 |
-| 8 | 캐시 키에 **모델까지** 포함 | 빠뜨렸더니 AI를 켜도 Fake 응답이 영원히 나왔다. 뒤늦게 발견해 고침 |
-
-**알려진 제약**(성능 미측정 · JS 테스트 없음 · 운영 배포 경험 없음 등)도 같은 문서에
-정리돼 있습니다.
-
 ---
 
 ## 테스트
@@ -228,14 +203,3 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 
 단위 테스트가 DB 없이 도는 경계를 의도적으로 유지합니다. 이 경계가 무너지면 순수 로직
 테스트가 컨테이너 기동에 묶여 빠른 피드백을 잃습니다.
-
----
-
-## 문서
-
-| | |
-|---|---|
-| [`docs/design-notes.md`](docs/design-notes.md) | 설계 판단 8가지 + 알려진 제약 |
-| [`docs/oracle-mapping.md`](docs/oracle-mapping.md) | PostgreSQL → Oracle 이식 대응표 |
-| [`docs/ai-eval-results.md`](docs/ai-eval-results.md) | AI 평가셋 실행 기록 |
-| [`docs/superpowers/`](docs/superpowers/) | 원 설계서와 Phase별 계획서 (개발 과정 기록) |
