@@ -50,6 +50,16 @@ class SummaryServiceIT {
 
     @BeforeEach
     void resetFake() {
+        // ★ 캐시 테이블을 비운 상태에서 시작한다.
+        //   아래 secondCallIsServedFromCache 가 "SUMMARY 캐시 행" 하나를 조회하는데,
+        //   이 DB 는 앱과 공유하므로 **누군가 화면에서 문서를 한 번 열면** 캐시 행이
+        //   남아 조회가 두 건이 되고 그 즉시 깨진다. 실제로 컨테이너 동작을 확인하다
+        //   그렇게 됐다.
+        //   클래스가 @Transactional 이라 이 삭제도 테스트가 끝나면 함께 롤백된다 —
+        //   진짜 데이터는 그대로 두고 조건만 확보한다.
+        jdbcTemplate.update("DELETE FROM ai_result_cache");
+        jdbcTemplate.update("DELETE FROM ai_call_log");
+
         fakeLlmClient.getReceived().clear();
         fakeLlmClient.setDelayMillis(0);
         fakeLlmClient.setExceptionToThrow(null);

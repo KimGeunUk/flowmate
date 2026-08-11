@@ -86,7 +86,7 @@ public class ApprovalWriteController {
             }
         }
         model.addAttribute("form", form);
-        model.addAttribute("docTypes", DocType.ALL);
+        model.addAttribute("docTypes", DocType.options());
         model.addAttribute("leaveTypes", LeaveType.ALL);
         // 사전점검 모달·스크립트 노출 여부(계획서 5 Task 7, 커스터마이징 지점 5) -
         // ApprovalBoxController.detail 의 aiSummaryEnabled 와 같은 목적이다. 꺼져
