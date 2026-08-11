@@ -80,8 +80,9 @@
             </section>
         </c:if>
 
+        <%-- 연차 신청서는 본문이 곧 신청 사유다. 제목은 서버가 정한다 --%>
         <section class="doc-content">
-            <h3 class="page-title">본문</h3>
+            <h3 class="section-title"><c:out value="${doc.contentLabel}"/></h3>
             <pre class="doc-content__body"><c:out value="${doc.content}"/></pre>
         </section>
 

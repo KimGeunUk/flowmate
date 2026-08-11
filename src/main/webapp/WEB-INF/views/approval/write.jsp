@@ -180,17 +180,28 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <label class="form-label" for="reason">사유</label>
+                <%--
+                  ★ 이 사유가 곧 이 문서의 본문이다. 서버가 저장할 때
+                    approval_doc.content 로 올려 준다(ApprovalService.contentOf).
+
+                    예전에는 사유와 본문을 따로 물었는데, 사유를 읽는 곳이 이 화면의
+                    되채우기뿐이라 결재자에게도 AI 에게도 닿지 않았다 - 그래서
+                    본문에 같은 내용을 한 번 더 적어야만 실제로 전달됐다. 지금은
+                    연차신청일 때 아래 본문 칸을 감추고 이 칸 하나만 쓴다.
+                --%>
+                <div class="form-row form-row--stack">
+                    <label class="form-label" for="reason">사유 <span class="form-required">*</span></label>
                     <div class="form-field">
-                        <textarea class="form-input" id="reason" name="reason" rows="3" maxlength="500"
-                                  placeholder="예) 가족 여행"><c:out value="${form.reason}"/></textarea>
+                        <textarea class="form-input doc-form__content" id="reason" name="reason"
+                                  rows="8" maxlength="500" required
+                                  placeholder="결재자가 판단에 필요한 내용을 적어 주세요.&#10;예) 가족 여행으로 연차를 신청합니다. 진행 중인 업무는 8/11 까지 인계 예정입니다."><c:out value="${form.reason}"/></textarea>
                         <span class="form-hint" data-count-for="reason"></span>
                     </div>
                 </div>
             </section>
 
-            <section class="doc-form__section">
+            <%-- 연차신청에서는 감춘다 - 위 "사유"가 본문 자리를 대신한다 --%>
+            <section class="doc-form__section" id="contentSection">
                 <h3 class="section-title">본문</h3>
                 <div class="form-row form-row--stack">
                     <label class="form-label" for="content">내용</label>
@@ -313,6 +324,8 @@
 
             $('#amountRow').prop('hidden', !usesAmount);
             $('#leaveFields').prop('hidden', !usesLeave);
+            // 연차신청은 사유가 본문을 대신한다 - 같은 것을 두 번 적게 하지 않는다
+            $('#contentSection').prop('hidden', usesLeave);
 
             /*
              * 금액을 쓰지 않는 유형으로 **사용자가 바꿨을 때만** 값을 비운다.

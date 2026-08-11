@@ -12,9 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalForm;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.LeaveRequest;
+import com.flowmate.approval.mapper.ApprovalDocMapper;
 import com.flowmate.approval.mapper.LeaveRequestMapper;
 import com.flowmate.attendance.domain.LeaveType;
 
@@ -37,6 +39,9 @@ class ApprovalServiceLeaveDraftIT {
     @Autowired
     private LeaveRequestMapper leaveRequestMapper;
 
+    @Autowired
+    private ApprovalDocMapper docMapper;
+
     @Test
     @DisplayName("★ 금액을 비운 채로도 기안된다 — 실제 화면에서 500 이 나던 결함의 회귀 테스트")
     void draftWithoutAmountSucceeds() {
@@ -50,8 +55,8 @@ class ApprovalServiceLeaveDraftIT {
         ApprovalForm form = new ApprovalForm();
         form.setDocType(DocType.LEAVE);
         form.setTitle("금액 없는 연차 신청");
-        form.setContent("금액 칸이 없는 유형이다");
         form.setLeaveType(LeaveType.ANNUAL);
+        form.setReason("금액 칸이 없는 유형이다");
         form.setStartDate(LocalDate.of(2026, 7, 3));
         form.setEndDate(LocalDate.of(2026, 7, 6));
 
@@ -59,6 +64,52 @@ class ApprovalServiceLeaveDraftIT {
 
         assertThat(approvalId).isNotNull();
         assertThat(leaveRequestMapper.findByApprovalId(approvalId)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("★ 연차 신청의 사유가 문서 본문이 된다 — 결재자와 AI 가 읽는 곳은 content 하나뿐이다")
+    void leaveReasonBecomesDocumentContent() {
+        // 예전에는 화면이 사유와 본문을 따로 물었는데, leave_request.reason 을 읽는
+        // 곳이 기안 화면의 되채우기뿐이었다 - 문서 상세도 AI 요약·사전점검도
+        // approval_doc.content 만 읽는다. 그래서 사유를 적어도 아무에게도 닿지
+        // 않았고, 같은 내용을 본문에 한 번 더 적어야만 전달됐다.
+        ApprovalForm form = leaveForm(LeaveType.ANNUAL, LocalDate.of(2026, 7, 3), LocalDate.of(2026, 7, 3));
+        form.setReason("가족 여행으로 연차를 신청합니다");
+        form.setContent("화면에는 이제 이 칸이 없다 - 보내더라도 무시되어야 한다");
+
+        Long approvalId = approvalService.saveDraft(form, DRAFTER_ID);
+
+        ApprovalDoc doc = docMapper.findById(approvalId);
+        assertThat(doc.getContent())
+                .as("연차는 사유가 본문이다")
+                .isEqualTo("가족 여행으로 연차를 신청합니다");
+        assertThat(leaveRequestMapper.findByApprovalId(approvalId).getReason())
+                .isEqualTo("가족 여행으로 연차를 신청합니다");
+    }
+
+    @Test
+    @DisplayName("연차가 아닌 문서는 본문을 그대로 쓴다 — 사유 승격은 LEAVE 에만 적용된다")
+    void nonLeaveKeepsItsOwnContent() {
+        ApprovalForm form = new ApprovalForm();
+        form.setDocType(DocType.EXPENSE);
+        form.setTitle("출장비 정산");
+        form.setContent("부산 지사 방문 출장비입니다");
+        form.setReason("연차가 아니므로 이 값은 쓰이지 않는다");
+
+        Long approvalId = approvalService.saveDraft(form, DRAFTER_ID);
+
+        assertThat(docMapper.findById(approvalId).getContent()).isEqualTo("부산 지사 방문 출장비입니다");
+    }
+
+    @Test
+    @DisplayName("사유 없이 연차를 기안할 수 없다 — 본문이 비는 문서가 만들어지지 않는다")
+    void leaveWithoutReasonIsRejected() {
+        ApprovalForm form = leaveForm(LeaveType.ANNUAL, LocalDate.of(2026, 7, 3), LocalDate.of(2026, 7, 3));
+        form.setReason("   ");
+
+        assertThatThrownBy(() -> approvalService.saveDraft(form, DRAFTER_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사유");
     }
 
     @Test

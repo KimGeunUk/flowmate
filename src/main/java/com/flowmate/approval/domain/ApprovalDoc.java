@@ -146,6 +146,14 @@ public class ApprovalDoc implements Serializable {
         return DocType.usesAmount(this.docType);
     }
 
+    /**
+     * 본문 영역에 붙일 제목. 연차 신청서는 본문이 곧 신청 사유이므로
+     * (ApprovalService.contentOf 참조) 그렇게 부르는 편이 읽는 사람에게 정확하다.
+     */
+    public String getContentLabel() {
+        return DocType.usesLeaveFields(this.docType) ? "신청 사유" : "본문";
+    }
+
     // ── getter / setter ─────────────────────────────────────────
 
     public Long getApprovalId() {
