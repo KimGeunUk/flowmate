@@ -41,6 +41,34 @@ class DocTypeTest {
     }
 
     @Test
+    @DisplayName("★ 선택 상자 옵션이 '금액 칸을 쓰는가'를 함께 나른다 — 화면 스크립트가 유형 코드를 몰라도 되게")
+    void optionsCarryFieldVisibilityFlags() {
+        // 기안 화면은 고른 유형에 따라 금액 칸을 감춘다. 그 판정을 스크립트에
+        // 적어 두면(EXPENSE 나 PURCHASE 면 보인다) 유형을 추가할 때 스크립트도
+        // 같이 고쳐야 하는데 그걸 강제하는 장치가 없다 — labelOf 를 빠뜨렸던
+        // 것과 같은 함정이다. 그래서 판정을 여기 두고 옵션이 실어 나른다.
+        assertThat(DocType.options()).allSatisfy(o -> {
+            assertThat(o.isUsesAmount()).isEqualTo(DocType.usesAmount(o.getCode()));
+            assertThat(o.isUsesLeaveFields()).isEqualTo(DocType.usesLeaveFields(o.getCode()));
+        });
+    }
+
+    @Test
+    @DisplayName("금액은 지출결의·구매요청만 쓰고, 연차 입력칸은 연차신청만 쓴다")
+    void onlyMoneyDocTypesUseAmount() {
+        assertThat(DocType.usesAmount(DocType.EXPENSE)).isTrue();
+        assertThat(DocType.usesAmount(DocType.PURCHASE)).isTrue();
+        assertThat(DocType.usesAmount(DocType.LEAVE)).isFalse();
+        assertThat(DocType.usesAmount(DocType.CONTRACT)).isFalse();
+        assertThat(DocType.usesAmount(DocType.GENERAL)).isFalse();
+
+        // 연차 입력칸을 쓰는 유형은 정확히 하나여야 한다 — 둘이 되면 화면이
+        // 같은 영역을 두 유형에서 보여주게 되고, 서버의 LEAVE 분기와 어긋난다.
+        assertThat(DocType.ALL.stream().filter(DocType::usesLeaveFields).toList())
+                .containsExactly(DocType.LEAVE);
+    }
+
+    @Test
     @DisplayName("알 수 없는 유형은 일반문서로 떨어진다 — DB 에 옛 유형이 남아 있어도 화면이 깨지지 않는다")
     void unknownDocTypeFallsBackToGeneral() {
         assertThat(DocType.labelOf("SOMETHING_ELSE")).isEqualTo("일반문서");

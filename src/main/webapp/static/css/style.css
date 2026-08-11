@@ -78,6 +78,21 @@
  *            .preflight-modal__severity  .preflight-modal__category
  *            .preflight-modal__message  .preflight-modal__suggestion
  *            .preflight-modal__basis
+ *
+ * ── 클래스 목록 (기안 작성 화면 개선) ────────────────────────────
+ * 진행단계   .doc-steps  .doc-steps__item  .doc-steps__item--current
+ *            .doc-steps__item--done  .doc-steps__no  .doc-steps__label
+ * 문서정보   .doc-meta  .doc-meta__item  .doc-meta__no
+ * 폼구획     .doc-form__section  .doc-form__content
+ * 구획제목   .section-title  (폼 밖의 첨부·결재선도 같이 쓴다)
+ * 폼보강     .form-field  .form-field--fixed  .form-required  .form-hint
+ *            .form-hint--inline  .form-unit  .form-range-sep  .form-row--stack
+ *            .form-input--select  .form-input--amount  .form-input--date
+ *            (기존 .form-row/.form-label/.form-input 3종은 그대로 두고,
+ *             입력칸 오른쪽 열을 감싸는 .form-field 를 하나 더한 것이다)
+ * 액션바     .doc-actions-bar  .doc-actions-bar__back
+ * 첨부       .attach-list__empty
+ * 연차       .leave-fields__breakdown
  */
 
 /* ── 디자인 토큰 : 색상·간격은 여기만 바꾸면 전체 톤이 바뀐다 ── */
@@ -237,7 +252,16 @@ a:hover { text-decoration: underline; }
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     color: var(--color-text);
+    background: var(--color-surface);
 }
+/* 지금 어디에 입력하고 있는지 - 브라우저 기본 outline 은 배경색에 묻힌다 */
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(47, 95, 168, .14);
+}
+.form-input::placeholder { color: #a8aeb8; }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .search-form { margin-bottom: var(--space-4); }
 
 /* ── 알림 ── */
@@ -336,11 +360,8 @@ a:hover { text-decoration: underline; }
 
 /* ══ 전자결재 (Phase 2) ══════════════════════════════════════════ */
 
-.doc-form { max-width: 720px; }
-.doc-form .form-input[type="text"],
-.doc-form textarea.form-input { width: 100%; }
+.doc-form { max-width: 860px; }
 .doc-form textarea.form-input { resize: vertical; }
-.doc-form .form-label { flex: 0 0 84px; }
 
 /* 결재함 탭 */
 .box-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-4); }
@@ -467,8 +488,7 @@ a:hover { text-decoration: underline; }
 }
 .leave-fields__balance { margin-bottom: var(--space-3); }
 .leave-fields__balance strong { color: var(--color-primary); font-size: 16px; }
-.leave-fields__days { margin-top: var(--space-2); color: var(--color-text-muted); font-size: 13px; }
-.leave-fields__days strong { color: var(--color-text); }
+.leave-fields__breakdown { color: var(--color-text-muted); font-size: 13px; }
 
 .attendance-status { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-3); }
 .attendance-actions { display: flex; gap: var(--space-2); }
@@ -552,3 +572,167 @@ a:hover { text-decoration: underline; }
 .preflight-modal__message { margin-top: var(--space-2); }
 .preflight-modal__suggestion { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 13px; }
 .preflight-modal__basis { margin-top: var(--space-2); font-size: 12px; color: var(--color-primary); font-weight: 700; }
+
+/* ══ 기안 작성 화면 ═══════════════════════════════════════════════
+   업무용 결재 화면의 통상적인 골격을 따른다 — 진행 단계를 먼저 보여주고,
+   라벨은 한 세로선에 정렬하고, 저장·상신은 맨 아래 한 줄에 모은다.        */
+
+/* 진행 단계 — 이 화면이 한 번에 끝나지 않는다는 것을 먼저 알린다 */
+.doc-steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+.doc-steps__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+.doc-steps__no {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+.doc-steps__item--current {
+    border-color: var(--color-primary);
+    background: var(--color-info-bg);
+    color: var(--color-primary);
+    font-weight: 700;
+}
+.doc-steps__item--current .doc-steps__no { background: var(--color-primary); color: #fff; }
+.doc-steps__item--done { color: var(--color-text); }
+/* 끝난 단계는 번호 대신 체크. font-size:0 으로 번호를 지우고 ::after 로 바꿔 단다 */
+.doc-steps__item--done .doc-steps__no { background: #e8f5e9; color: #2e7d32; font-size: 0; }
+.doc-steps__item--done .doc-steps__no::after { content: "✓"; font-size: 13px; }
+
+/* 문서 정보 — 문서번호·유형·상태를 한 줄로 */
+.doc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-5);
+    background: var(--color-stripe);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+.doc-meta__item { display: inline-flex; align-items: center; gap: var(--space-2); }
+.doc-meta__no { font-family: Consolas, monospace; color: var(--color-text); }
+
+/* 폼 구획 — 기본 정보 / 연차 신청 / 본문 */
+.doc-form__section {
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+.doc-form__section:last-of-type { padding-bottom: 0; margin-bottom: 0; border-bottom: none; }
+/* 구획 제목 — 폼 안(기본 정보·본문)과 폼 밖(첨부·결재선)이 같은 이름을 쓴다.
+   그래서 doc-form__ 접두를 붙이지 않는다. */
+.section-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: var(--space-3);
+    padding-left: var(--space-2);
+    border-left: 3px solid var(--color-primary);
+}
+/* 연차 영역은 구획이면서 동시에 강조 상자다 — 두 규칙이 겹치므로 여기서 못박는다 */
+.doc-form__section.leave-fields {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+.doc-form__content { line-height: 1.7; }
+
+/*
+ * 라벨 열을 고정폭으로 두고 입력 열을 가변으로 둔다 — 모든 줄의 라벨이
+ * 같은 세로선에 선다. 예전에는 flex 라서 라벨 길이에 따라 입력칸 시작점이
+ * 달랐고, 라벨이 둘인 줄(시작일·종료일)에서는 아예 어긋났다.
+ * 전역 .form-row 는 그대로 flex 다 — 검색 폼·첨부 폼처럼 라벨 열이 필요
+ * 없는 곳까지 격자로 만들 이유가 없다.
+ */
+.doc-form .form-row {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+}
+.doc-form .form-label { padding-top: 7px; }   /* 입력칸 첫 줄에 눈높이를 맞춘다 */
+.doc-form .form-row--stack { grid-template-columns: minmax(0, 1fr); }
+.doc-form .form-row--stack .form-label { padding-top: 0; }
+
+/* 입력 열 — 입력칸과 단위·보조 문구를 함께 담는다 */
+.form-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+.form-field > .form-input { flex: 1 1 auto; min-width: 0; }
+/* 금액·날짜·선택 상자는 늘리지 않는다 — 폭 자체가 "얼마나 들어가는 칸인지"를 말해 준다 */
+.form-field--fixed > .form-input { flex: 0 0 auto; }
+.form-input--select { width: 220px; max-width: 100%; }
+.form-input--date { width: 160px; max-width: 100%; }
+.form-input--amount {
+    width: 200px;
+    max-width: 100%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.form-required { color: var(--color-danger); font-weight: 700; }
+.form-unit { color: var(--color-text-muted); font-size: 13px; }
+.form-range-sep { color: var(--color-text-muted); }
+/* 보조 문구는 기본적으로 줄을 바꿔 입력칸 아래에 붙는다 */
+.form-hint { flex-basis: 100%; color: var(--color-text-muted); font-size: 12px; }
+.form-hint--inline { flex-basis: auto; }
+.form-hint strong { color: var(--color-text); }
+
+/* 첨부가 없을 때 — 오류가 아니라 빈 상태다. alert 로 알리지 않는다 */
+.attach-list__empty {
+    padding: var(--space-4);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+}
+
+/*
+ * 하단 액션 바 — 저장과 상신을 한 줄에 모은다.
+ * 예전에는 [임시저장]이 폼 끝에, [상신]이 결재선 뒤에, 첨부가 그보다 더
+ * 아래에 있어서 상신 버튼이 화면 중간에 파묻혀 있었다.
+ */
+.doc-actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    margin-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+}
+.doc-actions-bar__back { margin-right: auto; }
+.doc-actions-bar .btn { min-width: 96px; text-align: center; }
+.doc-actions-bar .btn--plain { min-width: 0; }

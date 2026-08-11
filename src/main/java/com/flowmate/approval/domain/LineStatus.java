@@ -1,5 +1,7 @@
 package com.flowmate.approval.domain;
 
+import java.util.List;
+
 /** 결재선 한 단계의 상태 */
 public final class LineStatus {
 
@@ -12,6 +14,29 @@ public final class LineStatus {
     /** 앞 단계에서 반려되어 차례가 오지 않음 */
     public static final String SKIPPED = "SKIPPED";
 
+    /** 존재하는 모든 상태. ApprovalStatus.ALL 과 같은 이유로 둔다 */
+    public static final List<String> ALL = List.of(WAITING, CURRENT, APPROVED, REJECTED, SKIPPED);
+
     private LineStatus() {
+    }
+
+    /** 화면에 보여줄 한글 이름. ApprovalStatus.labelOf 와 같은 자리 */
+    public static String labelOf(String status) {
+        if (WAITING.equals(status)) {
+            return "대기";
+        }
+        if (CURRENT.equals(status)) {
+            return "결재 차례";
+        }
+        if (APPROVED.equals(status)) {
+            return "승인";
+        }
+        if (REJECTED.equals(status)) {
+            return "반려";
+        }
+        if (SKIPPED.equals(status)) {
+            return "해당없음";
+        }
+        return status;
     }
 }
