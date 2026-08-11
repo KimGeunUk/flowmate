@@ -2,6 +2,7 @@ package com.flowmate.approval.domain;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import com.flowmate.common.web.DateLabels;
 
 /**
  * 결재 이력 한 줄. 문서 상세 화면의 타임라인이 이 목록을 그린다.
@@ -29,6 +30,11 @@ public class ApprovalHistory implements Serializable {
      * JSP 가 ${h.actionLabel} 로 읽는다. 정적 메서드 호출은 EL 에서 번거로우므로
      * 도메인 객체에 파생 getter 로 둔다.
      */
+    /** 화면 표시용 발생 시각 */
+    public String getCreatedAtLabel() {
+        return DateLabels.dateTime(this.createdAt);
+    }
+
     public String getActionLabel() {
         if (HistoryAction.DRAFT.equals(this.action)) {
             return "기안";

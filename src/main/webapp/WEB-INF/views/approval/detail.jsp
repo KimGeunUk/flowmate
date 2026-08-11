@@ -27,7 +27,7 @@
             <tr>
                 <th>상태</th>
                 <td><span class="status status--${fn:toLowerCase(doc.status)}"><c:out value="${doc.statusLabel}"/></span></td>
-                <th>기안일</th><td>${doc.draftedAt}</td>
+                <th>기안일</th><td>${doc.draftedAtLabel}</td>
             </tr>
         </table>
 
@@ -147,7 +147,7 @@
                                     <span class="approval-line__comment"><c:out value="${line.comment}"/></span>
                                 </c:if>
                                 <c:if test="${line.processedAt != null}">
-                                    <span class="approval-line__at">${line.processedAt}</span>
+                                    <span class="approval-line__at">${line.processedAtLabel}</span>
                                 </c:if>
                             </li>
                         </c:forEach>
@@ -219,7 +219,7 @@
             <ul class="history-list">
                 <c:forEach items="${histories}" var="h">
                     <li class="history-list__item">
-                        <span class="history-list__at">${h.createdAt}</span>
+                        <span class="history-list__at">${h.createdAtLabel}</span>
                         <span class="history-list__actor"><c:out value="${h.actorName}"/></span>
                         <span class="history-list__action"><c:out value="${h.actionLabel}"/></span>
                         <c:if test="${not empty h.comment}">

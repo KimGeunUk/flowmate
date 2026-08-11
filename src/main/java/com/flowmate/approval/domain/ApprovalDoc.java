@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import com.flowmate.common.web.DateLabels;
 
 /**
  * 결재 문서. 상태 전이 규칙을 이 객체 안에 가둔다.
@@ -129,6 +130,11 @@ public class ApprovalDoc implements Serializable {
     /** 주어진 단계가 지금 처리를 기다리는 단계인가 */
     public boolean isAwaitingStep(int stepNo) {
         return ApprovalStatus.PENDING.equals(this.status) && this.currentStep == stepNo;
+    }
+
+    /** 화면 표시용 기안일 "2026-03-05 10:00" */
+    public String getDraftedAtLabel() {
+        return DateLabels.dateTime(this.draftedAt);
     }
 
     /** 화면 표시용 문서 유형 한글명 */
