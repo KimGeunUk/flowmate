@@ -94,6 +94,12 @@
  * 첨부       .attach-list__empty
  * 연차       .leave-fields__breakdown
  *
+ * ── 클래스 목록 (결재 건수 표시) ─────────────────────────────────
+ * 탭배지     .box-tabs__count  .box-tabs__link--todo
+ * 좌측배지   .lnb__badge
+ * 홈 할일    .home-todo  .home-todo__item  .home-todo__item--urgent
+ *            .home-todo__count  .home-todo__label
+ *
  * ── 클래스 목록 (결재 검토 영역 통합) ────────────────────────────
  * 검토       .doc-review  .doc-review__actions
  * 반려모달   .reject-modal__intro  .reject-modal__actions
@@ -771,3 +777,60 @@ a:hover { text-decoration: underline; }
 .doc-actions-bar__back { margin-right: auto; }
 .doc-actions-bar .btn { min-width: 96px; text-align: center; }
 .doc-actions-bar .btn--plain { min-width: 0; }
+
+/* ══ 결재 건수 ═══════════════════════════════════════════════════
+   네 탭은 성격이 다르다 — 대기·반려는 할 일이고 기안·완료는 기록이다.
+   숫자를 붙이는 것만으로는 부족해서, 할 일 쪽만 색으로 구분한다.      */
+
+.box-tabs__count {
+    display: inline-block;
+    min-width: 20px;
+    padding: 0 6px;
+    margin-left: var(--space-1);
+    border-radius: 10px;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 12px;
+    line-height: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+/* 지금 처리할 것이 있는 탭. 0 건이면 이 클래스가 붙지 않아 조용히 남는다 */
+.box-tabs__link--todo { color: var(--color-text); font-weight: 700; }
+.box-tabs__link--todo .box-tabs__count { background: var(--color-danger); color: #fff; }
+.box-tabs__link--active .box-tabs__count { background: var(--color-primary); color: #fff; }
+
+/* 좌측 메뉴 배지 — 대기 건수만. 0 건이면 아예 렌더링하지 않는다 */
+.lnb__link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.lnb__badge {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 홈의 "결재 할 일" — 숫자를 먼저 크게, 이름을 그 아래 */
+.home-todo { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.home-todo__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 96px;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+.home-todo__item:hover { border-color: var(--color-primary); text-decoration: none; }
+.home-todo__count { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.home-todo__label { font-size: 13px; color: var(--color-text-muted); }
+/* 남이 나를 기다리는 건수 — 이것만 붉게 둔다 */
+.home-todo__item--urgent { border-color: var(--color-danger); }
+.home-todo__item--urgent .home-todo__count { color: var(--color-danger); }
