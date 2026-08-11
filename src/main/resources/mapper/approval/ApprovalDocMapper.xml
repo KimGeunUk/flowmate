@@ -148,4 +148,47 @@
         <include refid="boxWhere"/>
     </select>
 
+    <!--
+      탭 4종의 건수를 한 번에 센다 (화면의 탭 배지 · 홈의 "결재 할 일" · LNB 배지).
+
+      ★ 검색 조건(docType/keyword)을 일부러 넣지 않는다.
+        배지는 "내가 처리해야 할 총량"이지 "지금 검색 결과의 분포"가 아니다.
+        검색어를 넣을 때마다 배지가 흔들리면 원래 질문에 답하지 못한다
+        (ApprovalBoxCounts 주석).
+
+      ★ 위 boxWhere 와 조건이 겹친다 - 그런데 재사용할 수가 없다. boxWhere 는
+        cond.tab 하나를 골라 쓰는 구조라 네 탭을 동시에 셀 수 없기 때문이다.
+        countBox 를 네 번 부르면 중복은 사라지지만 화면마다 쿼리가 4번 나간다
+        (이 결과는 인터셉터가 모든 화면에 싣는다).
+
+        그래서 여기서는 중복을 받아들이고, 대신 두 경로가 어긋나면 곧바로
+        깨지도록 테스트로 묶어 두었다 - ApprovalQueryServiceIT 의
+        tabCountsAgreeWithEachTabListing 이 탭마다 이 값과 searchBox 의
+        totalCount 가 같은지 확인한다. 조용히 갈라지는 것이 제일 나쁘다.
+
+      ★ SUM(CASE WHEN ...) 을 쓴다. PostgreSQL 의 COUNT(*) FILTER 가 더 읽기
+        좋지만 Oracle 에 없다(docs/oracle-migration.md). COALESCE 는 문서가
+        하나도 없을 때 SUM 이 0 이 아니라 NULL 을 주기 때문에 필요하다.
+    -->
+    <select id="countBoxTabs" resultType="ApprovalBoxCounts">
+        SELECT
+            COALESCE(SUM(CASE WHEN a.drafter_id = #{empId}
+                              THEN 1 ELSE 0 END), 0) AS drafted,
+            COALESCE(SUM(CASE WHEN a.status = 'PENDING'
+                               AND EXISTS (SELECT 1 FROM approval_line l
+                                            WHERE l.approval_id = a.approval_id
+                                              AND l.approver_id = #{empId}
+                                              AND l.status = 'CURRENT')
+                              THEN 1 ELSE 0 END), 0) AS pending,
+            COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM approval_line l
+                                            WHERE l.approval_id = a.approval_id
+                                              AND l.approver_id = #{empId}
+                                              AND l.status IN ('APPROVED', 'REJECTED'))
+                              THEN 1 ELSE 0 END), 0) AS done,
+            COALESCE(SUM(CASE WHEN a.drafter_id = #{empId}
+                               AND a.status = 'REJECTED'
+                              THEN 1 ELSE 0 END), 0) AS rejected
+          FROM approval_doc a
+    </select>
+
 </mapper>

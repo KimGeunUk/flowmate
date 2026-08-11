@@ -14,6 +14,7 @@ import com.flowmate.ai.feature.LeaveContextService;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalLine;
 import com.flowmate.approval.domain.ApprovalSearchCond;
+import com.flowmate.approval.domain.BoxTab;
 import com.flowmate.approval.domain.DocType;
 import com.flowmate.approval.domain.RejectReason;
 import com.flowmate.approval.mapper.ApprovalAttachmentMapper;
@@ -51,6 +52,9 @@ public class ApprovalBoxController {
         cond.setEmpId(loginEmployee.getEmpId());
         model.addAttribute("paging", queryService.searchBox(cond));
         model.addAttribute("docTypes", DocType.options());
+        // 목록 위 "○○ N건"의 ○○. 탭 배지(boxTabs)는 인터셉터가 싣는다 —
+        // 그쪽은 모든 화면이 쓰지만 이 이름은 결재함 목록에서만 쓴다.
+        model.addAttribute("boxTabLabel", BoxTab.labelOf(cond.getTab()));
         return "approval/box";
     }
 

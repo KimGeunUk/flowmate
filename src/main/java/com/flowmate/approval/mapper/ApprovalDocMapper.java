@@ -5,6 +5,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import com.flowmate.approval.domain.ApprovalBoxCounts;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalSearchCond;
 
@@ -51,4 +52,7 @@ public interface ApprovalDocMapper {
 
     /** 내 결재함 건수 */
     long countBox(ApprovalSearchCond cond);
+
+    /** 탭 4종의 건수. 검색 조건은 적용하지 않는다 — ApprovalBoxCounts 주석 참조 */
+    ApprovalBoxCounts countBoxTabs(@Param("empId") Long empId);
 }

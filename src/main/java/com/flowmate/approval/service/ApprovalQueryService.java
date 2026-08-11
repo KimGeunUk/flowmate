@@ -6,6 +6,7 @@ import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.flowmate.approval.domain.ApprovalBoxCounts;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.ApprovalHistory;
 import com.flowmate.approval.domain.ApprovalLine;
@@ -112,6 +113,15 @@ public class ApprovalQueryService {
 
         List<ApprovalDoc> content = docMapper.searchBox(cond);
         return new Page<>(content, cond.getPage(), cond.getSize(), totalCount);
+    }
+
+    /**
+     * 탭 4종의 건수. 검색 조건과 무관하게 항상 전체 기준이다
+     * (이유는 ApprovalBoxCounts 주석).
+     */
+    @Transactional(readOnly = true)
+    public ApprovalBoxCounts countBoxTabs(Long empId) {
+        return docMapper.countBoxTabs(empId);
     }
 
     /** 지금 이 사람이 처리할 차례인가 */

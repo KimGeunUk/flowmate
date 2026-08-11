@@ -17,18 +17,24 @@
           탭. 링크가 아니라 hidden tab 을 바꿔 #searchForm 을 다시 보낸다.
           링크로 만들면 현재 검색어·유형이 URL 조립 대상이 되어 pagination.jsp 와
           같은 문제를 반복하게 된다.
+
+          ★ 탭 이름·건수·"할 일 여부"는 전부 서버가 만들어 넘긴다(BoxTab.options).
+            예전에는 여기서 c:choose 로 'drafted'→'기안' 을 골랐는데, 그러면 탭을
+            하나 추가할 때 화면을 같이 고쳐야 하고 그걸 강제하는 장치가 없다 —
+            문서 유형·연차 유형·반려 유형에서 반복해서 겪은 함정이다.
+
+          ★ 배지 숫자는 검색 조건을 따르지 않는다. "내가 처리해야 할 총량"이지
+            "지금 검색 결과의 분포"가 아니기 때문이다(ApprovalBoxCounts 주석).
+            아래 목록 위의 건수는 반대로 검색을 따라간다 — 두 숫자가 다르게
+            움직이는 것이 정상이라, 이름으로 구분해 둔다.
         --%>
         <ul class="box-tabs">
-            <c:forEach items="${['drafted','pending','done','rejected']}" var="t">
+            <c:forEach items="${boxTabs}" var="tab">
                 <li class="box-tabs__item">
-                    <a class="box-tabs__link ${t eq cond.tab ? 'box-tabs__link--active' : ''}"
-                       href="#" data-tab="${t}">
-                        <c:choose>
-                            <c:when test="${t eq 'drafted'}">기안</c:when>
-                            <c:when test="${t eq 'pending'}">대기</c:when>
-                            <c:when test="${t eq 'done'}">완료</c:when>
-                            <c:otherwise>반려</c:otherwise>
-                        </c:choose>
+                    <a class="box-tabs__link ${tab.code eq cond.tab ? 'box-tabs__link--active' : ''} ${tab.todo and tab.count > 0 ? 'box-tabs__link--todo' : ''}"
+                       href="#" data-tab="${tab.code}">
+                        <c:out value="${tab.label}"/>
+                        <span class="box-tabs__count">${tab.count}</span>
                     </a>
                 </li>
             </c:forEach>
@@ -53,7 +59,22 @@
             </div>
         </form>
 
-        <p class="result-count">전체 <strong>${paging.totalCount}</strong>건</p>
+        <%--
+          이 숫자는 "현재 탭 + 현재 검색 조건"의 건수다. 예전에는 "전체 N건"이라고
+          적혀 있었는데, 기안 탭에서 "전체 6건"을 보면 시스템 전체인지 내 기안인지
+          알 수 없었고, 검색어를 넣으면 숫자가 바뀌는데도 이름은 "전체"였다.
+          검색 중일 때와 아닐 때를 나눠 이름을 정직하게 붙인다.
+        --%>
+        <p class="result-count">
+            <c:choose>
+                <c:when test="${not empty cond.keyword or not empty cond.docType}">
+                    검색 결과 <strong>${paging.totalCount}</strong>건
+                </c:when>
+                <c:otherwise>
+                    <c:out value="${boxTabLabel}"/> <strong>${paging.totalCount}</strong>건
+                </c:otherwise>
+            </c:choose>
+        </p>
 
         <table class="doc-list">
             <thead>
