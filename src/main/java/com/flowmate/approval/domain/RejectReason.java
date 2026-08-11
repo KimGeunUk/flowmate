@@ -1,6 +1,7 @@
 package com.flowmate.approval.domain;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 반려 유형 6종 (설계서 §5.2 확정).
@@ -57,5 +58,37 @@ public final class RejectReason {
      */
     public static boolean isValid(String category) {
         return category != null && ALL.contains(category);
+    }
+
+    /**
+     * 선택 상자에 쓸 (코드, 한글 이름) 쌍. DocType.options() 와 같은 자리다.
+     *
+     * ★ 반려 모달이 ALL(코드 목록)을 그대로 받아 INSUFFICIENT_CONTENT 를
+     *   화면에 내보내고 있었다 — labelOf 는 진작 있었는데 화면만 안 쓰고
+     *   있었다(연차 유형과 똑같은 누락이다). 하필 결재자가 반드시 골라야
+     *   하는 필수 항목이라, 영문 코드를 보고 고르게 되어 있었다.
+     */
+    public static List<Option> options() {
+        return ALL.stream().map(Option::new).collect(Collectors.toList());
+    }
+
+    /** 선택 상자 한 줄. JSP 가 ${r.code} / ${r.label} 로 읽는다 */
+    public static final class Option {
+
+        private final String code;
+        private final String label;
+
+        public Option(String code) {
+            this.code = code;
+            this.label = labelOf(code);
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 }

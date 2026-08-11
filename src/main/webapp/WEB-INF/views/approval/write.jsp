@@ -335,17 +335,7 @@
             $('#amountHint').text(readable);
         }
 
-        /* maxlength 가 있는 칸에 남은 글자수를 붙인다 - 잘리고 나서 알게 되지 않도록 */
-        $('[data-count-for]').each(function () {
-            var $hint = $(this);
-            var $field = $('#' + $hint.attr('data-count-for'));
-            var max = $field.attr('maxlength');
-            function update() {
-                $hint.text($field.val().length + ' / ' + max + '자');
-            }
-            $field.on('input', update);
-            update();
-        });
+        /* 글자수 카운터(data-count-for)는 common.js 가 처리한다 - 검토 화면도 같이 쓴다 */
 
         $docType.on('change', function () { applyDocType(true); });
         $('#amount').on('input', updateAmountHint);

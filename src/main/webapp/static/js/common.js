@@ -89,11 +89,51 @@ $(function () {
         $form.trigger('submit');
     });
 
-    /* 반려 모달. hidden 속성만 토글한다 — CSS 는 마지막 Phase 에서 얹는다 */
+    /*
+     * 글자수 카운터. maxlength 가 있는 칸 옆에 <span data-count-for="칸id"> 를
+     * 두면 여기서 채운다 — 기안 작성의 제목·사유, 결재 검토의 의견이 쓴다.
+     *
+     * 화면마다 같은 코드를 다시 쓰지 않으려고 공용으로 올렸다. 규약은 하나뿐이다:
+     * data-count-for 가 가리키는 칸에 maxlength 가 있어야 한다.
+     */
+    $('[data-count-for]').each(function () {
+        var $hint = $(this);
+        var $field = $('#' + $hint.attr('data-count-for'));
+        var max = $field.attr('maxlength');
+        if ($field.length === 0 || !max) {
+            return;
+        }
+        function update() {
+            $hint.text($field.val().length + ' / ' + max + '자');
+        }
+        $field.on('input', update);
+        update();
+    });
+
+    /*
+     * 반려 모달.
+     *
+     * ★ 검토란의 의견(#comment)과 모달의 의견(#reasonText)은 **같은 칸**이다 —
+     *   승인이든 반려든 approval_line.comment / approval_history.comment 라는
+     *   같은 자리에 저장된다. 그래서 열고 닫을 때 값을 서로 옮겨 하나처럼
+     *   움직이게 한다.
+     *
+     *   예전에는 옮기지 않았다. 결재자가 검토란에 사유를 적고 [반려]를 누르면
+     *   모달이 빈 칸으로 떠서 처음부터 다시 타이핑해야 했다.
+     */
     $(document).on('click', '#rejectOpen', function () {
+        $('#reasonText').val($('#comment').val());
         $('#rejectModal').prop('hidden', false);
+        $('#reasonCategory').trigger('focus');
     });
     $(document).on('click', '#rejectCancel', function () {
+        /*
+         * 되돌려 담는다. [취소]가 취소하는 것은 **반려라는 행위**이지 방금
+         * 친 글이 아니다 — 모달에서 다듬은 문장이 사라지면 한 칸이라는
+         * 약속이 깨진다. 승인으로 마음을 바꾼 결재자는 그 문장을 그대로
+         * 승인 의견으로 쓸 수 있어야 한다.
+         */
+        $('#comment').val($('#reasonText').val()).trigger('input');
         $('#rejectModal').prop('hidden', true);
     });
 });
