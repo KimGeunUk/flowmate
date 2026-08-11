@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code LlmConfig} 가 실제로 조립한 체인(Caching → Masking → Logging → Resilient → 실구현)을
- * 통째로 검증한다 (D8).
+ * 통째로 검증한다.
  *
  * {@code ai.enabled=false}(기본값)로 테스트가 돌기 때문에 체인의 맨 안쪽은
  * {@link FakeLlmClient} 다. 이 클래스가 "받은 요청을 기록"하는 능력 덕분에, 체인 밖에서
@@ -65,7 +65,7 @@ class LlmChainIT {
     }
 
     @Test
-    @DisplayName("★ 주민번호가 든 프롬프트도 원문이 FakeLlmClient 까지 도달하지 않는다 - D8 핵심")
+    @DisplayName("★ 주민번호가 든 프롬프트도 원문이 FakeLlmClient 까지 도달하지 않는다")
     void originalTextNeverReachesTheInnerClient() {
         LlmRequest request = newRequest(AiFeature.SUMMARY, "v-mask-1",
                 "직원 정보: 주민번호 " + RRN + " 확인 요청");
@@ -144,7 +144,7 @@ class LlmChainIT {
     }
 
     @Test
-    @DisplayName("★ 구현을 바꾸면 같은 요청도 다른 결과를 낸다 - 커스터마이징 지점 4 교체 증명 (D4)")
+    @DisplayName("★ 구현을 바꾸면 같은 요청도 다른 결과를 낸다 - 커스터마이징 지점 4 교체 증명")
     void twoImplementationsProduceDifferentResults() {
         LlmRequest request = newRequest(AiFeature.SUMMARY, "v-swap-1", "동일한 입력");
 

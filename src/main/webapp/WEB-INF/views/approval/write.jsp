@@ -378,7 +378,7 @@
   ★ 이 스크립트 블록 전체가 <c:if test="${aiPreflightEnabled}"> 로 감싸여 있다
   (커스터마이징 지점 5) - 꺼져 있으면 상신 폼의 기본 제출을
   아예 가로채지 않으므로 /api/ai/.../preflight 호출 자체가 나가지 않는다.
-  D8 의 "실패 시 모달 없이 상신"과 결과는 같지만(둘 다 모달이 안 뜬다), 이
+  위 "실패 시 모달 없이 상신"과 결과는 같지만(둘 다 모달이 안 뜬다), 이
   경로는 네트워크 호출조차 시도하지 않는다는 점이 다르다 - "부재"가 "실패한
   시도"보다 한 단계 더 확실하다.
 --%>
@@ -397,7 +397,7 @@
 
         $submitForm.on('submit', function (event) {
             event.preventDefault();
-            // ★ 동기 예외까지 잡아야 D8 이 지켜진다.
+            // ★ 동기 예외까지 잡아야 이 원칙이 지켜진다.
             //   runPreflight() 안의 실패(응답 오류·타임아웃·JSON 파싱)는 promise 체인이
             //   전부 submitNow() 로 합류시킨다. 그러나 첫 .then() 에 닿기 전에 나는
             //   동기 예외 - 예를 들어 common.js 가 로드되지 않아 flowmateFetch 가
@@ -484,7 +484,7 @@
             }).then(function () {
                 submitNow();
             }).catch(function () {
-                // ignore 기록이 실패해도 상신은 진행한다 - 부가 기록이 상신을 막지 않는다(D8과 같은 정신).
+                // ignore 기록이 실패해도 상신은 진행한다 - 부가 기록이 상신을 막지 않는다.
                 submitNow();
             });
         });

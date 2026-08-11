@@ -33,9 +33,8 @@ public interface ApprovalLinePolicy {
     /**
      * 결재자 목록을 결재선으로 바꾼다. 구현체가 공유하는 조립 로직이다.
      *
-     * 전부 WAITING 으로 만든다. 결재선은 기안(임시저장) 시점에 생성되므로
-     * 아직 아무 단계도 진행 중이 아니다. 1단계를 CURRENT 로 바꾸는 것은
-     * 상신 시점에 ApprovalService 가 한다.
+     * 전부 WAITING 으로 만든다 - 결재선은 임시저장 시점에 생기므로 아직 아무
+     * 단계도 진행 중이 아니다. 1단계를 CURRENT 로 바꾸는 것은 상신 시점의 일이다.
      */
     default List<ApprovalLine> toApprovalLines(Long approvalId, List<ApproverCandidate> approvers) {
         List<ApprovalLine> lines = new ArrayList<>();

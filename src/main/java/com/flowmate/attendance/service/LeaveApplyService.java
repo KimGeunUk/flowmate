@@ -21,10 +21,10 @@ public interface LeaveApplyService {
     /**
      * 연차 신청서 승인을 근태에 반영한다.
      *
-     * 이미 반영된 approvalId 면 조용히 통과한다 (D2 — 중복 반영 방지, 제약
+     * 이미 반영된 approvalId 면 조용히 통과한다 (중복 반영 방지 - 제약
      * 위반을 잡지 않고 먼저 조회해서 분기한다). 잔여가 부족하면
      * {@link IllegalStateException} 을 던져 호출자(ApprovalService.approve())의
-     * 트랜잭션을 롤백시킨다 (D4).
+     * 트랜잭션을 롤백시킨다.
      */
     void apply(LeaveApplyCommand command);
 }

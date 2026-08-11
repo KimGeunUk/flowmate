@@ -105,7 +105,7 @@ class ApprovalServiceLeaveApplyIT {
     }
 
     @Test
-    @DisplayName("같은 결재를 두 번 반영해도 1회만 반영된다 (D2 — 조회 후 분기)")
+    @DisplayName("같은 결재를 두 번 반영해도 1회만 반영된다 (조회 후 분기)")
     void applyingTwiceDoesNotDoubleCount() {
         Long id = fullyApproveLeave(KWAK, LeaveType.ANNUAL, FRI, MON);
 

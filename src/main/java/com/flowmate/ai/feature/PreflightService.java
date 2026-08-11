@@ -85,23 +85,16 @@ public class PreflightService {
      * 사전 점검. WARN 이면 반환하기 전에 ai_preflight_result 에 저장하고 그 resultId 를
      * 함께 돌려준다({@code AiController} 가 '무시하고 상신' 요청에서 그 id 를 쓴다).
      *
-     * ★ 일부러 @Transactional 을 붙이지 않는다.
-     *   이 메서드는 DB 조회 → **LLM 네트워크 호출** → (WARN 일 때만) INSERT 순서로 돈다.
-     *   트랜잭션으로 묶으면 그 LLM 호출이 끝날 때까지 커넥션 풀의 커넥션 하나를 계속
-     *   붙잡고 있게 된다. 사전 점검은 상신할 때마다 도는데, 동시 상신이 몇 건만 겹쳐도
-     *   병목이 LLM 처리량이 아니라 **커넥션 풀 고갈**이 된다.
-     *   ResilientLlmClient 의 타임아웃이 30초이므로 최악의 경우 그만큼 점유한다.
+     * ★ 일부러 @Transactional 을 붙이지 않는다. 이 메서드는 조회 → **LLM 네트워크
+     *   호출** → (WARN 일 때만) INSERT 순서로 돈다. 트랜잭션으로 묶으면 LLM 호출이
+     *   끝날 때까지 커넥션 하나를 붙잡고 있게 되고(타임아웃이 30초다), 사전 점검은
+     *   상신할 때마다 도므로 동시 상신 몇 건이면 병목이 LLM 처리량이 아니라
+     *   커넥션 풀 고갈이 된다. 묶어서 얻는 것도 없다 - INSERT 는 한 문장이다.
      *
-     *   묶어서 얻는 것도 없다 - WARN 경로의 INSERT 는 한 문장이라 그 자체로 원자적이다.
-     *   같은 모양("조회 후 LLM 호출")인 SummaryService 도 @Transactional 을 쓰지 않는다.
-     *
-     * ★ 기능 플래그(커스터마이징 지점 5): {@code ai.features.preflight}
-     * 가 꺼져 있으면 즉시 빈 결과다 - llmClient 는 물론 반려 이력 집계·문서 조회도
-     * 하지 않는다. 이 empty 는 D8 이 이미 만들어 둔 "AI 실패 → 모달 없이 바로 상신"
-     * 경로를 그대로 탄다 - 즉 플래그를 끄는 것과 AI 가 실패하는 것은 화면 입장에서
-     * 같은 결과(모달이 뜨지 않는다)로 수렴한다. write.jsp 는 별도로 같은 플래그를
-     * 보고 사전점검 스크립트 자체를 등록하지 않으므로, 여기서 empty 를 돌려주는
-     * 것은 API 를 직접 두드리는 경우에 대한 방어선이다.
+     * ★ 기능 플래그(커스터마이징 지점 5)가 꺼져 있으면 즉시 빈 결과다 - 반려 이력
+     *   집계도 문서 조회도 하지 않는다. 화면은 별도로 같은 플래그를 보고 스크립트
+     *   자체를 등록하지 않으므로, 여기서 empty 를 주는 것은 API 를 직접 두드리는
+     *   경우에 대한 방어선이다.
      */
     public Optional<PreflightRecord> check(Long approvalId, Long viewerId) {
         if (!aiProperties.getFeatures().isPreflight()) {
@@ -193,7 +186,7 @@ public class PreflightService {
 
     /**
      * 구조화 출력이라도 응답 JSON 이 스키마를 벗어날 가능성은 남는다(SummaryService 와
-     * 같은 이유). 예외 대신 Optional.empty() 로 D8 원칙을 지킨다.
+     * 같은 이유). 예외 대신 Optional.empty() 로 폴백 원칙을 지킨다.
      *
      * ★ {@link LlmJson#mapper()} 를 쓴다 - 모델이 덤으로 붙인 필드 때문에 응답
      * 전체가 버려지지 않게 하려는 것이다(그 클래스 주석에 실제 사례가 있다).
