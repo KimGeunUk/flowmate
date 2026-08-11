@@ -92,7 +92,74 @@ docker compose up -d         # PostgreSQL + 외부 Tomcat 10.1, 빈 볼륨이면
 4종만 꺼지고 전자결재·근태관리는 전부 정상 동작합니다.
 
 <details>
-<summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / AI 켜기</summary>
+<summary><b>AI 기능까지 켜서 보려면</b> — Gemini 무료 키, 5분</summary>
+
+AI 기능 4종(문서 요약 · 상신 전 사전점검 · 기안 본문 제안 · 연차 맥락)을 실제로 보려면
+LLM API 키가 하나 필요합니다. 기본 제공자는 **Gemini** 입니다 — 무료 등급이 있어 결제 수단
+없이 시연할 수 있습니다.
+
+**1) 키 발급** — [Google AI Studio](https://aistudio.google.com/app/apikey) 에서 구글 계정으로
+로그인해 `Create API key` 를 누르면 `AIza...` 로 시작하는 문자열이 나옵니다.
+
+**2) 키 등록** — 둘 중 하나를 고릅니다.
+
+```powershell
+# (A) 이 창에서만 쓰기 — 창을 닫으면 사라집니다
+$env:GEMINI_API_KEY = 'AIza...'
+
+# (B) 계정에 저장해 두기 — 한 번만 하면 새 창에서도 삽니다
+[Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'AIza...', 'User')
+# 등록한 뒤 새 PowerShell 창을 열고:
+$env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
+```
+
+★ **키를 저장소 안에 두지 마십시오.** `.env` 도 `application.yml` 도 아닙니다. 이 프로젝트는
+키를 환경변수로만 받고, `docker-compose.yml` 은 그 값을 컨테이너로 넘기는 배선만 갖고
+있습니다 — 값 자체는 어디에도 커밋되지 않습니다.
+
+**3) 켜서 띄우기**
+
+```powershell
+$env:AI_ENABLED = 'true'
+docker compose up -d --force-recreate tomcat
+```
+
+**4) 확인** — 결재 문서 상세(예: `/approval/3`)를 열면 **AI 요약**이 실제 내용으로 채워집니다.
+기안 작성 화면에서 **[AI 제안 받기]** 를 누르면 초안이 나오고, 임시저장 문서에서 **상신**을
+누르면 사전점검 모달이 뜹니다.
+
+> 화면 요소 자체는 AI 를 꺼도 그대로 있습니다. 꺼진 상태에서는 요약 자리에 "일시적으로
+> 사용할 수 없습니다"가, 제안 버튼을 누르면 "제안을 가져오지 못했습니다"가 나옵니다 —
+> 어느 쪽이든 결재 작성·상신은 막히지 않습니다.
+
+**키가 없거나 잘못됐다면** 애플리케이션이 아예 뜨지 않습니다. Tomcat 은 살아 있으므로
+화면은 **404** 로 보이는데, 그때는 로그를 보면 원인이 한 줄로 나옵니다.
+
+```powershell
+docker logs flowmate-tomcat | Select-String 'ai.enabled=true'
+# ai.enabled=true 인데 환경변수 GEMINI_API_KEY 가 없습니다.
+# 키를 설정하거나 ai.enabled 를 false 로 두십시오.
+```
+
+일부러 이렇게 만들었습니다 — 조용히 넘어가면 설정 실수가 "AI 가 일시적으로 안 되는 것"과
+구별되지 않아 아무도 눈치채지 못한 채 AI 기능이 죽어 있게 됩니다(`LlmConfig` 참고).
+
+**다시 끄려면** 환경변수를 비우고 올리면 됩니다. 기본값이 꺼짐이므로 그냥
+`docker compose up -d --force-recreate tomcat` 만 해도 됩니다.
+
+```powershell
+$env:AI_ENABLED = ''
+docker compose up -d --force-recreate tomcat
+```
+
+**Claude(Anthropic)로 바꾸려면** `application.yml` 에서 `ai.provider` 를 `claude`,
+`ai.model` 을 `claude-opus-5` 로 함께 바꾸고 `ANTHROPIC_API_KEY` 를 같은 방식으로 넣습니다
+(모델명만 바꾸면 provider 가 그대로라 효과가 없습니다). 코드는 한 줄도 바뀌지 않습니다.
+
+</details>
+
+<details>
+<summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / 스키마 변경</summary>
 
 **WAR 를 먼저 빌드하는 이유** — 이 프로젝트의 산출물은 Spring Boot 실행형 jar 가 아니라
 **WAR** 입니다(외부 WAS 배포가 핵심 주장 중 하나). `docker-compose.yml` 은 이미 만들어진
@@ -109,15 +176,6 @@ docker compose up -d postgres
 .\mvnw.cmd test      # 단위 180건 (DB 불필요)
 .\mvnw.cmd verify    # 단위 + 통합 323건 (DB 기동 필요)
 ```
-
-**AI 기능 켜기** — 값은 저장소에 들어가지 않습니다. compose 를 실행하는 셸에만 넣습니다.
-```powershell
-$env:AI_ENABLED = 'true'
-$env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
-docker compose up -d --force-recreate tomcat
-```
-키가 없으면 **기동 자체가 실패**합니다 — 설정 실수가 "AI 일시 장애"로 위장되지 않게
-일부러 그렇게 만들었습니다.
 
 **스키마를 고쳤을 때만** 볼륨을 지우고 다시 올립니다.
 ```powershell
