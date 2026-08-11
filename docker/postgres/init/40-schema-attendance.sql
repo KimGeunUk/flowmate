@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS leave_request (
 );
 COMMENT ON TABLE  leave_request            IS '연차 신청서. approval_doc 의 유형별 확장 (docType=LEAVE)';
 COMMENT ON COLUMN leave_request.leave_type IS 'ANNUAL/HALF_AM/HALF_PM/SICK';
-COMMENT ON COLUMN leave_request.days       IS '0.5 단위. 서버가 영업일수로 계산한다 — 기안자가 입력하지 않는다 (D5)';
+COMMENT ON COLUMN leave_request.days       IS '0.5 단위. 서버가 영업일수로 계산한다 — 기안자가 입력하지 않는다';
 
 CREATE TABLE IF NOT EXISTS attendance (
     att_id           BIGSERIAL    PRIMARY KEY,
@@ -72,4 +72,4 @@ CREATE TABLE IF NOT EXISTS holiday (
     holiday_date DATE        PRIMARY KEY,
     holiday_name VARCHAR(50) NOT NULL
 );
-COMMENT ON TABLE holiday IS '공휴일. BusinessDayCalculator 가 주말과 함께 제외한다. 대체공휴일은 반영하지 않는다 (D5, B3) — 시드 파일 41 의 주석 참조';
+COMMENT ON TABLE holiday IS '공휴일. BusinessDayCalculator 가 주말과 함께 제외한다. 대체공휴일은 반영하지 않는다 — 시드 파일 41 의 주석 참조';

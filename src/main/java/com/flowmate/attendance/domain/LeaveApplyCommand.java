@@ -11,7 +11,7 @@ import java.time.LocalDate;
  * leave_request 테이블을 읽어야 하고, 그러면 attendance → approval 호출이
  * 생겨 의존이 양방향(순환)이 된다. 그래서 approval 이 자기 테이블을 읽어
  * 이 값을 조립해 넘기고, attendance 는 받은 값만 쓴다 — approvalId 는
- * leave_usage 에 남길 참조(중복 반영 방지 조회 키, D2)로만 쓰인다.
+ * leave_usage 에 남길 참조(중복 반영 방지 조회 키)로만 쓰인다.
  *
  * 불변 값 객체다 — approval.policy.ApproverCandidate(지점 1)와 같은 패턴.
  */

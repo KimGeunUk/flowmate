@@ -17,14 +17,11 @@ import org.springframework.context.annotation.Configuration;
  *
  *   ai.prompt-repository   file(기본값) | database
  *
- * ★ matchIfMissing 은 file 쪽에만 둔다(AttendancePolicyConfig 클래스 주석이 이미
- * 설명한 함정과 완전히 같다) - 두 쪽 다 두면 설정이 비어 있을 때 두 구현이
- * 동시에 매칭되어 NoUniqueBeanDefinitionException 이 컨텍스트 기동 시점에
- * 난다. mvnw test(컨텍스트를 띄우지 않는 단위 테스트)로는 잡히지 않고
- * mvnw verify(@SpringBootTest 통합 테스트)에서만 드러난다 - 그래서 이 프로젝트는
- * "정확히 한쪽에만 matchIfMissing" 규칙으로 원천 차단하고, PromptRepositoryConfigIT/
- * DatabasePromptRepositoryIT 가 각 설정에서 컨텍스트가 정상 기동하는 것으로
- * 그 규칙이 지켜졌음을 실제로 확인한다.
+ * ★ matchIfMissing 은 file 쪽에만 둔다 - 양쪽에 두면 설정이 비어 있을 때 두 구현이
+ * 동시에 매칭되어 기동 시점에 NoUniqueBeanDefinitionException 이 난다
+ * (AttendancePolicyConfig·LlmConfig 도 같은 규칙을 쓴다).
+ * PromptRepositoryConfigIT/DatabasePromptRepositoryIT 가 각 설정에서 컨텍스트가
+ * 실제로 뜨는 것을 확인한다.
  */
 @Configuration
 public class PromptRepositoryConfig {

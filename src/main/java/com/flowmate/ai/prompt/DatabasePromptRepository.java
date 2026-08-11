@@ -11,21 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * ({@link PromptRepository})의 두 번째 구현.
  * {@code ai.prompt-repository=database} 로 켠다 - {@code PromptRepositoryConfig} 참고.
  *
- * "나중에 DB 관리 화면으로 승격할 때 구현체만 교체하면 된다"는 설계를
- * 실현한 구현체다. 관리 화면 자체는 아직 만들지 않았다 - 지금은
- * 누구든 {@code ai_prompt} 행을 직접
- * 갱신하면(운영에서는 관리 화면이, 지금은 psql 이) 재배포 없이 프롬프트가
- * 바뀐다는 것만 증명한다.
+ * 관리 화면은 아직 없다 - 지금은 {@code ai_prompt} 행을 psql 로 고치면 재배포
+ * 없이 프롬프트가 바뀐다는 것까지 증명한다.
  *
- * ★ FilePromptRepository 와 똑같이 "읽은 것을 캐시"하되, 무기한이 아니라
- * {@link #DEFAULT_CACHE_TTL} 만큼만 캐시한다 - File 쪽과 다르게 간 결정이고
- * 이유가 있다: 이 구현체를 고르는 이유 자체가 "재배포 없이 프롬프트를 바꾼다"인데
- * 무기한 캐시하면 애플리케이션이 떠 있는 동안 그 값이 절대 안 바뀐다 - 관리
- * 화면에서 프롬프트를 고쳐도 재기동 전까지 반영되지 않아, 이 구현체를 고른
- * 이유 자체가 무효화된다. 그렇다고 매 호출마다 DB 를 때리면 SummaryService/
- * PreflightService 가 캐시 미스마다(요약은 매 신규 문서, 사전점검은 매 상신)
- * 프롬프트를 다시 조립하므로 I/O 가 상시로 늘어난다. 짧은 TTL 은 그 사이 -
- * {@code LEAVE_CONTEXT} 캐시에 쓴 것과 같은 절충이다.
+ * ★ File 구현과 달리 캐시에 TTL 을 둔다({@link #DEFAULT_CACHE_TTL}). 이 구현체를
+ * 고르는 이유 자체가 "재배포 없이 프롬프트를 바꾼다"인데 무기한 캐시하면 뜬
+ * 동안 값이 절대 안 바뀌어 그 이유가 무효가 된다. 반대로 매 호출마다 DB 를
+ * 때리면 캐시 미스마다 I/O 가 늘어난다. 짧은 TTL 이 그 사이다.
  */
 public class DatabasePromptRepository implements PromptRepository {
 

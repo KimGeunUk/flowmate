@@ -27,12 +27,12 @@ import com.flowmate.attendance.mapper.LeaveUsageMapper;
  * 깎였다" 같은 사고를 막을 수 있기 때문이다. 이 판단은 README에도 기록한다.
  *
  * 순서가 중요하다:
- *   1) 이미 반영됐는지 조회 (D2 — 제약 위반을 잡지 않는다) → 있으면 조용히 return
- *   2) leave_balance 를 FOR UPDATE 로 잠그고 읽는다 (D3, 잠금 순서 approval_doc → leave_balance)
- *   3) 잔여 검사 — 부족하면 IllegalStateException (D4)
+ *   1) 이미 반영됐는지 조회 (제약 위반을 잡지 않는다) → 있으면 조용히 return
+ *   2) leave_balance 를 FOR UPDATE 로 잠그고 읽는다 (잠금 순서 approval_doc → leave_balance)
+ *   3) 잔여 검사 — 부족하면 IllegalStateException
  *   4) used_days 갱신
  *   5) leave_usage 삽입
- *   6) 기간의 영업일마다 attendance UPSERT — status=LEAVE (반차는 HALF_LEAVE) (D6)
+ *   6) 기간의 영업일마다 attendance UPSERT — status=LEAVE (반차는 HALF_LEAVE)
  */
 @Service
 public class DefaultLeaveApplyService implements LeaveApplyService {
@@ -55,7 +55,7 @@ public class DefaultLeaveApplyService implements LeaveApplyService {
     @Override
     @Transactional
     public void apply(LeaveApplyCommand command) {
-        // 1) D2 — 제약 위반을 잡지 않는다. 먼저 조회해서 분기한다.
+        // 1) 제약 위반을 잡지 않는다. 먼저 조회해서 분기한다.
         //    ApprovalService.approve() 가 이미 approval_doc 행을 FOR UPDATE 로
         //    잠근 상태이므로, 같은 문서를 두 트랜잭션이 동시에 이 지점을
         //    통과할 수 없다 — 조회 후 삽입이 그 잠금 안에서는 안전하다.
@@ -65,7 +65,7 @@ public class DefaultLeaveApplyService implements LeaveApplyService {
 
         int year = command.getStartDate().getYear();
 
-        // 2) D3 — 잠금 순서는 approval_doc → leave_balance 로 고정한다.
+        // 2) 잠금 순서는 approval_doc → leave_balance 로 고정한다.
         //    approve() 가 먼저 문서를 잠그고 그 안에서 이 조회를 부르므로
         //    자연히 이 순서가 된다.
         LeaveBalance balance = leaveBalanceMapper.findForUpdate(command.getEmpId(), year);
@@ -74,7 +74,7 @@ public class DefaultLeaveApplyService implements LeaveApplyService {
                     "연차 잔여 정보가 없습니다: empId=" + command.getEmpId() + " year=" + year);
         }
 
-        // 3) D4 — 승인 시점의 권위 있는 검증이다. 기안 화면의 안내
+        // 3) 승인 시점의 권위 있는 검증이다. 기안 화면의 안내
         //    (ApprovalQueryService.exceedsBalance)는 우회 가능하지만, 잠금 안의
         //    이 검사는 우회할 수 없다. 상신과 승인 사이에 다른 문서가 승인되어
         //    잔여가 줄었을 수 있으므로 여기서 다시 확인한다.
@@ -101,7 +101,7 @@ public class DefaultLeaveApplyService implements LeaveApplyService {
         usage.setAppliedAt(LocalDateTime.now());
         leaveUsageMapper.insert(usage);
 
-        // 6) D6 — 영업일마다 UPSERT. ON CONFLICT 가 DB 안에서 해결하므로
+        // 6) 영업일마다 UPSERT. ON CONFLICT 가 DB 안에서 해결하므로
         //    여기서도 제약 위반을 잡지 않는다.
         String status = LeaveType.isHalfDay(command.getLeaveType())
                 ? AttendanceStatus.HALF_LEAVE

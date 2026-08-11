@@ -20,7 +20,7 @@ import com.flowmate.attendance.domain.LeaveType;
 
 /**
  * 기안 화면에서 docType=LEAVE 를 고르면 서버가 영업일수를 계산해 leave_request 에
- * 저장한다 (D5). 2026년 7월은 공휴일이 없으므로(HolidayMapperIT
+ * 저장한다. 2026년 7월은 공휴일이 없으므로(HolidayMapperIT
  * 로 확인됨) 그 달의 금~월(2026-07-03~07-06)을 경계 검증에 그대로 쓴다.
  *
  * 사원 18(곽수빈)로 기안한다 — 시드에 있는 실제 사원이다.

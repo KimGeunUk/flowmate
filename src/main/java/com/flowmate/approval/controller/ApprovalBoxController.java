@@ -88,7 +88,7 @@ public class ApprovalBoxController {
 
         // AI 요약 영역 자체의 노출 여부(커스터마이징
         // 지점 5) - SummaryService.summarize() 가 empty 를 돌려주는 것과는 별개다.
-        // empty 는 "AI 가 지금 실패했다"는 뜻으로 안내 문구를 보여주는 경로(D8)이고,
+        // empty 는 "AI 가 지금 실패했다"는 뜻으로 안내 문구를 보여주는 경로이고,
         // 이 플래그가 꺼진 것은 "이 기능 자체가 없다"는 뜻이라 영역이 아예 나타나지
         // 않아야 한다(오류가 아니라 부재) - 그래서 detail.jsp 가 이
         // 플래그를 별도로 보고 <section class="ai-summary-box"> 와 그 AJAX 스크립트

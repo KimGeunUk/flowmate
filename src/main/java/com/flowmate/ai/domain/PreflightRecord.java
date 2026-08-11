@@ -8,21 +8,14 @@ import java.util.List;
 /**
  * {@code ai_preflight_result} 행.
  *
- * ApprovalDoc 이 DB 컬럼과 "조회 표시용" 필드를 함께 갖는 것과 같은 방식으로,
- * 이 클래스도 두 종류의 필드를 섞는다:
- *   - DB 컬럼:      resultId · approvalId · verdict · findingsJson · ignoredYn · checkedAt
- *   - 표시/응답용:  findings (findingsJson 을 디코드하지 않고, PreflightService 가
- *                   LLM 응답을 파싱한 List<Finding> 을 그대로 채워 컨트롤러가
- *                   basedOnRejectCount 까지 포함한 구조화 JSON 을 화면에 돌려주게 한다)
+ * DB 컬럼과 응답용 필드를 함께 갖는다. findings 는 findingsJson 을 디코드한 것이
+ * 아니라 PreflightService 가 LLM 응답을 파싱한 값을 그대로 채운 것이고,
+ * findingsJson 은 REST 응답에서 뺀다({@code @JsonIgnore}) - 같은 내용이 중복이고
+ * JSON 안에 JSON 문자열을 얹으면 화면에서 다루기 번거롭다.
  *
- * findingsJson 은 REST 응답에 그대로 노출하지 않는다({@code @JsonIgnore}) - findings
- * 필드가 이미 같은 내용을 구조화된 형태로 담고 있어 중복이고, 원시 JSON 문자열을 다시
- * JSON 안에 문자열로 얹는 것은 화면 쪽에서 다루기 번거롭다.
- *
- * ★ PASS 판정은 이 테이블에 남기지 않는다(PreflightService 의 결정 - 어디에도 명시돼 있지
- * 않아 이 Phase 가 내린 선택). ai_preflight_result 의 존재 이유가 테이블 코멘트에 적힌
- * 대로 "경고를 무시하고 상신했는지 추적"이므로, 경고가 없었던 호출까지 남기면 그 측정의
- * 신호가 옅어진다. resultId 가 있는 행은 전부 "실제로 화면에 WARN 모달을 띄웠던 순간"이다.
+ * ★ PASS 판정은 이 테이블에 남기지 않는다. 이 표의 존재 이유가 "경고를 무시하고
+ * 상신했는지 추적"이므로 경고가 없던 호출까지 남기면 측정 신호가 옅어진다.
+ * 여기 있는 행은 전부 실제로 WARN 모달을 띄웠던 순간이다.
  */
 public class PreflightRecord implements Serializable {
 

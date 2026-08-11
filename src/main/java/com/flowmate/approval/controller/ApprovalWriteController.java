@@ -57,7 +57,7 @@ public class ApprovalWriteController {
         ApprovalForm form = new ApprovalForm();
         int year = Year.now().getValue();
         // 잔여는 docType 을 아직 고르지 않았어도 미리 보여준다 - 화면에서 LEAVE 를
-        // 고르는 순간 바로 참고할 수 있어야 한다 (D4의 안내 계층).
+        // 고르는 순간 바로 참고할 수 있어야 한다 - 어디까지나 안내이고, 권위 있는 검사는 승인 시점에 한다.
         LeaveBalance leaveBalance = leaveInquiryService.findBalance(loginEmployee.getEmpId(), year);
         model.addAttribute("leaveBalance", leaveBalance);
 

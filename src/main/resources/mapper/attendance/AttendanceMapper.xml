@@ -5,7 +5,7 @@
 
     <!--
       연차 반영 UPSERT. ON CONFLICT 가 DB 안에서 해결하므로
-      INSERT 실패를 잡아 판단하지 않는다(D2 와 같은 이유) — 트랜잭션을
+      INSERT 실패를 잡아 판단하지 않는다 — 트랜잭션을
       중단시키지 않는다. check_in/check_out/work_minutes/overtime_minutes 는
       건드리지 않는다 — 오전 출근을 찍고 오후에 반차를 낸 경우 그 값을
       지우면 안 된다.

@@ -26,12 +26,10 @@ import java.util.Optional;
  * 비용이 0이다 - 단, 그러려면 이 데코레이터가 MaskingLlmClient 보다 바깥에 있어야
  * 한다. 뒤집히면 캐시 테이블에 원문이 그대로 저장된다 (LlmChainIT 가 이 순서를 단정한다).
  *
- * ★ 기능별 TTL: 캐시 수명은 기능마다 달라야 한다 -
- *   요약(SUMMARY)은 완료된 문서가 안 바뀌므로 무기한, 연차 맥락(LEAVE_CONTEXT)은
- *   팀 부재 현황이 시시각각 바뀌므로 1시간이다. {@link #TTL_BY_FEATURE} 에 없는
- *   feature 는 무기한으로 취급한다 - SUMMARY 를 굳이 이 맵에 넣지 않는 이유다.
- *   만료 판정은 {@code ai_result_cache.created_at} 하나로 한다 - 별도 만료 컬럼을
- *   두지 않는다. 만료된 행은 미스와 완전히 같은 경로(위임 → 재저장)를 탄다.
+ * ★ 기능별 TTL: 요약은 완료된 문서가 바뀌지 않으므로 무기한, 연차 맥락은 팀 부재
+ *   현황이 시시각각 바뀌므로 1시간이다. {@link #TTL_BY_FEATURE} 에 없는 feature 는
+ *   무기한으로 본다. 만료 판정은 created_at 하나로 하고, 만료된 행은 미스와 같은
+ *   경로(위임 → 재저장)를 탄다.
  */
 public class CachingLlmClient implements LlmClient {
 
@@ -125,39 +123,25 @@ public class CachingLlmClient implements LlmClient {
         }
     }
 
+    /**
+     * 키를 이루는 다섯 조각은 모두 "이것이 달라지면 결과도 달라진다"는 값이다.
+     *
+     * ★ outputType — 입력이 같아도 반환 타입이 다르면 결과의 JSON 모양이 다르다.
+     *   키에 없으면 먼저 캐시된 옛 모양이 그대로 나오고, 화면은 새 필드를 읽다가
+     *   예외 없이 null 을 받는다. 전체 스키마 대신 클래스의 정규화된 이름만 쓴다 -
+     *   필드 변경은 보통 promptVersion 을 함께 올리는 흐름을 동반하므로, 여기서는
+     *   기능 간 충돌만 막으면 된다. simpleName 이 아니라 getName() 인 것은 서로
+     *   다른 패키지에 같은 이름의 POJO 가 생겨도 충돌하지 않게 하기 위해서다.
+     *
+     * ★ modelKey — 같은 프롬프트라도 누가 답했느냐에 따라 결과가 다르다. 이것이
+     *   없으면 ai.enabled 를 켜도 FakeLlmClient 가 만들어 둔 고정 응답이 영원히
+     *   나온다(claude ↔ gemini 를 바꾸는 경우도 같다). ai_result_cache 에 model
+     *   컬럼은 있는데 키에는 없던 것이 원래 상태였다.
+     */
     private String computeCacheKey(LlmRequest request) {
-        // ★ outputType 을 키에 넣는 이유 ("잊으면 조용히
-        //   틀린다"고 적어 둔 그 부채): 구조화 출력이 생기면 입력이 같아도 outputType 이
-        //   다르면 결과의 모양(JSON 스키마)이 다르다. outputType 이 키에 없으면 먼저 캐시된
-        //   옛 모양을 그대로 돌려주고, 화면은 새 필드를 읽다가 예외 없이 null 을 받는다.
-        //
-        //   전체 스키마를 해시하지 않고 클래스의 정규화된 이름(getName, 패키지 포함)만
-        //   쓰는 이유: POJO 필드가 바뀌는 것은 코드 변경이고, 코드 변경은 보통 프롬프트
-        //   버전을 함께 올리는 정상 흐름을 동반한다(promptVersion 이 이미 키에 있다).
-        //   클래스 이름은 그 흐름을 방해하지 않으면서 "이 캐시 항목이 어떤 기능의 어떤
-        //   반환 타입인지"만 구분해 기능 간 충돌을 막는 용도다 - 필드 단위 변경 추적까지
-        //   흉내내려는 것이 아니다. simpleName 이 아니라 패키지를 포함한 getName() 을
-        //   쓰는 이유는 서로 다른 패키지에 같은 단순 이름의 POJO 가 생겨도(예: 두 기능이
-        //   각자 Result 라는 이름을 쓰는 경우) 캐시 키가 충돌하지 않게 하기 위해서다.
         String outputTypeName = request.getOutputType() != null
                 ? request.getOutputType().getName()
                 : "TEXT";
-        //
-        // ★ modelKey 를 키에 넣는 이유 — promptVersion 을 넣은 것과 완전히 같은 이유다.
-        //   같은 프롬프트라도 누가 답했느냐에 따라 결과가 다르다. 그런데 이 키에
-        //   모델이 없으면, ai.enabled 를 false 에서 true 로 바꿔도 FakeLlmClient 가
-        //   만들어 둔 "[FAKE] 고정 응답입니다" 가 **영원히** 그대로 나온다.
-        //
-        //   실제로 겪었다. 컨테이너에 키를 넣고 AI 를 켠 뒤 요약을 불렀는데
-        //   summary 가 null 로 왔고 ai_call_log 에는 새 호출 기록조차 없었다 -
-        //   캐시가 먼저 답했기 때문이다. 그때 로그에 남은 것은 몇 시간 전
-        //   FakeLlmClient 가 남긴 10/10 토큰·2ms 짜리 행이었다.
-        //   claude <-> gemini 를 바꾸는 경우도 똑같다.
-        //
-        //   ai_result_cache 에 model 컬럼이 이미 있다는 것이 이 설계의 의도를
-        //   보여준다 - "어느 모델이 만든 결과인지"가 의미 있다고 보면서 키에는
-        //   넣지 않았던 것이다. 사전점검(PREFLIGHT)은 애초에 캐시하지 않으므로
-        //   이 문제를 겪지 않았고, 그래서 더 늦게 드러났다.
         String raw = request.getFeature() + ":" + request.getPromptVersion() + ":"
                 + modelKey + ":" + outputTypeName + ":" + request.getPrompt();
         try {
