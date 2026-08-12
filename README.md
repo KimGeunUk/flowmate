@@ -41,37 +41,32 @@
 
 ## 화면
 
-**내 결재함** — 탭마다 건수가 붙어 "지금 내가 처리할 것"이 바로 보입니다. 대기·반려처럼
-행동이 필요한 탭만 강조됩니다.
+**내 결재함** — 탭마다 건수가 붙어 "지금 내가 처리할 것"이 바로 보입니다. 대기·반려처럼 행동이 필요한 탭만 강조됩니다.
 
-![내 결재함](docs/images/01-box.png)
+![내 결재함](images/01-box.png)
 
-**기안 작성 — 지출결의** — 진행 단계(작성 → 임시저장 → 상신)를 먼저 보여주고, 문서 유형에
-따라 필요한 칸만 나타납니다. 지출결의에는 금액 칸이 있습니다.
+**기안 작성 — 지출결의** — 진행 단계(작성 → 임시저장 → 상신)를 먼저 보여주고, 문서 유형에따라 필요한 칸만 나타납니다. 
 
-![기안 작성 · 지출결의](docs/images/02-write-expense.png)
+![기안 작성 · 지출결의](images/02-write-expense.png)
 
-**기안 작성 — 연차신청** — 같은 화면인데 유형만 바꾼 것입니다. 금액 칸이 사라지고 잔여
-연차·기간·사유가 나타나며, 일수는 주말·공휴일을 빼고 서버가 계산합니다.
+**기안 작성 — 연차신청** — 금액 칸이 사라지고 잔여 연차·기간·사유가 나타나며, 일수는 주말·공휴일을 빼고 서버가 계산합니다.
 
-![기안 작성 · 연차신청](docs/images/03-write-leave.png)
+![기안 작성 · 연차신청](images/03-write-leave.png)
 
 **상신 전 사전점검** — 상신 버튼을 누른 순간, 같은 부서·같은 유형의 과거 반려를 집계해
 지적합니다. 지적마다 **"과거 반려 6건에 근거"** 처럼 숫자가 붙는 것이 이 기능의 핵심입니다.
 첨부가 0개라는 것은 본문이 아니라 **서버가 확인한 사실**을 근거로 짚습니다.
 무시하고 상신할 수도 있고, AI가 실패하면 모달 없이 그냥 상신됩니다.
 
-![상신 전 사전점검](docs/images/04-preflight.png)
+![상신 전 사전점검](images/04-preflight.png)
 
-**문서 상세 — 결재자 시점** — AI 요약, 결재선 진행 상태, 그리고 의견 칸 하나로 승인·반려를
-모두 처리하는 검토 영역.
+**문서 상세 — 결재자 시점** — AI 요약, 결재선 진행 상태, 그리고 의견 칸 하나로 승인·반려를 모두 처리하는 검토 영역입니다.
 
-![문서 상세](docs/images/05-detail-review.png)
+![문서 상세](images/05-detail-review.png)
 
-**내 근태** — 승인된 연차가 별도 입력 없이 `07-23` 에 반영돼 있습니다. 결재와 근태가 한
-트랜잭션이라는 이 프로젝트의 중심 주장이 화면으로 보이는 지점입니다.
+**내 근태**
 
-![내 근태](docs/images/06-attendance.png)
+![내 근태](images/06-attendance.png)
 
 ---
 
@@ -154,39 +149,6 @@ docker compose up -d --force-recreate tomcat
 
 </details>
 
-<details>
-<summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / 데이터 초기화</summary>
-
-**WAR 를 먼저 빌드하는 이유** — 이 프로젝트의 산출물은 Spring Boot 실행형 jar 가 아니라
-**WAR** 입니다(외부 WAS 배포가 핵심 주장 중 하나). `docker-compose.yml` 은 이미 만들어진
-WAR 를 외부 Tomcat 컨테이너에 얹기만 합니다.
-
-**로컬 개발** (내장 Tomcat, 빠른 재시작)
-```powershell
-docker compose up -d postgres
-.\mvnw.cmd spring-boot:run          # → http://localhost:8080/
-```
-
-**테스트**
-```powershell
-.\mvnw.cmd test      # 단위 186건 (DB 불필요)
-.\mvnw.cmd verify    # 단위 + 통합 345건 (DB 기동 필요)
-```
-
-**데이터를 원래대로 되돌리기** — 데모를 만지다 어질러졌을 때 씁니다.
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\reset-demo.ps1
-```
-DB 만 다시 만들고 시드를 재실행합니다. 볼륨과 컨테이너는 건드리지 않습니다.
-
-**스키마 파일 자체를 고쳤을 때만** 볼륨을 지우고 다시 올립니다. 초기화 스크립트는
-**빈 볼륨일 때만** 실행되기 때문입니다 — 이미 데이터가 있으면 통째로 건너뜁니다.
-```powershell
-docker compose down -v
-docker compose up -d
-```
-</details>
-
 ---
 
 ## 직접 해보기
@@ -245,7 +207,7 @@ docker compose up -d
     ↓
 [Mapper]  MyBatis 3 (인터페이스 + XML)
     ↓
-[PostgreSQL 16]  Oracle 대응은 docs/oracle-mapping.md
+[PostgreSQL 16]  전용 문법을 쓴 자리마다 Oracle 대응을 주석으로 남김
 ```
 
 **AI 게이트웨이** — 기능 4종이 이 뒤에 선다.
@@ -271,22 +233,6 @@ LlmClient 데코레이터 체인
 
 ---
 
-## 커스터마이징 지점
-
-그룹웨어는 회사마다 결재 규칙도 근무 시간도 다릅니다. 그런 것들을 코드가 아니라 설정으로
-바꿀 수 있게 미리 갈라 뒀습니다. **다섯 지점 모두 구현체를 2개씩 만들어 설정값 하나로
-교체되는 것을 테스트로 고정합니다** (같은 입력, 다른 설정 → 다른 결과).
-
-| # | 인터페이스 | 구현체 | 설정 키 |
-|---|---|---|---|
-| 1 | `ApprovalLinePolicy` | Default(부서 트리 + 임원) / SimpleTwoStep(부서장 1명) | `flowmate.approval.line-policy` |
-| 2 | `LeaveGrantPolicy` | Flat(전원 15일) / TenureBased(근속 비례) | `flowmate.attendance.leave-grant-policy` |
-| 3 | `WorkTimePolicy` | Default(09-18 고정) / Flexible(코어타임) | `flowmate.attendance.work-time-policy` |
-| 4 | `PromptRepository` | File(classpath) / Database(`ai_prompt`, 5분 TTL) | `ai.prompt-repository` |
-| 5 | `ai.features.*` | 기능별 on/off (summary · preflight · draft-hint · leave-context) | `ai.features.summary` 등 |
-
----
-
 ## 테스트
 
 | 구분 | 파일 규칙 | 실행 | DB |
@@ -301,7 +247,8 @@ DB 없이 도는 경계도 의도적으로 유지합니다 — 무너지면 순�
 
 실제 LLM 응답 품질은 **고정 평가셋 9건**으로 봅니다(사전점검 6 · 기안 제안 3).
 `@Tag("llm")` 이라 기본 빌드에서는 제외되고, 키가 있을 때만 수동으로 돕니다 —
-**사전점검 6/6 · 기안 제안 3/3**, 기록은 [`docs/ai-eval-results.md`](docs/ai-eval-results.md).
+**사전점검 6/6 · 기안 제안 3/3** 입니다. 처음부터 통과한 것은 아닙니다 — 프롬프트를
+세 번 고쳐 도달했고, 통과시키려고 기대치를 낮춘 적은 없습니다.
 
 <details>
 <summary>평가셋 수동 실행</summary>
@@ -317,12 +264,3 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 </details>
 
 ---
-
-## 더 보기
-
-| | |
-|---|---|
-| [`docs/design-notes.md`](docs/design-notes.md) | **설계 판단 9가지** — 각 결정에서 버린 대안과 그 이유. 알려진 제약도 함께 |
-| [`docs/oracle-mapping.md`](docs/oracle-mapping.md) | PostgreSQL 전용 문법을 쓸 때마다 그 자리에서 적어 둔 Oracle 대응표 |
-| [`docs/ai-eval-results.md`](docs/ai-eval-results.md) | AI 평가셋 실행 기록 — 실패 사례와 프롬프트 수정 내역까지 |
-| [`docs/superpowers/`](docs/superpowers/) | 원 설계서와 Phase별 계획서 (개발 과정 기록) |
