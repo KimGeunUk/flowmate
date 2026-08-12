@@ -3,6 +3,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: flowmate-postgres
+    # ★ 공개 배포에서 필요한 정책이다. cloudflared 는 Windows 서비스라 부팅 시
+    #   자동으로 뜨지만 Docker 는 그렇지 않다 - 이 정책이 없으면 Docker 가 다시
+    #   떠도 컨테이너는 Exited 로 남고, 그 사이 방문자는 502 를 본다.
+    #   터널만 살아 있고 원본이 죽은 상태가 제일 나쁜 인상이다.
+    #   unless-stopped 인 이유: 명시적으로 stop 한 것까지 되살리지는 않는다
+    #   (reset-demo.ps1 이 stop -> start 로 도는 것을 방해하지 않는다).
+    restart: unless-stopped
     environment:
       POSTGRES_DB: flowmate
       POSTGRES_USER: flowmate
@@ -35,6 +42,8 @@ services:
     # 프로젝트의 Tomcat 10.1 / Java 17 전제와 맞춘다 (pom.xml 의 tomcat-embed-* 10.1.55, provided).
     image: tomcat:10.1-jre17
     container_name: flowmate-tomcat
+    # postgres 와 같은 이유. depends_on 은 기동 순서만 정할 뿐 재시작을 보장하지 않는다.
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
