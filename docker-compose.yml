@@ -79,6 +79,9 @@ services:
       AI_FEATURES_PREFLIGHT: "${AI_FEATURES_PREFLIGHT:-true}"
       AI_FEATURES_DRAFTHINT: "${AI_FEATURES_DRAFTHINT:-true}"
       AI_FEATURES_LEAVECONTEXT: "${AI_FEATURES_LEAVECONTEXT:-true}"
+      # 하루 LLM 호출 상한. 0 = 무제한. 공개 배포에서는 반드시 실제 값을 준다.
+      # Spring 의 relaxed binding 으로 ai.daily-call-limit 에 매핑된다.
+      AI_DAILY_CALL_LIMIT: "${AI_DAILY_CALL_LIMIT:-0}"
     ports:
       # 로컬 spring-boot:run(내장 Tomcat, 8080)과 충돌하지 않도록 다른 포트로 발행한다.
       # ★ 127.0.0.1 에 묶는 이유: 외부 접근은 Cloudflare Tunnel 한 경로로만 받는다.

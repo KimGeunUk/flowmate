@@ -22,6 +22,11 @@ public class AiProperties {
     /** claude-opus-5 로 되돌리려면 ai.provider 를 claude 로 함께 바꿔야 한다 (모델명만 바꾸면 안 된다). */
     private String model = "gemini-3.5-flash-lite";
     private int timeoutSeconds = 30;
+    /**
+     * 하루 최대 LLM 호출 수. 0 이면 무제한이다(기본값 - 로컬 개발과 테스트에 영향이 없다).
+     * 공개 배포에서는 환경변수 AI_DAILY_CALL_LIMIT 으로 실제 값을 준다.
+     */
+    private int dailyCallLimit = 0;
     private Features features = new Features();
 
     public boolean isEnabled() {
@@ -54,6 +59,14 @@ public class AiProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    public int getDailyCallLimit() {
+        return dailyCallLimit;
+    }
+
+    public void setDailyCallLimit(int dailyCallLimit) {
+        this.dailyCallLimit = dailyCallLimit;
     }
 
     public Features getFeatures() {

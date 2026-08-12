@@ -7,10 +7,12 @@ import com.flowmate.ai.client.GeminiLlmClient;
 import com.flowmate.ai.client.LlmClient;
 import com.flowmate.ai.client.LoggingLlmClient;
 import com.flowmate.ai.client.MaskingLlmClient;
+import com.flowmate.ai.client.QuotaLlmClient;
 import com.flowmate.ai.client.ResilientLlmClient;
 import com.flowmate.ai.mapper.AiCallLogMapper;
 import com.flowmate.ai.mapper.AiResultCacheMapper;
 import com.flowmate.ai.mask.SensitiveDataMasker;
+import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,12 +24,17 @@ import org.springframework.core.env.Environment;
  * ★ 커스터마이징 지점 4의 배선 - AI 제공자 교체와 데코레이터 체인 조립.
  *
  * <pre>
- *   Caching (바깥)  히트하면 마스킹도 API 호출도 하지 않는다
- *     Masking       실제 호출 직전에 치환한다
- *       Logging     마스킹 이후라 로그에도 원문이 없다
- *         Resilient 타임아웃·예외를 흡수한다
- *           Claude / Gemini / Fake 중 하나
+ *   Caching (바깥)  히트하면 상한도 마스킹도 API 호출도 하지 않는다
+ *     Quota         실제로 API 를 때릴 것만 계수한다 (캐시 히트는 여기 못 온다)
+ *       Masking     실제 호출 직전에 치환한다
+ *         Logging   마스킹 이후라 로그에도 원문이 없다
+ *           Resilient 타임아웃·예외를 흡수한다
+ *             Claude / Gemini / Fake 중 하나
  * </pre>
+ *
+ * ★ Quota 가 Caching 안쪽인 것이 상한의 의미를 정한다 - 상한은 "요청 수"가 아니라
+ * "실제로 API 를 때린 수"다. 바깥에 두면 공짜인 캐시 히트가 상한을 갉아먹는다.
+ * QuotaChainIT 가 이 순서를 단정한다.
  *
  * ★ Masking 이 실제 호출보다 바깥인 것이 유출을 막는 지점이다. LLM 응답은 입력을
  * 인용할 수 있으므로(요약문에 계좌번호가 들어오는 것은 정상 동작이다) 마스킹이
@@ -59,6 +66,8 @@ public class LlmConfig {
                 Duration.ofSeconds(props.getTimeoutSeconds()));
         chain = new LoggingLlmClient(chain, logMapper);
         chain = new MaskingLlmClient(chain, masker);
+        chain = new QuotaLlmClient(chain, logMapper, props.getDailyCallLimit(),
+                Clock.systemDefaultZone());
         chain = new CachingLlmClient(chain, cacheMapper, modelKey(props));
         return chain;
     }
