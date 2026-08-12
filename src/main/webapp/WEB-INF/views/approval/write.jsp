@@ -28,6 +28,10 @@
             </c:choose>
         </h2>
 
+        <p class="demo-notice">
+            공개 데모입니다 — <strong>실제 개인정보(주민등록번호·계좌번호·연락처 등)를 입력하지 마세요.</strong>
+        </p>
+
         <ol class="doc-steps">
             <li class="doc-steps__item ${saved ? 'doc-steps__item--done' : 'doc-steps__item--current'}">
                 <span class="doc-steps__no">1</span>

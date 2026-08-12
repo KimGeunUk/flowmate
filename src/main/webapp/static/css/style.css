@@ -867,3 +867,24 @@ a:hover { text-decoration: underline; }
 /* 남이 나를 기다리는 건수 — 이것만 붉게 둔다 */
 .home-todo__item--urgent { border-color: var(--color-danger); }
 .home-todo__item--urgent .home-todo__count { color: var(--color-danger); }
+
+
+/* ── 공개 데모 안내 ─────────────────────────────────────────────
+   경고가 아니라 안내다. alert--error 와 색을 겹치지 않게 해서
+   "무언가 잘못됐다"로 읽히지 않도록 한다. */
+.demo-notice {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-text-muted);
+    border-radius: 4px;
+    background: var(--color-stripe);
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.demo-notice strong { color: var(--color-text); }
+
+/* 로그인 화면은 가운데 정렬이라 이 문단만 왼쪽으로 되돌린다 */
+.demo-notice--login { margin-top: 16px; text-align: left; }
