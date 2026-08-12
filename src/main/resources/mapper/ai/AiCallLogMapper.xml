@@ -12,4 +12,25 @@
              #{latencyMs}, #{successYn}, #{errorMsg})
     </insert>
 
+    <!--
+      경계를 파라미터로 받는 이유: CURRENT_DATE 를 쿼리 안에서 쓰면 "오늘"의 정의가
+      DB 서버 시각에 묶여 테스트가 스스로 조건을 만들 수 없다. 경계를 자바에서
+      계산해 넘기면 QuotaLlmClient 가 Clock 을 주입받아 시각을 통제할 수 있다.
+
+      flushCache="true" 인 이유: <select> 의 기본값은 false 라 같은 트랜잭션
+      안에서 두 번째 호출은 MyBatis 1차 캐시가 이전 결과를 그대로 돌려주고
+      DB 를 다시 읽지 않는다. insert 가 called_at 을 채우지 않으므로(스키마
+      DEFAULT NOW()) 경계 시각을 직접 지정해야 하는 테스트 픽스처는
+      JdbcTemplate 으로만 만들 수 있어 매퍼가 캐시를 비울 신호를 못 받는다.
+      지금 유일한 운영 기록 경로(LoggingLlmClient)는 이 매퍼의 insert 를
+      쓰므로 캐시가 자동으로 비워져 당장 버그는 아니다 - 나중에 다른 기록
+      경로가 생겨도 지출 상한 쿼리가 캐시된 값을 돌려주지 않도록 미리
+      막아두는 것이다.
+    -->
+    <select id="countSince" resultType="long" flushCache="true">
+        SELECT COUNT(*)
+          FROM ai_call_log
+         WHERE called_at &gt;= #{since}
+    </select>
+
 </mapper>

@@ -8,6 +8,7 @@ import com.flowmate.ai.domain.AiResultCache;
 import com.flowmate.ai.mapper.AiCallLogMapper;
 import com.flowmate.ai.mapper.AiResultCacheMapper;
 import com.flowmate.ai.mask.SensitiveDataMasker;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -130,6 +131,12 @@ class LlmConfigTest {
                 @Override
                 public void insert(AiCallLog log) {
                     // no-op - 이 테스트는 baseLlmClient 선택만 본다
+                }
+
+                @Override
+                public long countSince(LocalDateTime since) {
+                    // no-op - 이 테스트는 baseLlmClient 선택만 본다
+                    return 0;
                 }
             };
         }
