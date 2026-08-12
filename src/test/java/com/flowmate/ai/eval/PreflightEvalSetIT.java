@@ -25,7 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 고정 평가셋 5건.
+ * 고정 평가셋 6건.
  *
  * ★ {@code @Tag("llm")} - 실제 Gemini API 를 부른다. {@code pom.xml} 의 Failsafe
  * {@code excludedGroups=llm} 이 기본 빌드(mvnw clean verify, 키 없음)에서 이 클래스
@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <pre>
  * $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
  * .\mvnw.cmd verify "-Dit.test=PreflightEvalSetIT" "-Dgroups=llm" `
- *     "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
+ *     "-Dflowmate.eval.excludedGroups=" "-Dflowmate.test.ai.enabled=true"
  * </pre>
  *
  * (ai.provider 는 application.yml 기본값 gemini 를 그대로 쓴다.) ★ {@code -Dgroups=llm}
@@ -237,6 +237,46 @@ class PreflightEvalSetIT {
         assertThat(pass)
                 .as("잘 작성된 문서인데 findings 가 있습니다: %s", result.get().getFindings())
                 .isTrue();
+    }
+
+    @Test
+    @DisplayName("6. ★ 본문이 첨부를 언급하지 않고 실제 첨부도 0개인 고액 구매 -> 증빙 누락 지적(WARN)")
+    void case6_zeroAttachmentsWithoutAnyMentionInBody() {
+        // ★ 2번과 무엇이 다른가: 2번 본문에는 "영수증을 분실하여 첨부하지 못했습니다"라고
+        //   적혀 있다. 즉 작성자가 스스로 밝힌 것을 모델이 읽은 것이라, 사실은
+        //   "본문 독해"를 검증할 뿐이다. 그렇게 적어 두는 사람은 이미 알고 있는 사람이고,
+        //   정작 놓치는 사람은 첨부 얘기를 아예 안 쓴다.
+        //
+        // ★ 이 사례는 실제 사용 중에 드러난 구멍이다. 첨부 0개짜리 100만원 구매요청을
+        //   점검했는데 증빙 누락이 나오지 않았다. 모델 잘못이 아니었다 - 프롬프트에
+        //   첨부 정보가 아예 없었고, 규칙이 "본문에 없는 사실을 추측하지 말라"였으니
+        //   규칙을 지킨 것이다. PreflightService 가 [첨부 파일] 구간을 넘기도록 고쳤고,
+        //   이 테스트가 그 구간이 사라지면 걸리게 한다.
+        insertRejects(DocType.PURCHASE, 5L, FIN_REJECTOR, RejectReason.MISSING_EVIDENCE, 9);
+
+        Long approvalId = draft(FIN_DRAFTER, DocType.PURCHASE,
+                "개발용 노트북 구매 요청",
+                "[구매 개요]\n"
+                        + "품목: 개발용 노트북 1대\n"
+                        + "용도: 기존 장비 고장으로 인한 교체\n"
+                        + "구매처: (주)한빛전자유통\n\n"
+                        + "[금액]\n"
+                        + "총 구매 금액: 2,400,000원\n\n"
+                        + "[비고]\n"
+                        + "기존 노트북이 부팅되지 않아 업무에 지장이 있어 교체를 요청합니다.",
+                new BigDecimal("2400000"));
+        // 첨부를 하나도 넣지 않는다 - 본문도 첨부를 언급하지 않는다.
+        // 모델이 증빙 누락을 짚으려면 [첨부 파일] 구간을 근거로 삼는 수밖에 없다.
+
+        Optional<PreflightRecord> result = preflightService.check(approvalId, FIN_DRAFTER);
+
+        printResult(6, "첨부 0개·본문 무언급(WARN 기대)", result, approvalId);
+        assertThat(result).isPresent();
+        assertThat(result.get().getVerdict()).isEqualTo(PreflightVerdict.WARN);
+        assertThat(result.get().getFindings()).isNotEmpty();
+        assertThat(result.get().getFindings())
+                .as("첨부가 0개인데 증빙 누락을 짚지 못했습니다: %s", result.get().getFindings())
+                .anyMatch(f -> matchesCategory(f, RejectReason.MISSING_EVIDENCE));
     }
 
     /**

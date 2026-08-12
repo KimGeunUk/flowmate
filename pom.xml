@@ -38,6 +38,22 @@
           -Dgroups=llm (llm 태그만 켠다).
         -->
         <flowmate.eval.excludedGroups>llm</flowmate.eval.excludedGroups>
+        <!--
+          ★ 테스트는 ai.enabled 를 스스로 정한다 - 개발 PC 의 환경변수를 관찰하지 않는다.
+
+          공개 데모를 상시 운영하려면 AI_ENABLED=true 를 Windows 사용자 환경변수로
+          둬야 한다(그러지 않으면 셸마다 값이 달라 재배포할 때 조용히 AI 가 꺼진다).
+          그런데 Spring 은 환경변수를 application.yml 보다 우선하므로, 그 순간
+          mvnw verify 도 ai.enabled=true 로 돌아 버린다 - LlmConfigTest 가 깨지고,
+          키까지 사용자 환경에 있으므로 통합 테스트가 실제 API 를 때린다(요금).
+
+          Java 시스템 프로퍼티는 OS 환경변수보다 우선순위가 높으므로, 아래 두 플러그인이
+          이 값을 시스템 프로퍼티로 박아 환경변수를 무력화한다. 평가셋을 켤 때는
+          -Dai.enabled=true 가 아니라 이 프로퍼티를 쓴다(리터럴이 아니라 ${...} 인
+          이유는 위 excludedGroups 주석과 같다):
+            -Dflowmate.test.ai.enabled=true
+        -->
+        <flowmate.test.ai.enabled>false</flowmate.test.ai.enabled>
     </properties>
 
     <dependencies>
@@ -152,6 +168,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <!-- 환경변수 AI_ENABLED 를 무력화한다(properties 의 주석 참고) -->
+                    <systemPropertyVariables>
+                        <ai.enabled>${flowmate.test.ai.enabled}</ai.enabled>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
@@ -168,6 +188,11 @@
                       -Dgroups=llm 을 함께 줘서 반대로 켠다(properties 주석 참고).
                     -->
                     <excludedGroups>${flowmate.eval.excludedGroups}</excludedGroups>
+                    <!-- 환경변수 AI_ENABLED 를 무력화한다(properties 의 주석 참고).
+                         평가셋을 켤 때만 -Dflowmate.test.ai.enabled=true 로 뒤집는다. -->
+                    <systemPropertyVariables>
+                        <ai.enabled>${flowmate.test.ai.enabled}</ai.enabled>
+                    </systemPropertyVariables>
                 </configuration>
                 <executions>
                     <execution>

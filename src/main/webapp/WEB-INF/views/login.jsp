@@ -10,6 +10,11 @@
     <h1 class="login-box__title">FlowMate</h1>
     <p class="login-box__subtitle">AI 사전점검 그룹웨어</p>
 
+    <p class="demo-notice demo-notice--login">
+        데모 포트폴리오 데모입니다. 표시되는 인물·문서·근태는 모두 가상 데이터이며,
+        입력된 내용은 매일 새벽 초기화됩니다.
+    </p>
+
     <c:if test="${param.error != null}">
         <p class="alert alert--error">사원번호 또는 비밀번호가 올바르지 않습니다.</p>
     </c:if>

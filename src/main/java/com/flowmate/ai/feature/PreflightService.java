@@ -16,6 +16,7 @@ import com.flowmate.ai.mapper.PreflightResultMapper;
 import com.flowmate.ai.prompt.PromptRepository;
 import com.flowmate.approval.domain.ApprovalDoc;
 import com.flowmate.approval.domain.RejectReason;
+import com.flowmate.approval.mapper.ApprovalAttachmentMapper;
 import com.flowmate.approval.mapper.RejectHistoryMapper;
 import com.flowmate.approval.service.ApprovalQueryService;
 import com.flowmate.common.exception.ApprovalNotFoundException;
@@ -62,6 +63,7 @@ public class PreflightService {
     private final ApprovalQueryService approvalQueryService;
     private final RejectHistoryMapper rejectHistoryMapper;
     private final PreflightResultMapper preflightResultMapper;
+    private final ApprovalAttachmentMapper attachmentMapper;
     private final PromptRepository promptRepository;
     private final LlmClient llmClient;
     private final AiProperties aiProperties;
@@ -70,12 +72,14 @@ public class PreflightService {
     public PreflightService(ApprovalQueryService approvalQueryService,
                             RejectHistoryMapper rejectHistoryMapper,
                             PreflightResultMapper preflightResultMapper,
+                            ApprovalAttachmentMapper attachmentMapper,
                             PromptRepository promptRepository,
                             LlmClient llmClient,
                             AiProperties aiProperties) {
         this.approvalQueryService = approvalQueryService;
         this.rejectHistoryMapper = rejectHistoryMapper;
         this.preflightResultMapper = preflightResultMapper;
+        this.attachmentMapper = attachmentMapper;
         this.promptRepository = promptRepository;
         this.llmClient = llmClient;
         this.aiProperties = aiProperties;
@@ -153,7 +157,8 @@ public class PreflightService {
         String instructions = promptRepository.load(PROMPT_FEATURE, PROMPT_VERSION);
         String documentSection = "[문서 유형]\n" + doc.getDocTypeLabel()
                 + "\n\n[문서 제목]\n" + doc.getTitle()
-                + "\n\n[문서 본문]\n" + doc.getContent();
+                + "\n\n[문서 본문]\n" + doc.getContent()
+                + "\n\n" + buildAttachmentSection(approvalId);
         String patternsSection = buildPatternsSection(patterns);
 
         LlmRequest request = new LlmRequest();
@@ -164,6 +169,28 @@ public class PreflightService {
         request.setApprovalId(approvalId);
         request.setOutputType(PreflightResult.class);
         return request;
+    }
+
+    /**
+     * 첨부 유무를 사실로 알려 준다.
+     *
+     * ★ 이 구간이 없을 때 무슨 일이 있었나: 개발팀 구매요청의 반려 사유 1위가
+     *   증빙 누락(9건)인데, 첨부 0개짜리 고액 문서를 점검해도 모델이 그 항목을
+     *   짚지 못했다. 모델 잘못이 아니다 - 프롬프트에 첨부 정보가 없었고,
+     *   프롬프트 규칙이 "본문에 없는 사실을 추측하지 말라"이므로 규칙을 지킨 것이다.
+     *   그래서 이 기능은 작성자가 본문에 "영수증 미첨부"라고 적어 준 경우에만
+     *   증빙 누락을 잡을 수 있었다 - 정작 그렇게 적는 사람은 이미 알고 있는 사람이다.
+     *
+     * ★ 파일명을 넘기지 않고 개수만 넘긴다. 파일명에는 사람 이름·사번·거래처가
+     *   들어가기 쉬운데(예: "홍길동_주민등록등본.pdf"), 판단에 필요한 것은
+     *   "증빙이 붙어 있는가"이지 그 이름이 아니다.
+     */
+    private String buildAttachmentSection(Long approvalId) {
+        int count = attachmentMapper.findByApprovalId(approvalId).size();
+        if (count == 0) {
+            return "[첨부 파일]\n첨부된 파일이 없습니다. (0개)";
+        }
+        return "[첨부 파일]\n" + count + "개가 첨부되어 있습니다.";
     }
 
     /**

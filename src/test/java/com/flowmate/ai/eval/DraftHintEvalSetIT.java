@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <pre>
  * $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
  * .\mvnw.cmd verify "-Dit.test=DraftHintEvalSetIT" "-Dgroups=llm" `
- *     "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
+ *     "-Dflowmate.eval.excludedGroups=" "-Dflowmate.test.ai.enabled=true"
  * </pre>
  *
  * ★ 여기 있는 셋은 단위 테스트로 확인할 수 없는 것들이다 - 배선이 아니라 **모델이
