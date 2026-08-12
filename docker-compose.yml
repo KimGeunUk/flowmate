@@ -82,6 +82,8 @@ services:
       # 하루 LLM 호출 상한. 0 = 무제한. 공개 배포에서는 반드시 실제 값을 준다.
       # Spring 의 relaxed binding 으로 ai.daily-call-limit 에 매핑된다.
       AI_DAILY_CALL_LIMIT: "${AI_DAILY_CALL_LIMIT:-0}"
+      # 컨테이너 배포는 INFO 를 기본으로 한다. 로컬 mvnw spring-boot:run 은 영향 없음.
+      FLOWMATE_LOG_LEVEL: "${FLOWMATE_LOG_LEVEL:-INFO}"
     ports:
       # 로컬 spring-boot:run(내장 Tomcat, 8080)과 충돌하지 않도록 다른 포트로 발행한다.
       # ★ 127.0.0.1 에 묶는 이유: 외부 접근은 Cloudflare Tunnel 한 경로로만 받는다.

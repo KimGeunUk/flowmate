@@ -81,4 +81,7 @@ ai:
 
 logging:
   level:
-    com.flowmate: DEBUG
+    # 로컬 기본값은 DEBUG 로 둔다(개발 중 쿼리와 분기를 보려는 것이 목적).
+    # 공개 배포에서는 FLOWMATE_LOG_LEVEL=INFO 로 낮춘다 - DEBUG 는 디스크를 빠르게
+    # 채우고 파라미터를 포함한 상세 로그를 남긴다.
+    com.flowmate: ${FLOWMATE_LOG_LEVEL:DEBUG}
