@@ -12,7 +12,15 @@ services:
       # 한글 정렬·비교를 예측 가능하게 하려고 초기화 시 로케일을 고정한다
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "5432:5432"
+      # ★ 0.0.0.0 이 아니라 127.0.0.1 에 발행한다. Docker 의 기본값은 모든 인터페이스라,
+      #   이 호스트를 인터넷에 노출하는 순간 PostgreSQL 이 그대로 공개된다.
+      #   flowmate 계정은 initdb --username 으로 만든 부트스트랩 슈퍼유저이고, 비밀번호도
+      #   이 공개 저장소의 같은 파일에 평문으로 있다. 즉 뚫을 것도 없이, 닿기만 하면
+      #   COPY ... FROM PROGRAM 으로 컨테이너 안 명령 실행까지 이어진다.
+      #   호스트에서 도는 mvnw verify 와 psql 은 localhost 로 붙으므로 영향이 없다.
+      # ★ 다만 이 바인딩만으로 안전이 증명되지는 않는다 - 공유기 포트포워딩이나
+      #   오버레이 네트워크가 앞단에서 다시 열 수 있다. 배포 후 외부망에서 직접 확인한다.
+      - "127.0.0.1:5432:5432"
     volumes:
       # 알파벳 순으로 실행된다. 데이터 볼륨이 비어 있을 때만 실행되는 점에 주의.
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -73,7 +81,10 @@ services:
       AI_FEATURES_LEAVECONTEXT: "${AI_FEATURES_LEAVECONTEXT:-true}"
     ports:
       # 로컬 spring-boot:run(내장 Tomcat, 8080)과 충돌하지 않도록 다른 포트로 발행한다.
-      - "18080:8080"
+      # ★ 127.0.0.1 에 묶는 이유: 외부 접근은 Cloudflare Tunnel 한 경로로만 받는다.
+      #   cloudflared 는 같은 호스트에서 localhost:18080 으로 붙으므로 터널은 그대로 동작하고,
+      #   공유기 포트포워딩이나 방화벽 실수로 8080 이 열리는 사고가 원천 차단된다.
+      - "127.0.0.1:18080:8080"
     volumes:
       # 컨테이너가 WAR 파일을 수정할 이유가 없으므로 읽기 전용으로 마운트한다.
       # flowmate.war 로 배포해 컨텍스트 경로를 /flowmate 로 고정한다(검증 결과에 따른 선택).
