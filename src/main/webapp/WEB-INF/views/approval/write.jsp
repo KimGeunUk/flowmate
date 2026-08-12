@@ -196,8 +196,17 @@
                 <div class="form-row form-row--stack">
                     <label class="form-label" for="reason">사유 <span class="form-required">*</span></label>
                     <div class="form-field">
+                        <%--
+                          ★ required 를 여기 적지 않는다. 이 칸은 연차신청일 때만 필수인데,
+                            정적으로 붙여 두면 숨겨진 뒤에도 남아서 브라우저가 "포커스할 수
+                            없는 필수 항목"을 이유로 submit 을 조용히 거부한다 - 버튼을 눌러도
+                            아무 일도 안 일어나고 콘솔에만 메시지가 남는다.
+                            아래 applyDocType() 이 hidden 과 함께 켜고 끈다. 정적 HTML 을
+                            "필수 아님"으로 두는 쪽이 안전하다 - JS 가 실패해도 폼이
+                            잠기지는 않고, 값의 필수 여부는 어차피 서버가 다시 판정한다.
+                        --%>
                         <textarea class="form-input doc-form__content" id="reason" name="reason"
-                                  rows="8" maxlength="500" required
+                                  rows="8" maxlength="500"
                                   placeholder="결재자가 판단에 필요한 내용을 적어 주세요.&#10;예) 가족 여행으로 연차를 신청합니다. 진행 중인 업무는 8/11 까지 인계 예정입니다."><c:out value="${form.reason}"/></textarea>
                         <span class="form-hint" data-count-for="reason"></span>
                     </div>
@@ -357,6 +366,10 @@
             $('#leaveFields').prop('hidden', !usesLeave);
             // 연차신청은 사유가 본문을 대신한다 - 같은 것을 두 번 적게 하지 않는다
             $('#contentSection').prop('hidden', usesLeave);
+            // ★ hidden 과 required 는 반드시 함께 움직인다. 숨긴 칸에 required 가
+            //   남으면 브라우저가 submit 을 조용히 거부해 [임시저장] 이 죽는다
+            //   (연차신청 외 유형에서 저장이 안 되던 원인이 이것이었다).
+            $('#reason').prop('required', usesLeave);
 
             /*
              * 금액을 쓰지 않는 유형으로 **사용자가 바꿨을 때만** 값을 비운다.
