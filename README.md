@@ -2,9 +2,7 @@
 
 **전자결재 · 근태관리 그룹웨어 — 과거 반려 이력에 근거해 AI가 상신 전에 점검합니다.**
 
-> 이 프로젝트는 Claude(Claude Code)와 함께 만들었습니다. 설계·계획을 문서로 먼저 세우고
-> 구현을 지시하고 결과를 검증했으며, 그 과정이 [`docs/superpowers/`](docs/superpowers/) 에
-> 그대로 남아 있습니다.
+> 이 프로젝트는 Claude(Claude Code)와 함께 만들었습니다. 
 
 | | |
 |---|---|
@@ -14,7 +12,7 @@
 | **데이터** | PostgreSQL 16 · MyBatis 3 (인터페이스 + XML 매퍼) |
 | **AI** | Anthropic Java SDK 2.34 · Google Gen AI Java SDK 1.57 |
 | **빌드 · 실행** | Maven · Docker Compose (PostgreSQL + 외부 Tomcat) |
-| **테스트** | JUnit 5 · AssertJ · Surefire(단위) / Failsafe(통합) 분리 — **단위 180 · 통합 143** |
+| **테스트** | JUnit 5 · AssertJ · Surefire(단위) / Failsafe(통합) 분리 |
 
 
 ---
@@ -34,15 +32,12 @@
 
 > **"상신 버튼을 누르기 전에, 과거에 같은 부서·같은 유형에서 무엇 때문에 반려됐는지 알려주면 어떨까?"**
 
-그래서 이 프로젝트의 AI는 **근거 없는 말을 하지 않습니다.** `approval_reject_history` 에
-쌓인 실제 반려 유형을 집계해 같은 자료를 두 방향으로 씁니다.
+그래서 이 프로젝트의 AI는 **근거 없는 말을 하지 않도록 설계했습니다.** `approval_reject_history` 에 쌓인 실제 반려 유형을 집계해 같은 자료를 두 방향으로 씁니다.
 
 - **상신 전 점검** — *"이 지적은 과거 3건의 실제 반려에 근거한다"* 는 숫자와 함께 보여줍니다.
 - **본문 제안** — 그 부서에서 자주 빠뜨리는 항목이 들어가도록 뼈대를 잡아 줍니다.
   다만 문서를 대신 써 주지는 않습니다. 금액·거래처처럼 작성자만 아는 값은 지어내지 않고
   `[금액]` 처럼 자리표시자로 남깁니다.
-
-*"더 자세히 쓰세요"* 같은 일반론은 하지 않는 것이 두 기능 공통의 전제입니다.
 
 ## 화면
 
@@ -156,6 +151,39 @@ docker compose up -d --force-recreate tomcat
 `ai.model` 을 `claude-opus-5` 로 함께 바꾸고 `ANTHROPIC_API_KEY` 를 같은 방식으로 넣습니다
 (모델명만 바꾸면 provider 가 그대로라 효과가 없습니다). 코드는 한 줄도 바뀌지 않습니다.
 
+</details>
+
+<details>
+<summary>왜 WAR 를 먼저 빌드하나 / 로컬 개발 / 테스트 / 데이터 초기화</summary>
+
+**WAR 를 먼저 빌드하는 이유** — 이 프로젝트의 산출물은 Spring Boot 실행형 jar 가 아니라
+**WAR** 입니다(외부 WAS 배포가 핵심 주장 중 하나). `docker-compose.yml` 은 이미 만들어진
+WAR 를 외부 Tomcat 컨테이너에 얹기만 합니다.
+
+**로컬 개발** (내장 Tomcat, 빠른 재시작)
+```powershell
+docker compose up -d postgres
+.\mvnw.cmd spring-boot:run          # → http://localhost:8080/
+```
+
+**테스트**
+```powershell
+.\mvnw.cmd test      # 단위 186건 (DB 불필요)
+.\mvnw.cmd verify    # 단위 + 통합 345건 (DB 기동 필요)
+```
+
+**데이터를 원래대로 되돌리기** — 데모를 만지다 어질러졌을 때 씁니다.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\reset-demo.ps1
+```
+DB 만 다시 만들고 시드를 재실행합니다. 볼륨과 컨테이너는 건드리지 않습니다.
+
+**스키마 파일 자체를 고쳤을 때만** 볼륨을 지우고 다시 올립니다. 초기화 스크립트는
+**빈 볼륨일 때만** 실행되기 때문입니다 — 이미 데이터가 있으면 통째로 건너뜁니다.
+```powershell
+docker compose down -v
+docker compose up -d
+```
 </details>
 
 ---
@@ -288,3 +316,12 @@ $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','Us
 </details>
 
 ---
+
+## 더 보기
+
+| | |
+|---|---|
+| [`docs/design-notes.md`](docs/design-notes.md) | **설계 판단 9가지** — 각 결정에서 버린 대안과 그 이유. 알려진 제약도 함께 |
+| [`docs/oracle-mapping.md`](docs/oracle-mapping.md) | PostgreSQL 전용 문법을 쓸 때마다 그 자리에서 적어 둔 Oracle 대응표 |
+| [`docs/ai-eval-results.md`](docs/ai-eval-results.md) | AI 평가셋 실행 기록 — 실패 사례와 프롬프트 수정 내역까지 |
+| [`docs/superpowers/`](docs/superpowers/) | 원 설계서와 Phase별 계획서 (개발 과정 기록) |
