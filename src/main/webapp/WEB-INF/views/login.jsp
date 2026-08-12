@@ -11,8 +11,7 @@
     <p class="login-box__subtitle">AI 사전점검 그룹웨어</p>
 
     <p class="demo-notice demo-notice--login">
-        포트폴리오 데모입니다. 표시되는 인물·문서·근태는 모두 가상 데이터이며,
-        <strong>실제 개인정보를 입력하지 마세요.</strong>
+        데모 포트폴리오 데모입니다. 표시되는 인물·문서·근태는 모두 가상 데이터이며,
         입력된 내용은 매일 새벽 초기화됩니다.
     </p>
 

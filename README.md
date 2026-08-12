@@ -298,9 +298,9 @@ LlmClient 데코레이터 체인
 DB 없이 도는 경계도 의도적으로 유지합니다 — 무너지면 순수 로직 테스트가 컨테이너 기동에
 묶여 빠른 피드백을 잃습니다.
 
-실제 LLM 응답 품질은 **고정 평가셋 8건**으로 봅니다(사전점검 5 · 기안 제안 3).
+실제 LLM 응답 품질은 **고정 평가셋 9건**으로 봅니다(사전점검 6 · 기안 제안 3).
 `@Tag("llm")` 이라 기본 빌드에서는 제외되고, 키가 있을 때만 수동으로 돕니다 —
-**사전점검 5/5 · 기안 제안 3/3**, 기록은 [`docs/ai-eval-results.md`](docs/ai-eval-results.md).
+**사전점검 6/6 · 기안 제안 3/3**, 기록은 [`docs/ai-eval-results.md`](docs/ai-eval-results.md).
 
 <details>
 <summary>평가셋 수동 실행</summary>
@@ -308,7 +308,7 @@ DB 없이 도는 경계도 의도적으로 유지합니다 — 무너지면 순�
 ```powershell
 $env:GEMINI_API_KEY = [Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')
 .\mvnw.cmd verify "-Dit.test=*EvalSetIT" "-Dgroups=llm" `
-    "-Dflowmate.eval.excludedGroups=" "-Dai.enabled=true"
+    "-Dflowmate.eval.excludedGroups=" "-Dflowmate.test.ai.enabled=true"
 ```
 
 `-Dgroups=llm` 만으로는 부족합니다. `pom.xml` 의 `excludedGroups` 기본값이 이미 `llm` 이라,
