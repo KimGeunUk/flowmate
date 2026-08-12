@@ -62,7 +62,7 @@
       채워진 행으로 나온다 — 누락되지 않는다.
 
       CASE WHEN ... THEN 1 ELSE 0 END 로 세는 이유: COUNT(*) FILTER (WHERE ...)
-      도 같은 결과를 내지만 PostgreSQL 전용 문법이다(docs/oracle-mapping.md §1).
+      도 같은 결과를 내지만 PostgreSQL 전용 문법이다.
       CASE WHEN 은 Oracle 에서도 동일하게 동작해 이식 시 고칠 곳이 없다.
     -->
     <select id="findDeptMonthlySummary" resultType="DeptAttendanceRow">

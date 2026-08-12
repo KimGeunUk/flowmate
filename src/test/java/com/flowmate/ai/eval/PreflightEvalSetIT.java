@@ -322,7 +322,7 @@ class PreflightEvalSetIT {
     }
 
     /**
-     * 실행 결과를 콘솔에 출력한다 - {@code docs/ai-eval-results.md} 를 손으로 채울 때
+     * 실행 결과를 콘솔에 출력한다 - 평가 기록(저장소 밖)을 손으로 채울 때
      * 실제 모델 출력을 옮겨 적기 위한 것이다(수동 실행 로그를 읽어 기록한다).
      * 토큰 사용량은 {@code PreflightService.check()} 가 버리므로(응답 파싱 후 텍스트만
      * 쓴다) {@code ai_call_log} 에서 이 호출이 방금 남긴 최신 행을 다시 읽는다.

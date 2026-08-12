@@ -16,7 +16,7 @@
       use_yn = 'Y' 를 anchor 와 recursive term 양쪽에 두면
       사용하지 않는 부서의 하위 부서까지 자연히 제외된다 (서브트리에 도달하지 못한다).
 
-      Oracle 대응은 docs/oracle-mapping.md 참조 (WITH RECURSIVE → CONNECT BY PRIOR).
+      Oracle 로 이식할 때는 WITH RECURSIVE 를 CONNECT BY PRIOR 로 바꾼다.
     -->
     <select id="findDeptTree" resultType="DeptTreeItem">
         WITH RECURSIVE dept_tree AS (
